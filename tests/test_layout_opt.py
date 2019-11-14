@@ -4,7 +4,7 @@ from pytest import approx
 from hybrid.scenario import Scenario
 from parameters.parameter_data import get_input_output_data
 from defaults.defaults_data import wind_windsingleowner, Site
-import hybrid.wind.opt_tools as opt_tools
+import hybrid.opt_tools as opt_tools
 
 
 def run_wind_model(systems):

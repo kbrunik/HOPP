@@ -101,7 +101,7 @@ def run_hopp(technologies,
                                              input_info=input_data,
                                              output_info=output_data,
                                              run_systems=system_behaviors,
-                                             print_status=False)
+                                             print_status=True)
 
     # Get the optimal wind farm layout and update the scenario
     if run_wind_layout_opt and 'Wind' in scenario.systems:

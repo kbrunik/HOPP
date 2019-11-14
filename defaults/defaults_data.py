@@ -37,10 +37,8 @@ def update_site_default(default, site):
         default['Solar']['Pvsamv1']['SolarResource']['solar_resource_file'] = sr.filename
     if 'Wind' in default:
         height = default['Wind']['Windpower']['Turbine']['wind_turbine_hub_ht']
-        file = default['Wind']['Windpower']['Resource']['wind_resource_filename']
-        if not os.path.isfile(file):
-            wr = WindResource(lat=site['lat'], lon=site['lon'], year=site['year'], wind_turbine_hub_ht=height, download=True)
-            default['Wind']['Windpower']['Resource']['wind_resource_filename'] = wr.filename
+        wr = WindResource(lat=site['lat'], lon=site['lon'], year=site['year'], wind_turbine_hub_ht=height, download=False)
+        default['Wind']['Windpower']['Resource']['wind_resource_filename'] = wr.filename
     if 'Geothermal' in default:
         sr = SolarResource(lat=site['lat'], lon=site['lon'], year=site['year'], download=True)
         default['Geothermal']['Geothermal']['GeoHourly']['file_name'] = sr.filename

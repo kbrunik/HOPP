@@ -172,7 +172,7 @@
 	"equip_reserve_depr_sta" : 0,
 	"equip_reserve_depr_fed" : 0,
 	"salvage_percentage" : 0,
-	"ppa_soln_mode" : 0,
+	"ppa_soln_mode" : 1,
 	"ppa_price_input" : 0.059999998658895493,
 	"ppa_escalation" : 1,
 	"construction_financing_cost" : 581600,

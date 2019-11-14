@@ -3,7 +3,6 @@ this_directory = os.path.abspath(os.path.dirname(__file__))
 
 # variables in SAM GUI used to calculate the following powercurve:
 wind_default_rated_output = 2000
-wind_default_max_cp = 0.45
 wind_default_max_tip_speed = 80
 wind_default_max_tip_speed_ratio = 8
 wind_default_cut_in_speed = 4
@@ -51,7 +50,7 @@ yCoords = [0.0, 0.0, 0.0, 0.0, 0.0,
 wind_windsingleowner = {
     'Resource': {
         'wind_resource_model_choice': 0.0,
-        'wind_resource_filename': this_directory + '/../resource_files/wind/35.2018863_-101.945027_windtoolkit_2012_60min_80.0m.srw',
+        'wind_resource_filename': this_directory + '/../resource_files/39.7555_-105.2211_windtoolkit_2012_60min_80m.srw',
         'weibull_k_factor': 2.0,
         'weibull_reference_height': 50.0,
         'weibull_wind_speed': 7.25},
@@ -1811,7 +1810,7 @@ singleowner_windsingleowner = {
                      'equip_reserve_depr_fed': 0.0,
                      'equip_reserve_depr_sta': 0.0},
     'SalvageValue': {'salvage_percentage': 0.0},
-    'SolutionMode': {'ppa_soln_mode': 0},
+    'SolutionMode': {'ppa_soln_mode': 1.0},
     'PPAPrice': {'ppa_escalation': 1.0,
                  'ppa_price_input': 0.05999999865889549},
     'ConstructionFinancing': {'construction_financing_cost': 581600.0},

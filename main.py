@@ -11,6 +11,7 @@ This is a wrapper around the workflow of:
 import copy
 import math
 import os
+import pandas as pd
 
 from defaults.defaults_data import setup_defaults
 from hybrid.hopp import run_hopp
@@ -46,7 +47,6 @@ if __name__ == '__main__':
         optimal = []
         print('Solar percent: ' + str(solar_pct))
         technologies_am, defaults_am, Site = setup_defaults()
-        technologies_am = ['Wind', 'Solar', 'Generic']
         technologies = copy.deepcopy(technologies_am)
         defaults = copy.deepcopy(defaults_am)
 
@@ -56,7 +56,6 @@ if __name__ == '__main__':
 
         # update solar defaults
         defaults['Solar']['Singleowner']['SystemCosts']['total_installed_cost'] = solar_size_mw * 1000000 * 1.11
-        defaults['Solar']['Pvsamv1']['SystemDesign']['system_capacity'] = solar_size_mw * 1000
         nstrings = defaults["Solar"]["Pvsamv1"]["SystemDesign"]["subarray1_nstrings"]
         nstrings = math.ceil(nstrings * solar_size_mw / nameplate_mw)
         ninverters = defaults["Solar"]["Pvsamv1"]["SystemDesign"]["inverter_count"]

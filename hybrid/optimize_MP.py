@@ -17,7 +17,7 @@ def subspace_samples(boundaries, n_intervals_per_axis, tolerance, n_dim):
     return list(product(*arrays))
 
 
-def run_optimizer(boundaries, n_intervals_per_axis, tolerance, n_dim, id):
+def run_optimizer(defaults, input_data, output_info, run_systems, boundaries, n_intervals_per_axis, tolerance, n_dim, id):
     """
     Runs an instance of optimization on a subset of the sample space
     :param boundaries: min and max of vector values that can be sampled by this optimizer
@@ -28,30 +28,30 @@ def run_optimizer(boundaries, n_intervals_per_axis, tolerance, n_dim, id):
     :return: tuple: (max_output, max_coords, n_iteration, output_vec)
     """
     subsamples = subspace_samples(boundaries, n_intervals_per_axis, tolerance, n_dim)
-    # n_samples = len(subsamples)
-    # idx_interest = -1
-    #
-    # def gridded_sampling(_, n):
-    #     s = subsamples[n]
-    #     return s
-    #
-    # def eval_irr(vec):
-    #     return vec[idx_interest]
-    #
-    # def stop_after_all_samples(n, max, max2):
-    #     if n >= n_samples:
-    #         return True
-    #     else:
-    #         return False
-    #
-    # def save_outputs(n, sample, val):
-    #     all_outputs[id * n_samples + n] = val
-    #
-    # opt = Optimizer(defaults, input_data, output_info, run_systems)
-    # idx_interest = [i for i, x in enumerate(opt.scenario.outputs_names) if x == 'capacity_factor'][-1] # generic system capacity factor
-    # opt.setup(sampling_func=gridded_sampling, output_eval_func=eval_irr, stopping_cond=stop_after_all_samples,
-    #           output_store_func=save_outputs)
-    # return opt.optimize()
+    n_samples = len(subsamples)
+    idx_interest = -1
+
+    def gridded_sampling(_, n):
+        s = subsamples[n]
+        return s
+
+    def eval_irr(vec):
+        return vec[idx_interest]
+
+    def stop_after_all_samples(n, max, max2):
+        if n >= n_samples:
+            return True
+        else:
+            return False
+
+    def save_outputs(n, sample, val):
+        all_outputs[id * n_samples + n] = val
+
+    opt = Optimizer(defaults, input_data, output_info, run_systems)
+    idx_interest = [i for i, x in enumerate(opt.scenario.outputs_names) if x == 'capacity_factor'][-1] # generic system capacity factor
+    opt.setup(sampling_func=gridded_sampling, output_eval_func=eval_irr, stopping_cond=stop_after_all_samples,
+              output_store_func=save_outputs)
+    return opt.optimize()
 
 
 def init(all_outputs_shared):

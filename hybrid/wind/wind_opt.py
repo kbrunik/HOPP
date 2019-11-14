@@ -3,8 +3,8 @@ matplotlib.use('tkagg')
 import matplotlib.pyplot as plt
 import math
 
-import hybrid.wind.func_tools as func_tools
-import hybrid.wind.opt_tools as opt_tools
+import hybrid.func_tools as func_tools
+import hybrid.opt_tools as opt_tools
 
 from hybrid.scenario import *
 

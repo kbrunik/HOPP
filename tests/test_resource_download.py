@@ -1,13 +1,7 @@
 import pytest
-from pytest import approx
 import os
 
 from hybrid.resource import SolarResource, WindResource
-
-import PySAM.Windpower as wp
-import PySAM.Pvwattsv5 as pv
-
-dir_path = os.path.dirname(os.path.realpath(__file__))
 
 year = 2012
 lat = 39.7555
@@ -25,42 +19,14 @@ def wind_resource():
     return WindResource(lat=lat, lon=lon, year=year, wind_turbine_hub_ht=hubheight)
 
 
-def test_solar(solar_resource):
-    data = solar_resource.data
-    for key in ('df', 'dn', 'wspd', 'tdry', 'year', 'month', 'day', 'hour', 'minute', 'tz'):
-        assert(key in data)
-    model = pv.default("PVWattsNone")
-    model.LocationAndResource.solar_resource_file = solar_resource.filename
-    model.execute(0)
-    assert(model.Outputs.annual_energy == approx(5771.589))
-    model = pv.default("PVWattsNone")
-    model.LocationAndResource.solar_resource_data = solar_resource.data
-    model.execute(1)
-    assert(model.Outputs.annual_energy == approx(5771.803))
-
-
 def test_nsrdb(solar_resource):
     assert(solar_resource.download_solar_resource(force_download=True))
     assert(solar_resource.download_solar_resource(force_download=False))
 
 
-def test_wind(wind_resource):
-    data = wind_resource.data
-    for key in ('heights', 'fields', 'data'):
-        assert (key in data)
-    model = wp.default("WindPowerNone")
-    model.Resource.wind_resource_filename = wind_resource.filename
-    model.execute(0)
-    assert(model.Outputs.annual_energy == approx(85049139.587))
-    model = wp.default("WindPowerNone")
-    model.Resource.wind_resource_data = wind_resource.data
-    model.execute(0)
-    assert(model.Outputs.annual_energy == approx(85049139.587))
-
-
 def test_wind_toolkit(wind_resource):
-    assert(wind_resource.download_resource(force_download=True))
-    assert(wind_resource.download_resource(force_download=False))
+    assert(wind_resource.download_wind_resource(force_download=True))
+    assert(wind_resource.download_wind_resource(force_download=False))
 
 
 def test_wind_combine():

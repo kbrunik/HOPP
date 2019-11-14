@@ -103,7 +103,7 @@ generic_output = OrderedDict({
         'GenericSystem': [
             'annual_energy',        #: 'Hybrid Annual Energy (MWh)',
             'gen',                  # 'Hybrid Power Generated (kWac)',
-            'capacity_factor'       # 'Hybrid Capacity Factor (%)'
+            'capacity_factor'       # 'Hybrid Capacity Factor (%)',
         ],
         'Singleowner': [
             'ppa_price',            # : 'Hybrid PPA price ($/MWh)',
@@ -111,7 +111,9 @@ generic_output = OrderedDict({
             'npv_ppa_revenue',      #: NPV of all PPA revenue
             'npv_annual_costs',     #: NPV of all costs
             'project_return_aftertax_npv', #: NPV of project
-            'cf_total_revenue'      # total revenue
+            'cf_total_revenue',      # total revenue
+            'cost_installed',
+            'cost_prefinancing'
         ]
     }
 })

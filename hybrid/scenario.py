@@ -11,6 +11,8 @@ from hybrid.solar.layout import calculate_solar_extent
 from collections import OrderedDict
 from parameters.parameter_utils import *
 
+from hybrid_systems.parameters.parameter_utils import print_output_vals, save_output_array_vals
+
 
 class Scenario:
     """
@@ -30,7 +32,7 @@ class Scenario:
             coordinate_names:       List of the coordinate variables by name
             outputs_map:            Orderes the output variables into a tuple of (system, model, output)
     """
-    
+
     def __init__(self, defaults, input_data, output_info, system_behavior):
         """
         :param defaults: A nested dictionary with k:v = system: model: group: variable: value
@@ -50,11 +52,11 @@ class Scenario:
         self.coordinate_names = list()
         self.outputs_map = list()
         self.outputs_names = list()
-        
+
         self.map_parameters(input_data)
         self.map_outputs(output_info)
         self.vec_length = len(self.coordinate_names)
-    
+
     def initialize_default_models(self, defaults):
         """
         Creates the PySAM models and initializes their values with the provided defaults
@@ -66,13 +68,10 @@ class Scenario:
             self.systems[system] = OrderedDict()
             for model, defs in default_dict.items():
                 pysam_module = importlib.import_module("PySAM." + model)
-                if type(defs) == str:
-                    compute_module = pysam_module.default(defs)
-                else:
-                    compute_module = pysam_module.new()
-                    compute_module.assign(defs)
+                compute_module = pysam_module.new()
+                compute_module.assign(defs)
                 self.systems[system][model] = compute_module
-    
+
     def map_parameters(self, input_data):
         """
         Creates the mapping required to transform a dictionary of inputs into a normalized coordinate vector
@@ -98,7 +97,7 @@ class Scenario:
                                 self.coordinate_names.append(binary_var)
                         else:
                             raise ValueError("range info for a variable must be a list or a tuple")
-    
+
     def map_outputs(self, output_info):
         """
         Creates the mapping required to transform a dictionary of outputs into a normalized coordinate vector
@@ -112,7 +111,7 @@ class Scenario:
                 for value in values:
                     self.outputs_map.append((system, model, value))
                     self.outputs_names.append(value)
-    
+
     def undo_one_hot_encoding(self, coordinates, c):
         """
         Transforms the group of binary variables produced by one-hot back into a single discrete variable
@@ -122,9 +121,9 @@ class Scenario:
         """
         name_arr = self.coordinate_names[c].split('-')
         options = self.parameter_range[self.parameter_names.index(name_arr[0])]
-        argmax = np.argmax(coordinates[c:c + len(options)])
+        argmax = np.argmax(coordinates[c:c+len(options)])
         return name_arr[0], options[argmax]
-    
+
     def values_from_coordinates(self, coordinates):
         """
         From a normalized coordinate vector, compute the actual variable values
@@ -142,11 +141,11 @@ class Scenario:
                 parameter_values.append(opt)
                 c += len(self.parameter_range[p])
             else:
-                parameter_values.append((self.parameter_range[p][1] - self.parameter_range[p][0]) * coordinates[c]
-                                        + self.parameter_range[p][0])
+                parameter_values.append((self.parameter_range[p][1]-self.parameter_range[p][0])*coordinates[c]
+                                     + self.parameter_range[p][0])
                 c += 1
         return parameter_values
-    
+
     def input_data_from_coordinates(self, coordinates):
         """
         From a normalized coordinate vector, get a dictionary of input parameters
@@ -155,21 +154,21 @@ class Scenario:
         """
         sample = self.values_from_coordinates(coordinates)
         inputs = dict()
-        
+
         for i in range(len(self.parameter_names)):
             var_keys = self.parameter_map[i]
             if var_keys[0] not in inputs.keys():
                 inputs[var_keys[0]] = dict()
             if var_keys[1] not in inputs[var_keys[0]].keys():
                 inputs[var_keys[0]][var_keys[1]] = dict()
-            
+
             inputs_model = inputs[var_keys[0]][var_keys[1]]
             if var_keys[2] not in inputs_model.keys():
                 inputs_model[var_keys[2]] = dict()
-            
+
             inputs_model[var_keys[2]][var_keys[3]] = sample[i]
         return inputs
-    
+
     def setup_single(self, coordinates):
         """
         Assign the values of the system simulations
@@ -188,8 +187,8 @@ class Scenario:
             else:
                 group.__setattr__(param[3], sample_params[i])
             i += 1
-    
-    def run_single(self, get_output=True):
+
+    def run_single(self):
         """
         Run a scenario.
 
@@ -198,7 +197,7 @@ class Scenario:
         But realistically, energy markets will not support this PPA price, so we'll probably want to switch
         to a mode where SAM solves for the IRR given a reasonable PPA price, and then add any capacity value of the plant
         """
-        
+
         for system_name, models in self.systems.items():
             self.system_behavior[system_name](self.systems)
 
@@ -222,7 +221,7 @@ class Scenario:
         output_dict = dict()
         for i in range(len(self.outputs_map)):
             output_info = self.outputs_map[i]
-            
+
             if not output_info[0] in output_dict:
                 output_dict[output_info[0]] = dict()
             output_dict[output_info[0]][output_info[2]] = output_vec[i]
@@ -235,12 +234,12 @@ def run_default_scenario(defaults, input_info, output_info, run_systems, print_s
     default_scenario = Scenario(defaults, input_info, output_info, run_systems)
     output_vec = default_scenario.run_single()
     outputs = default_scenario.output_values(output_vec)
-    
+
     if print_status:
         print("Running Default Scenario:\n=========================\n")
         print('Outputs:')
         print_output_vals(outputs)
-        
+
         if 'Solar' in run_systems:
             solar_extent = calculate_solar_extent(defaults['Solar']['Pvsamv1'])
             print('Solar extent: %s' % (solar_extent,) + ' meters')

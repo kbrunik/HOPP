@@ -1,3 +1,8 @@
+from defaults.pv_singleowner import PV_pvsingleowner, Singleowner_pvsingleowner
+from defaults.wind_singleowner import wind_windsingleowner, singleowner_windsingleowner
+from defaults.genericsystem_singleowner import genericsystem_genericsystemsingleowner, battery_genericsystemsingleowner, \
+    singleowner_genericsystemsingleowner
+
 Site = {
     'site': {
         "lat": 39.7555,
