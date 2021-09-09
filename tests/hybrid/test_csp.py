@@ -1,11 +1,10 @@
 import pytest
 import pandas as pd
+import datetime
 
-# TODO: update with pySSC
-#import PySAM_DAOTk.TcsmoltenSalt as Tower
-#import PySAM_DAOTk.TroughPhysical as Trough
 
 from hybrid.sites import SiteInfo, flatirons_site
+from hybrid.csp_source import CspPlant
 from hybrid.tower_source import TowerPlant
 from hybrid.trough_source import TroughPlant
 
@@ -13,42 +12,23 @@ from hybrid.trough_source import TroughPlant
 def site():
     return SiteInfo(flatirons_site)
 
-def test_default_tower_model(site):
-    """Testing PySAM tower model using heuristic dispatch method """
-    tower_config = {'cycle_capacity_kw': 115 * 1000,
-                    'solar_multiple': 2.4,
-                    'tes_hours': 10.0}
+def test_pySSC_tower_model(site):
+    """Testing pySSC tower model"""
+    csp_config = {'cycle_capacity_kw': 110 * 1000,
+                    'solar_multiple': 2.0,
+                    'tes_hours': 6.0}   # NOTE: not being used yet
 
-    #filename = "C:/Users/WHamilt2/Documents/GitHub/HOPP/resource_files/solar/daggett_ca_34.865371_-116.783023_psmv3_60_tmy.csv"
+    csp = CspPlant(site, csp_config)
 
-    tower_model = Tower.default('MSPTSingleOwner')
-    # tower_model.value('solar_resource_file', filename)
-    # tower_model.execute()
-    # annual_energy = tower_model.value('annual_energy')  # 570167485.2074118
-    # print("CSP Tower annual energy (Daggett, CA): " + str(annual_energy))
-
-    # Getting default values
-    tower_config = {'cycle_capacity_kw': tower_model.value('P_ref') * 1000.,
-                    'solar_multiple': tower_model.value('solarm'),
-                    'tes_hours': tower_model.value('tshours')}
-
-    model = TowerPlant(site, tower_config)
-    print(str(model.value('disp_pc_onoff_perm', 0.0)))
-    print(str(model.value('disp_pc_onoff_perm')))
-    sr_data = model.value('solar_resource_data')
-    model.simulate(1)
-    print("CSP Tower annual energy (TowerPlant): " + str(model.value('annual_energy')))  # 512658870.449323
-
-    model._system_model.value('q_dot_pc_target_su') # daotk specific output
-
-    tower_model = Tower.default('MSPTSingleOwner')
-    tower_model.value('solar_resource_data', sr_data)
-    tower_model.execute()
-    annual_energy = tower_model.value('annual_energy')
-    print("CSP Tower annual energy (direct): " + str(annual_energy))  # 512658870.449323
-
-    assert annual_energy > 0.0  # make sure model generates useful energy
-    assert model.value('annual_energy') == pytest.approx(annual_energy, 1e-5)
+    start_datetime = datetime.datetime(2018, 10, 21, 0, 0, 0)               # start of first timestep
+    end_datetime = datetime.datetime(2018, 10, 24, 0, 0, 0)                 # end of last timestep
+    csp.initialize_params(keep_eta_flux_maps=True)
+    csp.ssc.set({'time_start': csp.seconds_since_newyear(start_datetime)})
+    csp.ssc.set({'time_stop': csp.seconds_since_newyear(end_datetime)})
+    csp.set_weather(csp.year_weather_df, start_datetime, end_datetime)
+    tech_outputs = csp.ssc.execute()
+    print('Three days all at once starting 10/21/2018, annual energy = {e:.0f} MWhe'.format(e=tech_outputs['annual_energy'] * 1.e-3))
+    pass
 
 
 def test_default_trough_model(site):

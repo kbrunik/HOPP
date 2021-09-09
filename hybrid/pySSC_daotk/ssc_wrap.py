@@ -5,11 +5,12 @@ c_number = c_double  # must be c_double or c_float depending on how defined in s
 import abc
 import importlib
 import copy
+
 PYSAM_MODULE_NAME = 'PySAM_DAOTk'
 # PYSAM_MODULE_NAME = 'PySAM'
-# SSCDLL_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), "ssc.dll")
+SSCDLL_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), "ssc.dll")
 # SSCDLL_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), "sscd.dll")
-SSCDLL_PATH = os.path.join(os.environ.get('SAMNTDIR'),'deploy/x64/ssc.dll')             # release
+# SSCDLL_PATH = os.path.join(os.environ.get('SAMNTDIR'),'deploy/x64/ssc.dll')             # release
 # SSCDLL_PATH = os.path.join(os.environ.get('SAMNTDIR'),'deploy/x64/sscd.dll')            # debug
 
 def ssc_wrap(wrapper, tech_name, financial_name, defaults_name=None, defaults=None):
