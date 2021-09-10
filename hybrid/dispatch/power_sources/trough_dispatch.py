@@ -23,6 +23,7 @@ class TroughDispatch(CspDispatch):
         cycle_rated_thermal = self._system_model.value('P_ref') / self._system_model.value('eta_ref')
         field_rated_thermal = self._system_model.value('specified_solar_multiple') * cycle_rated_thermal
         # TODO: This doesn't work with specified field area option
+        # FIX ME remove repeated code
 
         # TODO: set these values here
         # Cost Parameters
@@ -54,26 +55,26 @@ class TroughDispatch(CspDispatch):
         self.cycle_performance_slope = ((self.maximum_cycle_power - 0.0)  # TODO: need low point evaluated...
                                         / (self.maximum_cycle_thermal_power - self.minimum_cycle_thermal_power))
 
-    def update_time_series_dispatch_model_parameters(self, start_time: int):
-        """
-        This is where we need to simulate the future and capture performance for dispatch parameters
-        """
-        n_horizon = len(self.blocks.index_set())
-        self.time_duration = [1.0] * len(self.blocks.index_set())   # assume hourly for now
-        # Setting simulation times
-        time_start = start_time * 3600  # seconds since new year
-        # Handling end of simulation horizon
-        if start_time + n_horizon > 8760:
-            time_end = (start_time + (8760 - start_time)) * 3600
-        else:
-            time_end = (start_time + n_horizon) * 3600
-        self._system_model.value('time_start', time_start)
-        self._system_model.value('time_end', time_end)
-        self._system_model.execute()
-
-        # TODO: set up simulation for the next n_horizon...
-        #  Simulate and get outputs for the below values
-
-        self.available_thermal_generation = [0.0]*n_horizon
-        self.cycle_ambient_efficiency_correction = [1.0]*n_horizon
-        self.condenser_losses = [0.0]*n_horizon
+    # def update_time_series_dispatch_model_parameters(self, start_time: int):
+    #     """
+    #     This is where we need to simulate the future and capture performance for dispatch parameters
+    #     """
+    #     n_horizon = len(self.blocks.index_set())
+    #     self.time_duration = [1.0] * len(self.blocks.index_set())   # assume hourly for now
+    #     # Setting simulation times
+    #     time_start = start_time * 3600  # seconds since new year
+    #     # Handling end of simulation horizon
+    #     if start_time + n_horizon > 8760:
+    #         time_end = (start_time + (8760 - start_time)) * 3600
+    #     else:
+    #         time_end = (start_time + n_horizon) * 3600
+    #     self._system_model.value('time_start', time_start)
+    #     self._system_model.value('time_end', time_end)
+    #     self._system_model.execute()
+    #
+    #     # TODO: set up simulation for the next n_horizon...
+    #     #  Simulate and get outputs for the below values
+    #
+    #     self.available_thermal_generation = [0.0]*n_horizon
+    #     self.cycle_ambient_efficiency_correction = [1.0]*n_horizon
+    #     self.condenser_losses = [0.0]*n_horizon

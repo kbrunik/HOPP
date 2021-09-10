@@ -31,7 +31,7 @@ class CspPlant(PowerSource):
 
         :param trough_config: dict, with keys ('system_capacity_kw', 'solar_multiple', 'tes_hours')
         """
-        required_keys = ['system_capacity_kw', 'solar_multiple', 'tes_hours']
+        required_keys = ['cycle_capacity_kw', 'solar_multiple', 'tes_hours']
         if any(key not in csp_config.keys() for key in required_keys):
             is_missing = [key not in csp_config.keys() for key in required_keys]
             missing_keys = [missed_key for (missed_key, missing) in zip(required_keys, is_missing) if missing]
@@ -40,6 +40,7 @@ class CspPlant(PowerSource):
         self.name = name
         self.site = site
 
+        # TODO: Should we run a financial model with pySSC or pySAM?
         self._financial_model = financial_model
         self._layout = None
         self._dispatch = CspDispatch
@@ -54,7 +55,7 @@ class CspPlant(PowerSource):
         self.initialize_params()
         self.year_weather_df = self.tmy3_to_df()  # read entire weather file
 
-        self.system_capacity_kw: float = csp_config['system_capacity_kw']
+        self.cycle_capacity_kw: float = csp_config['cycle_capacity_kw']
         self.solar_multiple: float = csp_config['solar_multiple']
         self.tes_hours: float = csp_config['tes_hours']
 

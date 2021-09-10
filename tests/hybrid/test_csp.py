@@ -15,7 +15,7 @@ def site():
 
 def test_pySSC_tower_model(site):
     """Testing pySSC tower model using heuristic dispatch method"""
-    tower_config = {'system_capacity_kw': 100 * 1000,
+    tower_config = {'cycle_capacity_kw': 100 * 1000,
                     'solar_multiple': 2.0,
                     'tes_hours': 6.0}
 
@@ -32,7 +32,7 @@ def test_pySSC_tower_model(site):
     tech_outputs = csp.ssc.execute()
     print('Three days all at once starting 10/21/2018, annual energy = {e:.0f} MWhe'.format(e=tech_outputs['annual_energy'] * 1.e-3))
 
-    assert csp.cycle_capacity_kw == tower_config['system_capacity_kw']
+    assert csp.cycle_capacity_kw == tower_config['cycle_capacity_kw']
     assert csp.solar_multiple == tower_config['solar_multiple']
     assert csp.tes_hours == tower_config['tes_hours']
 
@@ -40,7 +40,7 @@ def test_pySSC_tower_model(site):
 
 def test_pySSC_trough_model(site):
     """Testing pySSC trough model using heuristic dispatch method"""
-    trough_config = {'system_capacity_kw': 100 * 1000,
+    trough_config = {'cycle_capacity_kw': 100 * 1000,
                      'solar_multiple': 1.5,
                      'tes_hours': 5.0}   # Different than json
 
@@ -60,7 +60,7 @@ def test_pySSC_trough_model(site):
     tech_outputs = csp.ssc.execute()
     print('Three days all at once starting 10/21/2018, annual energy = {e:.0f} MWhe'.format(e=tech_outputs['annual_energy'] * 1.e-3))
 
-    assert csp.cycle_capacity_kw == trough_config['system_capacity_kw']
+    assert csp.cycle_capacity_kw == trough_config['cycle_capacity_kw']
     assert csp.solar_multiple == trough_config['solar_multiple']
     assert csp.tes_hours == trough_config['tes_hours']
 
@@ -69,7 +69,7 @@ def test_pySSC_trough_model(site):
 
 def test_value_csp_call(site):
     """Testing csp override of PowerSource value()"""
-    trough_config = {'system_capacity_kw': 100 * 1000,
+    trough_config = {'cycle_capacity_kw': 100 * 1000,
                      'solar_multiple': 1.5,
                      'tes_hours': 5.0}
 

@@ -102,8 +102,9 @@ def test_hybrid(site):
     assert npvs.hybrid == pytest.approx(-19216589, 1e3)
 
 
-def test_hybrid_with_storage_dispatch(site):
-    hybrid_plant = HybridSimulation(technologies, site, interconnect_kw=interconnection_size_kw)
+def test_wind_pv_with_storage_dispatch(site):
+    wind_pv_battery = {key: technologies[key] for key in ('pv', 'wind', 'battery', 'grid')}
+    hybrid_plant = HybridSimulation(wind_pv_battery, site, interconnect_kw=interconnection_size_kw)
     hybrid_plant.ppa_price = (0.03, )
     hybrid_plant.pv.dc_degradation = [0] * 25
     hybrid_plant.simulate()
