@@ -32,8 +32,10 @@ class CspPlant(PowerSource):
         :param trough_config: dict, with keys ('system_capacity_kw', 'solar_multiple', 'tes_hours')
         """
         required_keys = ['system_capacity_kw', 'solar_multiple', 'tes_hours']
-        if all(key not in csp_config.keys() for key in required_keys):
-            raise ValueError
+        if any(key not in csp_config.keys() for key in required_keys):
+            is_missing = [key not in csp_config.keys() for key in required_keys]
+            missing_keys = [missed_key for (missed_key, missing) in zip(required_keys, is_missing) if missing]
+            raise ValueError(type(self).__name__ + " requires the following keys: " + str(missing_keys))
 
         self.name = name
         self.site = site
@@ -41,11 +43,6 @@ class CspPlant(PowerSource):
         self._financial_model = financial_model
         self._layout = None
         self._dispatch = CspDispatch
-
-        # TODO: Site should have dispatch factors consistent across all models
-
-
-
 
         # Initialize ssc and get weather data
         self.ssc = ssc_wrap(
@@ -56,7 +53,11 @@ class CspPlant(PowerSource):
         self.initialize_params(keep_eta_flux_maps=False)
         self.year_weather_df = self.tmy3_to_df()  # read entire weather file
 
-        # TODO: move to tower_source
+        self.system_capacity_kw: float = csp_config['system_capacity_kw']
+        self.solar_multiple: float = csp_config['solar_multiple']
+        self.tes_hours: float = csp_config['tes_hours']
+
+        # TODO: move to tower_source, How do layout the heliostat field based changes to the above outputs
         if self.ssc.tech_name == 'tcsmolten_salt':
             # Calculate flux and eta maps for all simulations
             start_datetime = datetime.datetime(1900, 1, 1, 0, 0, 0)  # start of first timestep
@@ -257,5 +258,53 @@ class CspPlant(PowerSource):
         newyear = datetime.datetime(2009, 1, 1, 0, 0, 0, 0)
         time_diff = dt.replace(year=2009) - newyear
         return int(time_diff.total_seconds())
+
+    @property
+    def system_capacity_kw(self) -> float:
+        return self.cycle_capacity_kw
+
+    @system_capacity_kw.setter
+    def system_capacity_kw(self, size_kw: float):
+        """
+        Sets the power cycle capacity and updates the system model
+        :param size_kw:
+        :return:
+        """
+        self.cycle_capacity_kw = size_kw
+
+    @property
+    def cycle_capacity_kw(self) -> float:
+        """ P_ref is in [MW] returning [kW] """
+        return self.ssc.get('P_ref') * 1000.
+
+    @cycle_capacity_kw.setter
+    def cycle_capacity_kw(self, size_kw: float):
+        """
+        Sets the power cycle capacity and updates the system model TODO:, cost and financial model
+        :param size_kw:
+        :return:
+        """
+        self.ssc.set({'P_ref': size_kw / 1000.})
+
+    @property
+    def solar_multiple(self) -> float:
+        raise NotImplementedError
+
+    @solar_multiple.setter
+    def solar_multiple(self, solar_multiple: float):
+        raise NotImplementedError
+
+    @property
+    def tes_hours(self) -> float:
+        return self.ssc.get('tshours')
+
+    @tes_hours.setter
+    def tes_hours(self, tes_hours: float):
+        """
+        Equivalent full-load thermal storage hours [hr]
+        :param tes_hours:
+        :return:
+        """
+        self.ssc.set({'tshours': tes_hours})
 
     # TODO: overwrite all setters and getters inherited by PowerSource

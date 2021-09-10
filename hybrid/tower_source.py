@@ -25,6 +25,7 @@ class TowerPlant(CspPlant):
         financial_model = Singleowner.default('MSPTSingleOwner')
 
         # set-up param file paths
+        # TODO: Site should have dispatch factors consistent across all models
         self.param_files = {'tech_model_params_path': 'tech_model_defaults.json',
                             'dispatch_factors_ts_path': 'dispatch_factors_ts.csv',
                             'ud_ind_od_path': 'ud_ind_od.csv',
@@ -37,41 +38,9 @@ class TowerPlant(CspPlant):
 
         self._dispatch: TowerDispatch = None
 
-        # TODO: updated these
-        # self.cycle_capacity_kw: float = tower_config['cycle_capacity_kw']
-        # self.solar_multiple: float = tower_config['solar_multiple']
-        # self.tes_hours: float = tower_config['tes_hours']
-
-    @property
-    def system_capacity_kw(self) -> float:
-        return self.cycle_capacity_kw
-
-    @system_capacity_kw.setter
-    def system_capacity_kw(self, size_kw: float):
-        """
-        Sets the power cycle capacity and updates the system model
-        :param size_kw:
-        :return:
-        """
-        self.cycle_capacity_kw = size_kw
-
-    @property
-    def cycle_capacity_kw(self) -> float:
-        """ P_ref is in [MW] returning [kW] """
-        return self._system_model.SystemDesign.P_ref * 1000.
-
-    @cycle_capacity_kw.setter
-    def cycle_capacity_kw(self, size_kw: float):
-        """
-        Sets the power cycle capacity and updates the system model TODO:, cost and financial model
-        :param size_kw:
-        :return:
-        """
-        self._system_model.SystemDesign.P_ref = size_kw / 1000.
-
     @property
     def solar_multiple(self) -> float:
-        return self._system_model.SystemDesign.solarm
+        return self.ssc.get('solarm')
 
     @solar_multiple.setter
     def solar_multiple(self, solar_multiple: float):
@@ -81,17 +50,4 @@ class TowerPlant(CspPlant):
         :param solar_multiple:
         :return:
         """
-        self._system_model.SystemDesign.solarm = solar_multiple
-
-    @property
-    def tes_hours(self) -> float:
-        return self._system_model.SystemDesign.tshours
-
-    @tes_hours.setter
-    def tes_hours(self, tes_hours: float):
-        """
-        Equivalent full-load thermal storage hours [hr]
-        :param tes_hours:
-        :return:
-        """
-        self._system_model.SystemDesign.tshours = tes_hours
+        self.ssc.set({'solarm': solar_multiple})

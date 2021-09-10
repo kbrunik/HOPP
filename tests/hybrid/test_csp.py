@@ -12,11 +12,12 @@ from hybrid.trough_source import TroughPlant
 def site():
     return SiteInfo(flatirons_site)
 
+
 def test_pySSC_tower_model(site):
     """Testing pySSC tower model using heuristic dispatch method"""
-    tower_config = {'cycle_capacity_kw': 110 * 1000,
+    tower_config = {'system_capacity_kw': 100 * 1000,
                     'solar_multiple': 2.0,
-                    'tes_hours': 6.0}   # NOTE: not being used yet
+                    'tes_hours': 6.0}
 
     expected_energy = 5512681.74
 
@@ -24,34 +25,46 @@ def test_pySSC_tower_model(site):
 
     start_datetime = datetime.datetime(2018, 10, 21, 0, 0, 0)               # start of first timestep
     end_datetime = datetime.datetime(2018, 10, 24, 0, 0, 0)                 # end of last timestep
-    csp.initialize_params(keep_eta_flux_maps=True)
+    #csp.initialize_params(keep_eta_flux_maps=True)
     csp.ssc.set({'time_start': csp.seconds_since_newyear(start_datetime)})
     csp.ssc.set({'time_stop': csp.seconds_since_newyear(end_datetime)})
     csp.set_weather(csp.year_weather_df, start_datetime, end_datetime)
     tech_outputs = csp.ssc.execute()
     print('Three days all at once starting 10/21/2018, annual energy = {e:.0f} MWhe'.format(e=tech_outputs['annual_energy'] * 1.e-3))
+
+    # TODO: this test fails due to calculating flux calls initialize_params
+    assert csp.cycle_capacity_kw == tower_config['system_capacity_kw']
+    assert csp.solar_multiple == tower_config['solar_multiple']
+    assert csp.tes_hours == tower_config['tes_hours']
 
     assert tech_outputs['annual_energy'] == pytest.approx(expected_energy, 1e-5)
 
 
 def test_pySSC_trough_model(site):
     """Testing pySSC trough model using heuristic dispatch method"""
-    trough_config = {'cycle_capacity_kw': 110 * 1000,
-                    'solar_multiple': 2.0,
-                    'tes_hours': 6.0}   # NOTE: not being used yet
+    trough_config = {'system_capacity_kw': 100 * 1000,
+                    'solar_multiple': 1.5,
+                    'tes_hours': 5.0}   # Different than json
 
-    expected_energy = 3170500.729
+    expected_energy = 2100886.0210265624
 
     csp = TroughPlant(site, trough_config)
 
     start_datetime = datetime.datetime(2018, 10, 21, 0, 0, 0)               # start of first timestep
     end_datetime = datetime.datetime(2018, 10, 24, 0, 0, 0)                 # end of last timestep
-    csp.initialize_params(keep_eta_flux_maps=True)
+
+    #csp.initialize_params(keep_eta_flux_maps=True)
+    # TODO: when does this need to be called? Does this have to be called before each simulation?
+    #  If so, we need to store the variables within the clase
     csp.ssc.set({'time_start': csp.seconds_since_newyear(start_datetime)})
     csp.ssc.set({'time_stop': csp.seconds_since_newyear(end_datetime)})
     csp.set_weather(csp.year_weather_df, start_datetime, end_datetime)
     tech_outputs = csp.ssc.execute()
     print('Three days all at once starting 10/21/2018, annual energy = {e:.0f} MWhe'.format(e=tech_outputs['annual_energy'] * 1.e-3))
+
+    assert csp.cycle_capacity_kw == trough_config['system_capacity_kw']
+    assert csp.solar_multiple == trough_config['solar_multiple']
+    assert csp.tes_hours == trough_config['tes_hours']
 
     assert tech_outputs['annual_energy'] == pytest.approx(expected_energy, 1e-5)
 

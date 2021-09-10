@@ -25,11 +25,11 @@ class TroughPlant(CspPlant):
         financial_model = Singleowner.default('PhysicalTroughSingleOwner')
 
         # set-up param file paths
+        # TODO: Site should have dispatch factors consistent across all models
         self.param_files = {'tech_model_params_path': 'tech_model_defaults.json',
                             'dispatch_factors_ts_path': 'dispatch_factors_ts.csv',
                             'ud_ind_od_path': 'ud_ind_od.csv',
-                            'wlim_series_path': 'wlim_series.csv',
-                            'helio_positions_path': ''}
+                            'wlim_series_path': 'wlim_series.csv'}
         rel_path_to_param_files = os.path.join('pySSC_daotk', 'trough_data')
         self.param_file_paths(rel_path_to_param_files)
 
@@ -37,10 +37,7 @@ class TroughPlant(CspPlant):
 
         self._dispatch: TroughDispatch = None
 
-        # TODO: updated these
-        # self.cycle_capacity_kw: float = trough_config['cycle_capacity_kw']
-        # self.solar_multiple: float = trough_config['solar_multiple']
-        # self.tes_hours: float = trough_config['tes_hours']
+
 
 
     def simulate_with_dispatch(self, n_periods: int, sim_start_time: int = None):
@@ -49,37 +46,9 @@ class TroughPlant(CspPlant):
         """
         pass
 
-
-    @property
-    def system_capacity_kw(self) -> float:
-        return self.cycle_capacity_kw
-
-    @system_capacity_kw.setter
-    def system_capacity_kw(self, size_kw: float):
-        """
-        Sets the power cycle capacity and updates the system model
-        :param size_kw:
-        :return:
-        """
-        self.cycle_capacity_kw = size_kw
-
-    @property
-    def cycle_capacity_kw(self) -> float:
-        """ P_ref is in [MW] returning [kW] """
-        return self._system_model.Powerblock.P_ref * 1000.
-
-    @cycle_capacity_kw.setter
-    def cycle_capacity_kw(self, size_kw: float):
-        """
-        Sets the power cycle capacity and updates the system model TODO:, cost and financial model
-        :param size_kw:
-        :return:
-        """
-        self._system_model.Powerblock.P_ref = size_kw / 1000.
-
     @property
     def solar_multiple(self) -> float:
-        return self._system_model.Controller.specified_solar_multiple
+        return self.ssc.get('specified_solar_multiple')
 
     @solar_multiple.setter
     def solar_multiple(self, solar_multiple: float):
@@ -89,17 +58,4 @@ class TroughPlant(CspPlant):
         :param solar_multiple:
         :return:
         """
-        self._system_model.Controller.specified_solar_multiple = solar_multiple
-
-    @property
-    def tes_hours(self) -> float:
-        return self._system_model.TES.tshours
-
-    @tes_hours.setter
-    def tes_hours(self, tes_hours: float):
-        """
-        Equivalent full-load thermal storage hours [hr]
-        :param tes_hours:
-        :return:
-        """
-        self._system_model.TES.tshours = tes_hours
+        self.ssc.set({'specified_solar_multiple': solar_multiple})
