@@ -19,26 +19,24 @@ def test_pySSC_tower_model(site):
                     'solar_multiple': 2.0,
                     'tes_hours': 6.0}
 
-    expected_energy = 5512681.74
+    expected_energy = 4265347.56120
 
     csp = TowerPlant(site, tower_config)
 
     start_datetime = datetime.datetime(2018, 10, 21, 0, 0, 0)               # start of first timestep
     end_datetime = datetime.datetime(2018, 10, 24, 0, 0, 0)                 # end of last timestep
-    #csp.initialize_params(keep_eta_flux_maps=True)
+    # csp.initialize_params(keep_eta_flux_maps=True) # Will result in design variables to be overwritten
     csp.ssc.set({'time_start': csp.seconds_since_newyear(start_datetime)})
     csp.ssc.set({'time_stop': csp.seconds_since_newyear(end_datetime)})
     csp.set_weather(csp.year_weather_df, start_datetime, end_datetime)
     tech_outputs = csp.ssc.execute()
     print('Three days all at once starting 10/21/2018, annual energy = {e:.0f} MWhe'.format(e=tech_outputs['annual_energy'] * 1.e-3))
 
-    # TODO: this test fails due to calculating flux calls initialize_params
     assert csp.cycle_capacity_kw == tower_config['system_capacity_kw']
     assert csp.solar_multiple == tower_config['solar_multiple']
     assert csp.tes_hours == tower_config['tes_hours']
 
     assert tech_outputs['annual_energy'] == pytest.approx(expected_energy, 1e-5)
-
 
 def test_pySSC_trough_model(site):
     """Testing pySSC trough model using heuristic dispatch method"""
@@ -55,7 +53,7 @@ def test_pySSC_trough_model(site):
 
     #csp.initialize_params(keep_eta_flux_maps=True)
     # TODO: when does this need to be called? Does this have to be called before each simulation?
-    #  If so, we need to store the variables within the clase
+    #  If so, we need to store the variables within the class
     csp.ssc.set({'time_start': csp.seconds_since_newyear(start_datetime)})
     csp.ssc.set({'time_stop': csp.seconds_since_newyear(end_datetime)})
     csp.set_weather(csp.year_weather_df, start_datetime, end_datetime)

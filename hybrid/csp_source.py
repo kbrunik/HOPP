@@ -50,19 +50,12 @@ class CspPlant(PowerSource):
             tech_name=tech_name,  # ['tcsmolten_salt' | 'trough_physical]
             financial_name=None,
             defaults_name=None)  # ['MSPTSingleOwner' | 'PhysicalTroughSingleOwner']  NOTE: not used for pyssc
-        self.initialize_params(keep_eta_flux_maps=False)
+        self.initialize_params()
         self.year_weather_df = self.tmy3_to_df()  # read entire weather file
 
         self.system_capacity_kw: float = csp_config['system_capacity_kw']
         self.solar_multiple: float = csp_config['solar_multiple']
         self.tes_hours: float = csp_config['tes_hours']
-
-        # TODO: move to tower_source, How do layout the heliostat field based changes to the above outputs
-        if self.ssc.tech_name == 'tcsmolten_salt':
-            # Calculate flux and eta maps for all simulations
-            start_datetime = datetime.datetime(1900, 1, 1, 0, 0, 0)  # start of first timestep
-            self.set_weather(self.year_weather_df, start_datetime, start_datetime)  # only one weather timestep is needed
-            self.set_flux_eta_maps(self.simulate_flux_eta_maps())
 
     def param_file_paths(self, relative_path):
         cwd = os.path.dirname(os.path.abspath(__file__))
@@ -71,17 +64,8 @@ class CspPlant(PowerSource):
             filename = self.param_files[key]
             self.param_files[key] = os.path.join(data_path, filename)
 
-    def initialize_params(self, keep_eta_flux_maps=False):
-        if self.ssc.tech_name == 'tcsmolten_salt' and keep_eta_flux_maps == True:
-            flux_eta_maps = {
-                'eta_map': self.ssc.get('eta_map'),
-                'flux_maps': self.ssc.get('flux_maps'),
-                'A_sf_in': self.ssc.get('A_sf_in')}
-            self.set_params_from_files()
-            self.set_flux_eta_maps(flux_eta_maps)
-        else:
-            self.set_params_from_files()
-
+    def initialize_params(self):
+        self.set_params_from_files()
         self.ssc.set({'time_steps_per_hour': 1})  # FIXME: defaults to 60
         n_steps_year = int(8760 * self.ssc.get('time_steps_per_hour'))
         self.ssc.set({'sf_adjust:hourly': n_steps_year * [0]})
@@ -118,6 +102,7 @@ class CspPlant(PowerSource):
         return df
 
     def set_params_from_files(self):
+        # Loads default case
         with open(self.param_files['tech_model_params_path'], 'r') as f:
             ssc_params = rapidjson.load(f)
         self.ssc.set(ssc_params)
@@ -133,12 +118,6 @@ class CspPlant(PowerSource):
 
         wlim_series = np.array(pd.read_csv(self.param_files['wlim_series_path']))
         self.ssc.set({'wlim_series': wlim_series})
-
-        if self.ssc.tech_name == 'tcsmolten_salt':
-            heliostat_layout = np.genfromtxt(self.param_files['helio_positions_path'], delimiter=',')
-            N_hel = heliostat_layout.shape[0]
-            helio_positions = [heliostat_layout[j, 0:2].tolist() for j in range(N_hel)]
-            self.ssc.set({'helio_positions': helio_positions})
 
     def set_weather(self, weather_df, start_datetime, end_datetime):
         weather_timedelta = weather_df.index[1] - weather_df.index[0]
@@ -225,32 +204,6 @@ class CspPlant(PowerSource):
             return solar_resource_data
 
         self.ssc.set({'solar_resource_data': weather_df_to_ssc_table(weather_df_part)})
-
-    def simulate_flux_eta_maps(self):
-        print('Simulating flux and eta maps ...')
-        self.initialize_params(keep_eta_flux_maps=False)
-        self.ssc.set({'time_start': 0})
-        self.ssc.set({'time_stop': 0})
-        self.ssc.set({'field_model_type': 2})  # generate flux and eta maps but don't optimize field or tower
-        original_values = {k: self.ssc.get(k) for k in
-                           ['is_dispatch_targets', 'rec_clearsky_model', 'time_steps_per_hour', 'sf_adjust:hourly', ]}
-        self.ssc.set({'is_dispatch_targets': False, 'rec_clearsky_model': 1, 'time_steps_per_hour': 1,
-                 'sf_adjust:hourly': [0.0 for j in range(
-                     8760)]})  # set so unneeded dispatch targets and clearsky DNI are not required
-        self.ssc.set({'sf_adjust:hourly': [0.0 for j in range(8760)]})
-        tech_outputs = self.ssc.execute()
-        print('Finished simulating flux and eta maps ...')
-        self.ssc.set(original_values)
-        eta_map = tech_outputs["eta_map_out"]
-        flux_maps = [r[2:] for r in tech_outputs['flux_maps_for_import']]  # don't include first two columns
-        A_sf_in = tech_outputs["A_sf"]
-        flux_eta_maps = {'eta_map': eta_map, 'flux_maps': flux_maps, 'A_sf_in': A_sf_in}
-        return flux_eta_maps
-
-    def set_flux_eta_maps(self, flux_eta_maps):
-        self.ssc.set(flux_eta_maps)  # set flux maps etc. so they don't have to be recalculated
-        self.ssc.set({'field_model_type': 3})  # use the provided flux and eta map inputs
-        self.ssc.set({'eta_map_aod_format': False})  #
 
     @staticmethod
     def seconds_since_newyear(dt):
