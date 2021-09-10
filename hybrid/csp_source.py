@@ -8,6 +8,7 @@ import datetime
 import os
 
 from hybrid.pySSC_daotk.ssc_wrap import ssc_wrap
+import PySAM.Singleowner as Singleowner
 
 from hybrid.dispatch.power_sources.csp_dispatch import CspDispatch
 from hybrid.power_source import PowerSource
@@ -16,51 +17,58 @@ from hybrid.sites import SiteInfo
 
 class CspPlant(PowerSource):
     _system_model: None
-    _financial_model: None
+    _financial_model: Singleowner
     # _layout: TroughLayout
     _dispatch: CspDispatch
 
     def __init__(self,
+                 name: str,
+                 tech_name: str,
                  site: SiteInfo,
-                 trough_config: dict):
+                 financial_model: Singleowner,
+                 csp_config: dict):
         """
 
         :param trough_config: dict, with keys ('system_capacity_kw', 'solar_multiple', 'tes_hours')
         """
         required_keys = ['system_capacity_kw', 'solar_multiple', 'tes_hours']
-        if all(key not in trough_config.keys() for key in required_keys):
+        if all(key not in csp_config.keys() for key in required_keys):
             raise ValueError
 
-        self.name = "CspPlant"
+        self.name = name
         self.site = site
 
-        # TODO: Site should have dispatch factors
-        self.param_files = {'tech_model_params_path': 'tech_model_defaults.json',
-                            'dispatch_factors_ts_path': 'dispatch_factors_ts.csv',
-                            'ud_ind_od_path': 'ud_ind_od.csv',
-                            'wlim_series_path': 'wlim_series.csv',
-                            'helio_positions_path': 'helio_positions.csv'}
+        self._financial_model = financial_model
+        self._layout = None
+        self._dispatch = CspDispatch
 
-        cwd = os.path.dirname(os.path.abspath(__file__))
-        data_path = os.path.join(cwd, 'pySSC_daotk', 'tower_data')
-        for key in self.param_files.keys():
-            filename = self.param_files[key]
-            self.param_files[key] = os.path.join(data_path, filename)
+        # TODO: Site should have dispatch factors consistent across all models
+
+
+
 
         # Initialize ssc and get weather data
         self.ssc = ssc_wrap(
             wrapper='pyssc',  # ['pyssc' | 'pysam']
-            tech_name='tcsmolten_salt',  # ['tcsmolten_salt' | 'trough_physical]
+            tech_name=tech_name,  # ['tcsmolten_salt' | 'trough_physical]
             financial_name=None,
-            defaults_name='MSPTSingleOwner')  # ['MSPTSingleOwner' | 'PhysicalTroughSingleOwner']  NOTE: not used for pyssc
+            defaults_name=None)  # ['MSPTSingleOwner' | 'PhysicalTroughSingleOwner']  NOTE: not used for pyssc
         self.initialize_params(keep_eta_flux_maps=False)
         self.year_weather_df = self.tmy3_to_df()  # read entire weather file
 
+        # TODO: move to tower_source
         if self.ssc.tech_name == 'tcsmolten_salt':
             # Calculate flux and eta maps for all simulations
             start_datetime = datetime.datetime(1900, 1, 1, 0, 0, 0)  # start of first timestep
             self.set_weather(self.year_weather_df, start_datetime, start_datetime)  # only one weather timestep is needed
             self.set_flux_eta_maps(self.simulate_flux_eta_maps())
+
+    def param_file_paths(self, relative_path):
+        cwd = os.path.dirname(os.path.abspath(__file__))
+        data_path = os.path.join(cwd, relative_path)
+        for key in self.param_files.keys():
+            filename = self.param_files[key]
+            self.param_files[key] = os.path.join(data_path, filename)
 
     def initialize_params(self, keep_eta_flux_maps=False):
         if self.ssc.tech_name == 'tcsmolten_salt' and keep_eta_flux_maps == True:

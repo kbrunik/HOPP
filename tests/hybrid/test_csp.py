@@ -14,11 +14,13 @@ def site():
 
 def test_pySSC_tower_model(site):
     """Testing pySSC tower model"""
-    csp_config = {'cycle_capacity_kw': 110 * 1000,
+    tower_config = {'cycle_capacity_kw': 110 * 1000,
                     'solar_multiple': 2.0,
                     'tes_hours': 6.0}   # NOTE: not being used yet
 
-    csp = CspPlant(site, csp_config)
+    expected_energy = 5512681.74
+
+    csp = TowerPlant(site, tower_config)
 
     start_datetime = datetime.datetime(2018, 10, 21, 0, 0, 0)               # start of first timestep
     end_datetime = datetime.datetime(2018, 10, 24, 0, 0, 0)                 # end of last timestep
@@ -28,7 +30,8 @@ def test_pySSC_tower_model(site):
     csp.set_weather(csp.year_weather_df, start_datetime, end_datetime)
     tech_outputs = csp.ssc.execute()
     print('Three days all at once starting 10/21/2018, annual energy = {e:.0f} MWhe'.format(e=tech_outputs['annual_energy'] * 1.e-3))
-    pass
+
+    assert tech_outputs['annual_energy'] == pytest.approx(expected_energy, 1e-5)
 
 
 def test_default_trough_model(site):

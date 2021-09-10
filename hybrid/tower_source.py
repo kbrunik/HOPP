@@ -1,12 +1,15 @@
 from typing import Optional, Union, Sequence
+import os
+
 import PySAM.Singleowner as Singleowner
 
 from hybrid.dispatch.power_sources.tower_dispatch import TowerDispatch
 
+
 from hybrid.power_source import *
+from hybrid.csp_source import CspPlant
 
-
-class TowerPlant(PowerSource):
+class TowerPlant(CspPlant):
     _system_model: None
     _financial_model: Singleowner.Singleowner
     # _layout: TowerLayout
@@ -19,22 +22,25 @@ class TowerPlant(PowerSource):
 
         :param tower_config: dict, with keys ('cycle_capacity_kw', 'solar_multiple', 'tes_hours')
         """
-        required_keys = ['cycle_capacity_kw', 'solar_multiple', 'tes_hours']
-        if all(key not in tower_config.keys() for key in required_keys):
-            raise ValueError
+        financial_model = Singleowner.default('MSPTSingleOwner')
 
-        # system_model = Tower.default('MSPTSingleOwner')
-        # financial_model = Singleowner.from_existing(system_model, 'MSPTSingleOwner')
-        #
-        # super().__init__("TowerPlant", site, system_model, financial_model)
-        #
-        # self._system_model.SolarResource.solar_resource_data = self.site.solar_resource.data
+        # set-up param file paths
+        self.param_files = {'tech_model_params_path': 'tech_model_defaults.json',
+                            'dispatch_factors_ts_path': 'dispatch_factors_ts.csv',
+                            'ud_ind_od_path': 'ud_ind_od.csv',
+                            'wlim_series_path': 'wlim_series.csv',
+                            'helio_positions_path': 'helio_positions.csv'}
+        rel_path_to_param_files = os.path.join('pySSC_daotk', 'tower_data')
+        self.param_file_paths(rel_path_to_param_files)
+
+        super().__init__("TowerPlant", 'tcsmolten_salt', site, financial_model, tower_config)
 
         self._dispatch: TowerDispatch = None
 
-        self.cycle_capacity_kw: float = tower_config['cycle_capacity_kw']
-        self.solar_multiple: float = tower_config['solar_multiple']
-        self.tes_hours: float = tower_config['tes_hours']
+        # TODO: updated these
+        # self.cycle_capacity_kw: float = tower_config['cycle_capacity_kw']
+        # self.solar_multiple: float = tower_config['solar_multiple']
+        # self.tes_hours: float = tower_config['tes_hours']
 
     @property
     def system_capacity_kw(self) -> float:
