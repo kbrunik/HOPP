@@ -41,8 +41,8 @@ def test_pySSC_tower_model(site):
 def test_pySSC_trough_model(site):
     """Testing pySSC trough model using heuristic dispatch method"""
     trough_config = {'system_capacity_kw': 100 * 1000,
-                    'solar_multiple': 1.5,
-                    'tes_hours': 5.0}   # Different than json
+                     'solar_multiple': 1.5,
+                     'tes_hours': 5.0}   # Different than json
 
     expected_energy = 2100886.0210265624
 
@@ -67,3 +67,23 @@ def test_pySSC_trough_model(site):
     assert tech_outputs['annual_energy'] == pytest.approx(expected_energy, 1e-5)
 
 
+def test_value_csp_call(site):
+    """Testing csp override of PowerSource value()"""
+    trough_config = {'system_capacity_kw': 100 * 1000,
+                     'solar_multiple': 1.5,
+                     'tes_hours': 5.0}
+
+    csp = TroughPlant(site, trough_config)
+
+    # Testing value call get and set - system model
+    assert csp.value('startup_time') == csp.ssc.get('startup_time')
+    csp.value('startup_time', 0.25)
+    assert csp.value('startup_time') == 0.25
+    # financial model
+    assert csp.value('inflation_rate') == csp._financial_model.FinancialParameters.inflation_rate
+    csp.value('inflation_rate', 3.0)
+    assert csp._financial_model.FinancialParameters.inflation_rate == 3.0
+    # class setter and getter
+    assert csp.value('tes_hours') == trough_config['tes_hours']
+    csp.value('tes_hours', 6.0)
+    assert csp.tes_hours == 6.0

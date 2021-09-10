@@ -44,6 +44,7 @@ class CspPlant(PowerSource):
         self._layout = None
         self._dispatch = CspDispatch
 
+        # TODO: I think ssc should be protected attr
         # Initialize ssc and get weather data
         self.ssc = ssc_wrap(
             wrapper='pyssc',  # ['pyssc' | 'pysam']
@@ -260,4 +261,117 @@ class CspPlant(PowerSource):
         """
         self.ssc.set({'tshours': tes_hours})
 
-    # TODO: overwrite all setters and getters inherited by PowerSource
+    def value(self, var_name, var_value=None):
+        attr_obj = None
+        ssc_value = None
+        if var_name in self.__dir__():
+            attr_obj = self
+        if not attr_obj:
+            for a in self._financial_model.__dir__():
+                group_obj = getattr(self._financial_model, a)
+                try:
+                    if var_name in group_obj.__dir__():
+                        attr_obj = group_obj
+                        break
+                except:
+                    pass
+        # TODO: ask matt if pySSC handles both financial model and system model? For now, check ssc last...
+        if not attr_obj:
+            try:
+                ssc_value = self.ssc.get(var_name)
+                attr_obj = self.ssc
+            except:
+                pass
+        if not attr_obj:
+            raise ValueError("Variable {} not found in technology or financial model {}".format(
+                var_name, self.__class__.__name__))
+
+        if var_value is None:
+            if ssc_value is None:
+                return getattr(attr_obj, var_name)
+            else:
+                return ssc_value
+        else:
+            try:
+                if ssc_value is None:
+                    setattr(attr_obj, var_name, var_value)
+                else:
+                    self.ssc.set({var_name: var_value})
+            except Exception as e:
+                raise IOError(f"{self.__class__}'s attribute {var_name} could not be set to {var_value}: {e}")
+
+    def set_construction_financing_cost_per_kw(self, construction_financing_cost_per_kw):
+        # TODO: CSP doesn't scale per kw
+        raise NotImplementedError
+        # self._construction_financing_cost_per_kw = construction_financing_cost_per_kw
+
+    def get_construction_financing_cost(self) -> float:
+        raise NotImplementedError
+        # return self._construction_financing_cost_per_kw * self.system_capacity_kw
+
+    def simulate(self, project_life: int = 25, skip_fin=False):
+        """
+        Run the system and financial model
+        """
+        raise NotImplementedError
+        # if not self._system_model:
+        #     return
+        #
+        # if self.system_capacity_kw <= 0:
+        #     return
+        #
+        # if project_life > 1:
+        #     self._financial_model.Lifetime.system_use_lifetime_output = 1
+        # else:
+        #     self._financial_model.Lifetime.system_use_lifetime_output = 0
+        # self._financial_model.FinancialParameters.analysis_period = project_life
+        #
+        # self._system_model.execute(0)
+        #
+        # if skip_fin:
+        #     return
+        #
+        # self._financial_model.SystemOutput.gen = self._system_model.value("gen")
+        # self._financial_model.value("construction_financing_cost", self.get_construction_financing_cost())
+        # self._financial_model.Revenue.ppa_soln_mode = 1
+        # if len(self._financial_model.SystemOutput.gen) == self.site.n_timesteps:
+        #     single_year_gen = self._financial_model.SystemOutput.gen
+        #     self._financial_model.SystemOutput.gen = list(single_year_gen) * project_life
+        #
+        # if self.name != "Grid":
+        #     self._financial_model.SystemOutput.system_pre_curtailment_kwac = self._system_model.value("gen") * project_life
+        #     self._financial_model.SystemOutput.annual_energy_pre_curtailment_ac = self._system_model.value("annual_energy")
+        #
+        # self._financial_model.execute(0)
+        # logger.info(f"{self.name} simulation executed with AEP {self.annual_energy_kw}")
+
+    #
+    # Outputs
+    #
+    @property
+    def dispatch(self):
+        return self._dispatch
+
+    # TODO: create a outputs struct that allows ssc to store results as we step through the year,
+    #  then update below outputs calls
+
+    @property
+    def annual_energy_kw(self) -> float:
+        if self.system_capacity_kw > 0:
+            return self._system_model.value("annual_energy")
+        else:
+            return 0
+
+    @property
+    def generation_profile(self) -> list:
+        if self.system_capacity_kw:
+            return list(self._system_model.value("gen"))
+        else:
+            return [0] * self.site.n_timesteps
+
+    @property
+    def capacity_factor(self) -> float:
+        if self.system_capacity_kw > 0:
+            return self._system_model.value("capacity_factor")
+        else:
+            return 0

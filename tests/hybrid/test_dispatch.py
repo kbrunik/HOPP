@@ -91,6 +91,7 @@ def test_solar_dispatch(site):
     for t in model.forecast_horizon:
         assert dispatch_generation[t] * 1e3 == pytest.approx(available_resource[t], 1e-3)
 
+
 def test_csp_dispatch_model(site):
     expected_objective = 607360.184
     dispatch_n_look_ahead = 48
@@ -184,6 +185,7 @@ def test_csp_dispatch_model(site):
 
     assert pyomo.value(model.test_objective) == pytest.approx(expected_objective, 1e-5)
 
+
 def test_tower_dispatch(site):
     """Tests setting up tower dispatch using system model and running simulation with dispatch"""
     expected_objective = 31299.2696  # TODO: update
@@ -242,7 +244,7 @@ def test_tower_dispatch(site):
 
     # TODO: Update the simulate_with_dispatch function for towers and troughs
     '''
-    tower._simulate_with_dispatch(48, 0)
+    tower.simulate_with_dispatch(48, 0)
     for i in range(24):
         dispatch_power = battery.dispatch.power[i] * 1e3
         assert battery.Outputs.P[i] == pytest.approx(dispatch_power, 1e-3 * abs(dispatch_power))
@@ -301,7 +303,7 @@ def test_trough_dispatch(site):
     assert_units_consistent(model)
     results = HybridDispatchBuilderSolver.glpk_solve_call(model)
 
-    trough._simulate_with_dispatch(48, 0)
+    trough.simulate_with_dispatch(48, 0)
 
     assert results.solver.termination_condition == TerminationCondition.optimal
     assert pyomo.value(model.test_objective) == pytest.approx(expected_objective, 1e-5)
@@ -310,7 +312,7 @@ def test_trough_dispatch(site):
 
     # TODO: Update the simulate_with_dispatch function for towers and troughs
     '''
-    tower._simulate_with_dispatch(48, 0)
+    tower.simulate_with_dispatch(48, 0)
     for i in range(24):
         dispatch_power = battery.dispatch.power[i] * 1e3
         assert battery.Outputs.P[i] == pytest.approx(dispatch_power, 1e-3 * abs(dispatch_power))
@@ -418,7 +420,7 @@ def test_simple_battery_dispatch(site):
     assert (sum(battery.dispatch.charge_power) * battery.dispatch.round_trip_efficiency / 100.0
             == pytest.approx(sum(battery.dispatch.discharge_power)))
 
-    battery._simulate_with_dispatch(48, 0)
+    battery.simulate_with_dispatch(48, 0)
     for i in range(24):
         dispatch_power = battery.dispatch.power[i] * 1e3
         assert battery.Outputs.P[i] == pytest.approx(dispatch_power, 1e-3 * abs(dispatch_power))

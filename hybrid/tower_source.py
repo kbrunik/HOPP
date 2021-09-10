@@ -72,7 +72,7 @@ class TowerPlant(CspPlant):
         # self.initialize_params(keep_eta_flux_maps=False)
         self.ssc.set({'time_start': 0})
         self.ssc.set({'time_stop': 0})
-        # TODO: need to design field and tower/receiver based on inputs (field_model_type = 0)
+        # TODO: need a function to design field and tower/receiver based on inputs (field_model_type = 0)
         self.ssc.set({'field_model_type': 2})  # generate flux and eta maps but don't optimize field or tower
         original_values = {k: self.ssc.get(k) for k in
                            ['is_dispatch_targets', 'rec_clearsky_model', 'time_steps_per_hour', 'sf_adjust:hourly', ]}
