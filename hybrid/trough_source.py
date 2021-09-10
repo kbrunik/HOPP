@@ -1,12 +1,15 @@
 from typing import Optional, Union, Sequence
+import os
+
 import PySAM.Singleowner as Singleowner
 
 from hybrid.dispatch.power_sources.trough_dispatch import TroughDispatch
 
 from hybrid.power_source import *
+from hybrid.csp_source import CspPlant
 
 
-class TroughPlant(PowerSource):
+class TroughPlant(CspPlant):
     _system_model: None
     _financial_model: Singleowner.Singleowner
     # _layout: TroughLayout
@@ -19,22 +22,25 @@ class TroughPlant(PowerSource):
 
         :param trough_config: dict, with keys ('system_capacity_kw', 'solar_multiple', 'tes_hours')
         """
-        required_keys = ['system_capacity_kw', 'solar_multiple', 'tes_hours']
-        if all(key not in trough_config.keys() for key in required_keys):
-            raise ValueError
+        financial_model = Singleowner.default('PhysicalTroughSingleOwner')
 
-        # system_model = Trough.default('PhysicalTroughSingleOwner')
-        # financial_model = Singleowner.from_existing(system_model, 'PhysicalTroughSingleOwner')
-        #
-        # super().__init__("TroughPlant", site, system_model, financial_model)
-        #
-        # self._system_model.value('solar_resource_data', self.site.solar_resource.data)
+        # set-up param file paths
+        self.param_files = {'tech_model_params_path': 'tech_model_defaults.json',
+                            'dispatch_factors_ts_path': 'dispatch_factors_ts.csv',
+                            'ud_ind_od_path': 'ud_ind_od.csv',
+                            'wlim_series_path': 'wlim_series.csv',
+                            'helio_positions_path': ''}
+        rel_path_to_param_files = os.path.join('pySSC_daotk', 'trough_data')
+        self.param_file_paths(rel_path_to_param_files)
+
+        super().__init__("TroughPlant", 'trough_physical', site, financial_model, trough_config)
 
         self._dispatch: TroughDispatch = None
 
-        self.cycle_capacity_kw: float = trough_config['cycle_capacity_kw']
-        self.solar_multiple: float = trough_config['solar_multiple']
-        self.tes_hours: float = trough_config['tes_hours']
+        # TODO: updated these
+        # self.cycle_capacity_kw: float = trough_config['cycle_capacity_kw']
+        # self.solar_multiple: float = trough_config['solar_multiple']
+        # self.tes_hours: float = trough_config['tes_hours']
 
 
     def simulate_with_dispatch(self, n_periods: int, sim_start_time: int = None):
