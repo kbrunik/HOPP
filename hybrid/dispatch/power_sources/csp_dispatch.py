@@ -2,6 +2,7 @@ import pyomo.environ as pyomo
 from pyomo.network import Port
 from pyomo.environ import units as u
 from typing import Union
+import datetime
 
 from hybrid.dispatch.dispatch import Dispatch
 
@@ -592,55 +593,27 @@ class CspDispatch(Dispatch):
             rule=cycle_starting_linking_rule)
 
     def initialize_dispatch_model_parameters(self):
-        cycle_rated_thermal = self._system_model.value('P_ref') / self._system_model.value('design_eff')
-        field_rated_thermal = self._system_model.value('solarm') * cycle_rated_thermal
-
-        # TODO: set these values here
-        # Cost Parameters
-        self.cost_per_field_generation = 3.0
-        self.cost_per_field_start = self._system_model.value('disp_rsu_cost')
-        self.cost_per_cycle_generation = 2.0
-        self.cost_per_cycle_start = self._system_model.value('disp_csu_cost')
-        self.cost_per_change_thermal_input = 0.3
-        # Solar field and thermal energy storage performance parameters
-        # TODO: look how these are set in SSC
-        # TODO: Check units
-        self.field_startup_losses = 0.0
-        self.receiver_required_startup_energy = self._system_model.value('rec_qf_delay') * field_rated_thermal
-        self.storage_capacity = self._system_model.value('tshours') * cycle_rated_thermal
-        self.minimum_receiver_power = 0.25 * field_rated_thermal
-        self.allowable_receiver_startup_power = self._system_model.value('rec_su_delay') * field_rated_thermal / 1.0
-        self.receiver_pumping_losses = 0.0
-        self.field_track_losses = 0.0
-        self.heat_trace_losses = 0.0
-        # Power cycle performance
-        self.cycle_required_startup_energy = self._system_model.value('startup_frac') * cycle_rated_thermal
-        self.cycle_nominal_efficiency = self._system_model.value('design_eff')
-        self.cycle_pumping_losses = self._system_model.value('pb_pump_coef')  # TODO: this is kW/kg ->
-        self.allowable_cycle_startup_power = self._system_model.value('startup_time') * cycle_rated_thermal / 1.0
-        self.minimum_cycle_thermal_power = self._system_model.value('cycle_cutoff_frac') * cycle_rated_thermal
-        self.maximum_cycle_thermal_power = self._system_model.value('cycle_max_frac') * cycle_rated_thermal
-        #self.minimum_cycle_power = ???
-        self.maximum_cycle_power = self._system_model.value('P_ref')
-        self.cycle_performance_slope = ((self.maximum_cycle_power - 0.0)  # TODO: need low point evaluated...
-                                        / (self.maximum_cycle_thermal_power - self.minimum_cycle_thermal_power))
+        raise NotImplementedError
 
     def update_time_series_dispatch_model_parameters(self, start_time: int):
+        """
+        This is where we need to simulate the future and capture performance for dispatch parameters
+        : param start_time: hour of the year starting dispatch horizon
+        """
         n_horizon = len(self.blocks.index_set())
-        #generation = self._system_model.value("gen")
-        # Handling end of simulation horizon
-        # if start_time + n_horizon > len(generation):
-        #     horizon_gen = list(generation[start_time:])
-        #     horizon_gen.extend(list(generation[0:n_horizon - len(horizon_gen)]))
-        # else:
-        #     horizon_gen = generation[start_time:start_time + n_horizon]
+        self.time_duration = [1.0] * len(self.blocks.index_set())  # assume hourly for now
 
-        # FIXME: There is a bit of work to do here
-        # TODO: set these values here
-        self.time_duration = [1.0] * len(self.blocks.index_set())
-        self.available_thermal_generation = [0.0]*n_horizon
-        self.cycle_ambient_efficiency_correction = [1.0]*n_horizon
-        self.condenser_losses = [0.0]*n_horizon
+        # Setting simulation times
+        start_datetime = self.get_start_datetime_by_hour(start_time)
+        # Handling end of simulation horizon
+        if start_time + n_horizon > 8760:
+            end_datetime = start_datetime + datetime.timedelta(hours=8760 - start_time)
+        else:
+            end_datetime = start_datetime + datetime.timedelta(hours=n_horizon)
+
+        self._system_model.value('time_start', self.seconds_since_newyear(start_datetime))
+        self._system_model.value('time_stop', self.seconds_since_newyear(end_datetime))
+        self._system_model.set_weather(self._system_model.year_weather_df, start_datetime, end_datetime)
 
     def update_initial_conditions(self):
         # FIXME: There is a bit of work to do here
@@ -659,7 +632,27 @@ class CspDispatch(Dispatch):
         self.is_cycle_generating_initial = self._system_model.value('pc_op_mode_final')  # TODO: figure out what this is...
         self.is_cycle_starting_initial = False
 
-    # INPUTS
+    @staticmethod
+    def get_start_datetime_by_hour(start_time: int):
+        """
+        Get datetime for start_time hour of the year
+        : param start_time: hour of year
+        : return: datetime object
+        """
+        beginning_of_year = datetime.datetime(2009, 1, 1, 0)
+        return beginning_of_year + datetime.timedelta(hours=start_time)
+
+    @staticmethod
+    def seconds_since_newyear(dt):
+        # Substitute a non-leap year (2009) to keep multiple of 8760 assumption:
+        newyear = datetime.datetime(2009, 1, 1, 0, 0, 0, 0)
+        time_diff = dt.replace(year=2009) - newyear
+        return int(time_diff.total_seconds())
+
+
+    #################################
+    # INPUTS                        #
+    #################################
     @property
     def time_duration(self) -> list:
         """Dispatch horizon time steps [hour]"""

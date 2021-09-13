@@ -16,7 +16,7 @@ from hybrid.sites import SiteInfo
 
 
 class CspPlant(PowerSource):
-    #_system_model: None
+    _system_model: None
     _financial_model: Singleowner
     # _layout: TroughLayout
     _dispatch: CspDispatch
@@ -115,6 +115,8 @@ class CspPlant(PowerSource):
 
         dispatch_factors_ts = np.array(pd.read_csv(self.param_files['dispatch_factors_ts_path']))
         self.ssc.set({'dispatch_factors_ts': dispatch_factors_ts})
+        # TODO: remove dispatch factor file and use site
+        # self.ssc.set({'dispatch_factors_ts': self.site.elec_prices.data})  # returning a empty array...
 
         ud_ind_od = np.array(pd.read_csv(self.param_files['ud_ind_od_path']))
         self.ssc.set({'ud_ind_od': ud_ind_od})
@@ -207,13 +209,6 @@ class CspPlant(PowerSource):
             return solar_resource_data
 
         self.ssc.set({'solar_resource_data': weather_df_to_ssc_table(weather_df_part)})
-
-    @staticmethod
-    def seconds_since_newyear(dt):
-        # Substitute a non-leap year (2009) to keep multiple of 8760 assumption:
-        newyear = datetime.datetime(2009, 1, 1, 0, 0, 0, 0)
-        time_diff = dt.replace(year=2009) - newyear
-        return int(time_diff.total_seconds())
 
     @property
     def _system_model(self):

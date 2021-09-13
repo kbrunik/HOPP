@@ -37,9 +37,6 @@ class TroughPlant(CspPlant):
 
         self._dispatch: TroughDispatch = None
 
-
-
-
     def simulate_with_dispatch(self, n_periods: int, sim_start_time: int = None):
         """
         Step through dispatch solution and simulate trough system

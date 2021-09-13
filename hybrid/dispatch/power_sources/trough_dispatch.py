@@ -1,4 +1,5 @@
 from pyomo.environ import ConcreteModel, Set
+import datetime
 
 import PySAM.Singleowner as Singleowner
 
@@ -55,26 +56,20 @@ class TroughDispatch(CspDispatch):
         self.cycle_performance_slope = ((self.maximum_cycle_power - 0.0)  # TODO: need low point evaluated...
                                         / (self.maximum_cycle_thermal_power - self.minimum_cycle_thermal_power))
 
-    # def update_time_series_dispatch_model_parameters(self, start_time: int):
-    #     """
-    #     This is where we need to simulate the future and capture performance for dispatch parameters
-    #     """
-    #     n_horizon = len(self.blocks.index_set())
-    #     self.time_duration = [1.0] * len(self.blocks.index_set())   # assume hourly for now
-    #     # Setting simulation times
-    #     time_start = start_time * 3600  # seconds since new year
-    #     # Handling end of simulation horizon
-    #     if start_time + n_horizon > 8760:
-    #         time_end = (start_time + (8760 - start_time)) * 3600
-    #     else:
-    #         time_end = (start_time + n_horizon) * 3600
-    #     self._system_model.value('time_start', time_start)
-    #     self._system_model.value('time_end', time_end)
-    #     self._system_model.execute()
-    #
-    #     # TODO: set up simulation for the next n_horizon...
-    #     #  Simulate and get outputs for the below values
-    #
-    #     self.available_thermal_generation = [0.0]*n_horizon
-    #     self.cycle_ambient_efficiency_correction = [1.0]*n_horizon
-    #     self.condenser_losses = [0.0]*n_horizon
+    def update_time_series_dispatch_model_parameters(self, start_time: int):
+        """
+        This is where we need to simulate the future and capture performance for dispatch parameters
+        : param start_time: hour of the year starting dispatch horizon
+        """
+        n_horizon = len(self.blocks.index_set())
+        super().update_time_series_dispatch_model_parameters(start_time)
+        tech_outputs = self._system_model.ssc.execute()
+
+        # TODO: set up simulation for the next n_horizon...
+        #  - Does storage need to be increased to ensure no curtailment?
+
+        self.available_thermal_generation = tech_outputs['q_inc_sf_tot'][0:n_horizon]
+        # TODO: could update ssc to calculate 'disp_pceff_expected' and output condenser load estimates...
+        #  Both estimates are driven by Tdry
+        self.cycle_ambient_efficiency_correction = [1.0]*n_horizon
+        self.condenser_losses = [0.0]*n_horizon

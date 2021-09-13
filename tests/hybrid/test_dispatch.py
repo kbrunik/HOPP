@@ -188,7 +188,7 @@ def test_csp_dispatch_model(site):
 
 def test_tower_dispatch(site):
     """Tests setting up tower dispatch using system model and running simulation with dispatch"""
-    expected_objective = 272921.4118724881  # TODO: update
+    expected_objective = 236328.35940437872
     dispatch_n_look_ahead = 48
 
     tower = TowerPlant(site, technologies['tower'])
@@ -235,19 +235,6 @@ def test_tower_dispatch(site):
     tower.dispatch.update_time_series_dispatch_model_parameters(0)
     #battery.dispatch.update_dispatch_initial_soc(battery.dispatch.minimum_soc)  # Set initial SOC to minimum
 
-    # TODO: Remove after update_time_series_dispatch_model_parameters is working
-    heat_gen = [0.0]*6
-    heat_gen.extend([0.222905449, 0.698358974, 0.812419872, 0.805703526, 0.805679487, 0.805360577, 0.805392628,
-                     0.805285256, 0.805644231, 0.811056090, 0.604987179, 0.515375000, 0.104403045])  # 13
-    heat_gen.extend([0.0]*11)
-    heat_gen.extend([0.171546474, 0.601642628, 0.755834936, 0.808812500, 0.810616987, 0.73800641, 0.642097756,
-                     0.544584936, 0.681479167, 0.547671474, 0.438600962, 0.384945513, 0.034808173])  # 13
-    heat_gen.extend([0.0] * 5)
-
-    rec_power = tower.solar_multiple * tower.value('P_ref') / tower.value('design_eff')
-    heat_gen = [heat * rec_power for heat in heat_gen]
-    tower.dispatch.available_thermal_generation = heat_gen
-
     assert_units_consistent(model)
     results = HybridDispatchBuilderSolver.glpk_solve_call(model)
 
@@ -267,7 +254,7 @@ def test_tower_dispatch(site):
 
 def test_trough_dispatch(site):
     """Tests setting up trough dispatch using system model and running simulation with dispatch"""
-    expected_objective = 259560.8483573451
+    expected_objective = 261992.0676634827
     dispatch_n_look_ahead = 48
 
     trough = TroughPlant(site, technologies['trough'])
@@ -314,19 +301,6 @@ def test_trough_dispatch(site):
     trough.dispatch.update_time_series_dispatch_model_parameters(0)
     # TODO: how are we going to get information from the simulation to set parameters
     #battery.dispatch.update_dispatch_initial_soc(battery.dispatch.minimum_soc)  # Set initial SOC to minimum
-
-    # TODO: Remove after update_time_series_dispatch_model_parameters is working
-    heat_gen = [0.0]*6
-    heat_gen.extend([0.222905449, 0.698358974, 0.812419872, 0.805703526, 0.805679487, 0.805360577, 0.805392628,
-                     0.805285256, 0.805644231, 0.811056090, 0.604987179, 0.515375000, 0.104403045])  # 13
-    heat_gen.extend([0.0]*11)
-    heat_gen.extend([0.171546474, 0.601642628, 0.755834936, 0.808812500, 0.810616987, 0.73800641, 0.642097756,
-                     0.544584936, 0.681479167, 0.547671474, 0.438600962, 0.384945513, 0.034808173])  # 13
-    heat_gen.extend([0.0] * 5)
-
-    rec_power = trough.solar_multiple * trough.value('P_ref') / trough.value('eta_ref')
-    heat_gen = [heat * rec_power for heat in heat_gen]
-    trough.dispatch.available_thermal_generation = heat_gen
 
     assert_units_consistent(model)
     results = HybridDispatchBuilderSolver.glpk_solve_call(model)

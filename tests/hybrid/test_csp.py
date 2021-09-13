@@ -4,7 +4,7 @@ import datetime
 
 
 from hybrid.sites import SiteInfo, flatirons_site
-from hybrid.csp_source import CspPlant
+from hybrid.dispatch.power_sources.csp_dispatch import CspDispatch
 from hybrid.tower_source import TowerPlant
 from hybrid.trough_source import TroughPlant
 
@@ -26,8 +26,8 @@ def test_pySSC_tower_model(site):
     start_datetime = datetime.datetime(2018, 10, 21, 0, 0, 0)               # start of first timestep
     end_datetime = datetime.datetime(2018, 10, 24, 0, 0, 0)                 # end of last timestep
     # csp.initialize_params(keep_eta_flux_maps=True) # Will result in design variables to be overwritten
-    csp.ssc.set({'time_start': csp.seconds_since_newyear(start_datetime)})
-    csp.ssc.set({'time_stop': csp.seconds_since_newyear(end_datetime)})
+    csp.ssc.set({'time_start': CspDispatch.seconds_since_newyear(start_datetime)})
+    csp.ssc.set({'time_stop': CspDispatch.seconds_since_newyear(end_datetime)})
     csp.set_weather(csp.year_weather_df, start_datetime, end_datetime)
     tech_outputs = csp.ssc.execute()
     print('Three days all at once starting 10/21/2018, annual energy = {e:.0f} MWhe'.format(e=tech_outputs['annual_energy'] * 1.e-3))
@@ -54,9 +54,9 @@ def test_pySSC_trough_model(site):
     #csp.initialize_params(keep_eta_flux_maps=True)
     # TODO: when does this need to be called? Does this have to be called before each simulation?
     #  If so, we need to store the variables within the class
-    csp.ssc.set({'time_start': csp.seconds_since_newyear(start_datetime)})
-    csp.ssc.set({'time_stop': csp.seconds_since_newyear(end_datetime)})
-    csp.set_weather(csp.year_weather_df, start_datetime, end_datetime)
+    csp.ssc.set({'time_start': CspDispatch.seconds_since_newyear(start_datetime)})
+    csp.ssc.set({'time_stop': CspDispatch.seconds_since_newyear(end_datetime)})
+    csp.set_weather(csp.year_weather_df, start_datetime, end_datetime)  # TODO: what does this exactly do?
     tech_outputs = csp.ssc.execute()
     print('Three days all at once starting 10/21/2018, annual energy = {e:.0f} MWhe'.format(e=tech_outputs['annual_energy'] * 1.e-3))
 
