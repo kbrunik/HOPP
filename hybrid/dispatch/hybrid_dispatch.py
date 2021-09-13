@@ -281,7 +281,7 @@ class HybridDispatch(Dispatch):
                                            * tb[t].cycle_generation
                                            * tb[t].time_duration)
                                         + tb[t].cost_per_cycle_start * tb[t].incur_cycle_start
-                                        + tb[t].cost_per_change_thermal_input + tb[t].cycle_thermal_ramp)
+                                        + tb[t].cost_per_change_thermal_input * tb[t].cycle_thermal_ramp)
                                      for t in self.blocks.index_set())
                 elif tech == 'battery':
                     objective += sum(- (1/self.blocks[t].time_weighting_factor)

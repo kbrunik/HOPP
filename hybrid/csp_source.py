@@ -16,7 +16,7 @@ from hybrid.sites import SiteInfo
 
 
 class CspPlant(PowerSource):
-    _system_model: None
+    #_system_model: None
     _financial_model: Singleowner
     # _layout: TroughLayout
     _dispatch: CspDispatch
@@ -40,12 +40,12 @@ class CspPlant(PowerSource):
         self.name = name
         self.site = site
 
-        # TODO: Should we run a financial model with pySSC or pySAM?
-        self._financial_model = financial_model
+        self._financial_model = financial_model        # TODO: Should we run a financial model with pySSC or pySAM?
         self._layout = None
         self._dispatch = CspDispatch
+        self.set_construction_financing_cost_per_kw(0)
 
-        # TODO: I think ssc should be protected attr
+        # TODO: Should 'SSC' object be a protected attr
         # Initialize ssc and get weather data
         self.ssc = ssc_wrap(
             wrapper='pyssc',  # ['pyssc' | 'pysam']
@@ -58,6 +58,7 @@ class CspPlant(PowerSource):
         self.cycle_capacity_kw: float = csp_config['cycle_capacity_kw']
         self.solar_multiple: float = csp_config['solar_multiple']
         self.tes_hours: float = csp_config['tes_hours']
+        # TODO: what needs to be updated after these three parameters are set?
 
     def param_file_paths(self, relative_path):
         cwd = os.path.dirname(os.path.abspath(__file__))
@@ -215,6 +216,11 @@ class CspPlant(PowerSource):
         return int(time_diff.total_seconds())
 
     @property
+    def _system_model(self):
+        """Used for dispatch to mimic other dispatch class building in hybrid dispatch builder"""
+        return self
+
+    @property
     def system_capacity_kw(self) -> float:
         return self.cycle_capacity_kw
 
@@ -302,13 +308,11 @@ class CspPlant(PowerSource):
                 raise IOError(f"{self.__class__}'s attribute {var_name} could not be set to {var_value}: {e}")
 
     def set_construction_financing_cost_per_kw(self, construction_financing_cost_per_kw):
-        # TODO: CSP doesn't scale per kw
-        raise NotImplementedError
-        # self._construction_financing_cost_per_kw = construction_financing_cost_per_kw
+        # TODO: CSP doesn't scale per kw -> need to update?
+        self._construction_financing_cost_per_kw = construction_financing_cost_per_kw
 
     def get_construction_financing_cost(self) -> float:
-        raise NotImplementedError
-        # return self._construction_financing_cost_per_kw * self.system_capacity_kw
+        return self._construction_financing_cost_per_kw * self.system_capacity_kw
 
     def simulate(self, project_life: int = 25, skip_fin=False):
         """
