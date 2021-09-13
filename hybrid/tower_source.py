@@ -107,3 +107,12 @@ class TowerPlant(CspPlant):
         :return:
         """
         self.ssc.set({'solarm': solar_multiple})
+
+    @property
+    def cycle_thermal_rating(self) -> float:
+        return self.value('P_ref') / self.value('design_eff')
+
+    @property
+    def field_thermal_rating(self) -> float:
+        return self.value('solarm') * self.cycle_thermal_rating
+

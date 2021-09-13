@@ -210,6 +210,48 @@ class CspPlant(PowerSource):
 
         self.ssc.set({'solar_resource_data': weather_df_to_ssc_table(weather_df_part)})
 
+    def simulate_with_dispatch(self, n_periods: int, sim_start_time: int = None):
+        """
+        Step through dispatch solution and simulate trough system
+        """
+        # Set up start and end time of simulation
+        start_datetime, end_datetime = CspDispatch.get_start_end_datetime(sim_start_time, n_periods)
+        self.value('time_start', CspDispatch.seconds_since_newyear(start_datetime))
+        self.value('time_stop', CspDispatch.seconds_since_newyear(end_datetime))
+
+        # Set targets TODO: move this to function
+        yrsu = self.dispatch.is_field_starting
+        yr = self.dispatch.is_field_generating
+        y = self.dispatch.is_cycle_generating
+        ycsu = self.dispatch.is_cycle_starting
+
+        D = {}
+        D['is_dispatch_targets'] = 1
+
+        D['is_rec_su_allowed_in'] = [1 if (yr[t] + yrsu[t]) > 0.001 else 0 for t in range(n_periods)]  # Receiver on, startup, or standby (+ yrsb[t])
+        D['is_rec_sb_allowed_in'] = [0 for t in range(n_periods)]  # Receiver standby - NOT in dispatch currently
+
+        D['is_pc_su_allowed_in'] = [1 if (y[t] + ycsu[t]) > 0.001 else 0 for t in range(n_periods)]  # Cycle on or startup
+        D['is_pc_sb_allowed_in'] = [0 for t in range(n_periods)]  # Cycle standby
+
+        D['q_pc_target_su_in'] = [self.dispatch.allowable_cycle_startup_power if ycsu[t] > 0.001 else 0.0 for t in range(n_periods)]
+        D['q_pc_target_on_in'] = self.dispatch.cycle_generation[0:n_periods]
+        D['q_pc_max_in'] = [self.cycle_thermal_rating for t in range(n_periods)]
+
+        self.ssc.set(D)
+
+        # Set up weather
+        self.set_weather(self.year_weather_df, start_datetime, end_datetime)
+        # Simulate
+        results = self.ssc.execute()
+        if not results["cmod_success"]:
+            raise ValueError('PySSC simulation failed...')
+        # Save simulation output TODO: save information in a structure
+
+        # Save plant state at end of simulation
+
+        pass
+
     @property
     def _system_model(self):
         """Used for dispatch to mimic other dispatch class building in hybrid dispatch builder"""
@@ -262,6 +304,14 @@ class CspPlant(PowerSource):
         :return:
         """
         self.ssc.set({'tshours': tes_hours})
+
+    @property
+    def cycle_thermal_rating(self) -> float:
+        raise NotImplementedError
+
+    @property
+    def field_thermal_rating(self) -> float:
+        raise NotImplementedError
 
     def value(self, var_name, var_value=None):
         attr_obj = None

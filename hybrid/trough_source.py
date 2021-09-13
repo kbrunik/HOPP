@@ -37,12 +37,6 @@ class TroughPlant(CspPlant):
 
         self._dispatch: TroughDispatch = None
 
-    def simulate_with_dispatch(self, n_periods: int, sim_start_time: int = None):
-        """
-        Step through dispatch solution and simulate trough system
-        """
-        pass
-
     @property
     def solar_multiple(self) -> float:
         return self.ssc.get('specified_solar_multiple')
@@ -56,3 +50,12 @@ class TroughPlant(CspPlant):
         :return:
         """
         self.ssc.set({'specified_solar_multiple': solar_multiple})
+
+    @property
+    def cycle_thermal_rating(self) -> float:
+        return self.value('P_ref') / self.value('eta_ref')
+
+    @property
+    def field_thermal_rating(self) -> float:
+        # TODO: This doesn't work with specified field area option
+        return self.value('specified_solar_multiple') * self.cycle_thermal_rating

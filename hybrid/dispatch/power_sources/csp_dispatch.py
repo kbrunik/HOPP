@@ -597,20 +597,14 @@ class CspDispatch(Dispatch):
 
     def update_time_series_dispatch_model_parameters(self, start_time: int):
         """
-        This is where we need to simulate the future and capture performance for dispatch parameters
+        Sets up SSC simulation to get time series performance parameters after simulation.
         : param start_time: hour of the year starting dispatch horizon
         """
         n_horizon = len(self.blocks.index_set())
         self.time_duration = [1.0] * len(self.blocks.index_set())  # assume hourly for now
 
         # Setting simulation times
-        start_datetime = self.get_start_datetime_by_hour(start_time)
-        # Handling end of simulation horizon
-        if start_time + n_horizon > 8760:
-            end_datetime = start_datetime + datetime.timedelta(hours=8760 - start_time)
-        else:
-            end_datetime = start_datetime + datetime.timedelta(hours=n_horizon)
-
+        start_datetime, end_datetime = self.get_start_end_datetime(start_time, n_horizon)
         self._system_model.value('time_start', self.seconds_since_newyear(start_datetime))
         self._system_model.value('time_stop', self.seconds_since_newyear(end_datetime))
         self._system_model.set_weather(self._system_model.year_weather_df, start_datetime, end_datetime)
@@ -631,6 +625,17 @@ class CspDispatch(Dispatch):
         self.initial_cycle_thermal_power = self._system_model.value('q_pb')
         self.is_cycle_generating_initial = self._system_model.value('pc_op_mode_final')  # TODO: figure out what this is...
         self.is_cycle_starting_initial = False
+
+    @staticmethod
+    def get_start_end_datetime(start_time: int, n_horizon: int):
+        # Setting simulation times
+        start_datetime = CspDispatch.get_start_datetime_by_hour(start_time)
+        # Handling end of simulation horizon
+        if start_time + n_horizon > 8760:
+            end_datetime = start_datetime + datetime.timedelta(hours=8760 - start_time)
+        else:
+            end_datetime = start_datetime + datetime.timedelta(hours=n_horizon)
+        return start_datetime, end_datetime
 
     @staticmethod
     def get_start_datetime_by_hour(start_time: int):

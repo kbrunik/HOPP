@@ -21,10 +21,9 @@ class TroughDispatch(CspDispatch):
         super().__init__(pyomo_model, indexed_set, system_model, financial_model, block_set_name=block_set_name)
 
     def initialize_dispatch_model_parameters(self):
-        cycle_rated_thermal = self._system_model.value('P_ref') / self._system_model.value('eta_ref')
-        field_rated_thermal = self._system_model.value('specified_solar_multiple') * cycle_rated_thermal
-        # TODO: This doesn't work with specified field area option
-        # FIX ME remove repeated code
+        cycle_rated_thermal = self._system_model.cycle_thermal_rating
+        field_rated_thermal = self._system_model.field_thermal_rating
+        # FIXME: remove repeated code
 
         # TODO: set these values here
         # Cost Parameters
@@ -73,3 +72,20 @@ class TroughDispatch(CspDispatch):
         #  Both estimates are driven by Tdry
         self.cycle_ambient_efficiency_correction = [1.0]*n_horizon
         self.condenser_losses = [0.0]*n_horizon
+
+    def update_initial_conditions(self):
+        # FIXME: There is a bit of work to do here
+        # TODO: set these values here
+        self.initial_thermal_energy_storage = 0.0  # Might need to calculate this
+
+        # TODO: This appears to be coming from AMPL data files... This will take getters to be set up in pySAM...
+        self.initial_receiver_startup_inventory = (self.receiver_required_startup_energy
+                                                   - self._system_model.value('rec_startup_energy_remain_final') )
+        self.is_field_generating_initial = self._system_model.value('is_field_tracking_final')
+        self.is_field_starting_initial = self._system_model.value('rec_op_mode_final') # TODO: this is not right
+
+        self.initial_cycle_startup_inventory = (self.cycle_required_startup_energy
+                                                - self._system_model.value('pc_startup_energy_remain_final') )
+        self.initial_cycle_thermal_power = self._system_model.value('q_pb')
+        self.is_cycle_generating_initial = self._system_model.value('pc_op_mode_final')  # TODO: figure out what this is...
+        self.is_cycle_starting_initial = False

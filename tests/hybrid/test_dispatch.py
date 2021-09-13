@@ -233,17 +233,20 @@ def test_tower_dispatch(site):
 
     tower.dispatch.initialize_dispatch_model_parameters()
     tower.dispatch.update_time_series_dispatch_model_parameters(0)
-    #battery.dispatch.update_dispatch_initial_soc(battery.dispatch.minimum_soc)  # Set initial SOC to minimum
+    # TODO: set up this function
+    # trough.dispatch.update_initial_conditions()
 
     assert_units_consistent(model)
     results = HybridDispatchBuilderSolver.glpk_solve_call(model)
+
+    tower.simulate_with_dispatch(48, 0)
 
     assert results.solver.termination_condition == TerminationCondition.optimal
     assert pyomo.value(model.test_objective) == pytest.approx(expected_objective, 1e-5)
     assert sum(tower.dispatch.receiver_thermal_power) > 0.0  # Useful thermal generation
     assert sum(tower.dispatch.cycle_generation) > 0.0  # Useful power generation
 
-    # TODO: Update the simulate_with_dispatch function for towers and troughs
+    # TODO: Add checks for dispatch solution vs. simulation results
     '''
     tower.simulate_with_dispatch(48, 0)
     for i in range(24):
@@ -300,7 +303,7 @@ def test_trough_dispatch(site):
     trough.dispatch.initialize_dispatch_model_parameters()
     trough.dispatch.update_time_series_dispatch_model_parameters(0)
     # TODO: how are we going to get information from the simulation to set parameters
-    #battery.dispatch.update_dispatch_initial_soc(battery.dispatch.minimum_soc)  # Set initial SOC to minimum
+    # trough.dispatch.update_initial_conditions()
 
     assert_units_consistent(model)
     results = HybridDispatchBuilderSolver.glpk_solve_call(model)

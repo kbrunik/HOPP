@@ -21,8 +21,8 @@ class TowerDispatch(CspDispatch):
         super().__init__(pyomo_model, indexed_set, system_model, financial_model, block_set_name=block_set_name)
 
     def initialize_dispatch_model_parameters(self):
-        cycle_rated_thermal = self._system_model.value('P_ref') / self._system_model.value('design_eff')
-        field_rated_thermal = self._system_model.value('solarm') * cycle_rated_thermal
+        cycle_rated_thermal = self._system_model.cycle_thermal_rating
+        field_rated_thermal = self._system_model.field_thermal_rating
 
         # TODO: set these values here
         # Cost Parameters
