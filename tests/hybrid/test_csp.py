@@ -19,7 +19,7 @@ def test_pySSC_tower_model(site):
                     'solar_multiple': 2.0,
                     'tes_hours': 6.0}
 
-    expected_energy = 4264819.5612
+    expected_energy = 3940002.236
 
     csp = TowerPlant(site, tower_config)
 

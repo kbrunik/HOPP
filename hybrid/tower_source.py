@@ -43,7 +43,7 @@ class TowerPlant(CspPlant):
         # Calculate flux and eta maps for all simulations
         start_datetime = datetime.datetime(1900, 1, 1, 0, 0, 0)  # start of first timestep
         self.set_weather(self.year_weather_df, start_datetime, start_datetime)  # only one weather timestep is needed
-        self.set_flux_eta_maps(self.simulate_flux_eta_maps())
+        self.set_field_layout_and_flux_eta_maps(self.create_field_layout_and_simulate_flux_eta_maps())
 
         # Set weather once -> required to be after set_flux_eta_maps call
         self.set_weather(self.year_weather_df)
@@ -52,49 +52,53 @@ class TowerPlant(CspPlant):
 
     def initialize_params(self, keep_eta_flux_maps=False):
         if keep_eta_flux_maps:
-            flux_eta_maps = {
-                'eta_map': self.ssc.get('eta_map'),
-                'flux_maps': self.ssc.get('flux_maps'),
-                'A_sf_in': self.ssc.get('A_sf_in')}
+            flux_eta_maps = {k:self.ssc.get(k) for k in ['eta_map', 'flux_maps', 'A_sf_in', 'helio_positions', 'N_hel', 'D_rec', 'rec_height', 'h_tower', 'land_area_base']}
 
         super().initialize_params()
 
         if keep_eta_flux_maps:
             self.set_flux_eta_maps(flux_eta_maps)
 
+    
     def set_params_from_files(self):
         super().set_params_from_files()
 
-        # load heliostat field
+        # load heliostat field  # TODO: Can we get rid of this if always creating a new field layout?
         heliostat_layout = np.genfromtxt(self.param_files['helio_positions_path'], delimiter=',')
         N_hel = heliostat_layout.shape[0]
         helio_positions = [heliostat_layout[j, 0:2].tolist() for j in range(N_hel)]
         self.ssc.set({'helio_positions': helio_positions})
 
-    def simulate_flux_eta_maps(self):
-        print('Simulating flux and eta maps ...')
-        # self.initialize_params(keep_eta_flux_maps=False)
+    def create_field_layout_and_simulate_flux_eta_maps(self):
+        print('Creating field layout and simulating flux and eta maps ...')
         self.ssc.set({'time_start': 0})
         self.ssc.set({'time_stop': 0})
-        # TODO: need a function to design field and tower/receiver based on inputs (field_model_type = 0)
-        self.ssc.set({'field_model_type': 2})  # generate flux and eta maps but don't optimize field or tower
-        original_values = {k: self.ssc.get(k) for k in
-                           ['is_dispatch_targets', 'rec_clearsky_model', 'time_steps_per_hour', 'sf_adjust:hourly', ]}
+
+        # TODO: change to field_model_type = 0 to optimize receiver/tower sizing
+        self.ssc.set({'field_model_type': 1})  # Create field layout and generate flux and eta maps, but don't optimize field or tower 
+
+        # Check if specified receiver dimensions make sense relative to heliostat dimensions (if not optimizing receiver sizing)
+        if self.ssc.get('field_model_type') > 0 and min(self.ssc.get('rec_height'), self.ssc.get('D_rec')) < max(self.ssc.get('helio_width'), self.ssc.get('helio_height')):
+            print('Warning: Receiver height or diameter is smaller than the heliostat dimension')
+
+        original_values = {k: self.ssc.get(k) for k in['is_dispatch_targets', 'rec_clearsky_model', 'time_steps_per_hour', 'sf_adjust:hourly']}
         self.ssc.set({'is_dispatch_targets': False, 'rec_clearsky_model': 1, 'time_steps_per_hour': 1,
-                 'sf_adjust:hourly': [0.0 for j in range(
-                     8760)]})  # set so unneeded dispatch targets and clearsky DNI are not required
-        self.ssc.set({'sf_adjust:hourly': [0.0 for j in range(8760)]})
+                      'sf_adjust:hourly': [0.0 for j in range(8760)]})  # set so unneeded dispatch targets and clearsky DNI are not required  # TODO: probably don't need hourly sf adjustment factors
+
         tech_outputs = self.ssc.execute()
-        print('Finished simulating flux and eta maps ...')
+        print('Finished creating field layout and simulating flux and eta maps ...')
         self.ssc.set(original_values)
         eta_map = tech_outputs["eta_map_out"]
         flux_maps = [r[2:] for r in tech_outputs['flux_maps_for_import']]  # don't include first two columns
         A_sf_in = tech_outputs["A_sf"]
-        flux_eta_maps = {'eta_map': eta_map, 'flux_maps': flux_maps, 'A_sf_in': A_sf_in}
-        return flux_eta_maps
+        field_and_flux_maps = {'eta_map': eta_map, 'flux_maps': flux_maps, 'A_sf_in': A_sf_in}
+        for k in ['helio_positions', 'N_hel', 'D_rec', 'rec_height', 'h_tower', 'land_area_base']:
+            field_and_flux_maps[k] = tech_outputs[k]
+        return field_and_flux_maps
 
-    def set_flux_eta_maps(self, flux_eta_maps):
-        self.ssc.set(flux_eta_maps)  # set flux maps etc. so they don't have to be recalculated
+
+    def set_field_layout_and_flux_eta_maps(self, field_and_flux_maps):
+        self.ssc.set(field_and_flux_maps)  # set flux maps etc. so they don't have to be recalculated
         self.ssc.set({'field_model_type': 3})  # use the provided flux and eta map inputs
         self.ssc.set({'eta_map_aod_format': False})  #
 
