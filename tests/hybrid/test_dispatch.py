@@ -165,7 +165,7 @@ def test_csp_dispatch_model(site):
                                             / (csp_dispatch.maximum_cycle_thermal_power
                                                - csp_dispatch.minimum_cycle_thermal_power))
 
-    csp_dispatch.update_time_series_dispatch_model_parameters(0)
+    csp_dispatch.time_duration = [1.0] * len(csp_dispatch.blocks.index_set())
 
     heat_gen = [0.0]*6
     heat_gen.extend([0.222905449, 0.698358974, 0.812419872, 0.805703526, 0.805679487, 0.805360577, 0.805392628,

@@ -59,3 +59,7 @@ class TroughPlant(CspPlant):
     def field_thermal_rating(self) -> float:
         # TODO: This doesn't work with specified field area option
         return self.value('specified_solar_multiple') * self.cycle_thermal_rating
+
+    @property
+    def cycle_nominal_efficiency(self) -> float:
+        return self.value('eta_ref')

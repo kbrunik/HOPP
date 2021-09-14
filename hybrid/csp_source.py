@@ -313,6 +313,10 @@ class CspPlant(PowerSource):
     def field_thermal_rating(self) -> float:
         raise NotImplementedError
 
+    @property
+    def cycle_nominal_efficiency(self) -> float:
+        raise NotImplementedError
+
     def value(self, var_name, var_value=None):
         attr_obj = None
         ssc_value = None

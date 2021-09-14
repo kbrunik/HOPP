@@ -116,3 +116,7 @@ class TowerPlant(CspPlant):
     def field_thermal_rating(self) -> float:
         return self.value('solarm') * self.cycle_thermal_rating
 
+    @property
+    def cycle_nominal_efficiency(self) -> float:
+        return self.value('design_eff')
+
