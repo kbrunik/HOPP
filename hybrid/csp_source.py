@@ -40,7 +40,7 @@ class CspPlant(PowerSource):
         self.name = name
         self.site = site
 
-        self._financial_model = financial_model        # TODO: Should we run a financial model with pySSC or pySAM?
+        self._financial_model = financial_model
         self._layout = None
         self._dispatch = CspDispatch
         self.set_construction_financing_cost_per_kw(0)
@@ -53,12 +53,12 @@ class CspPlant(PowerSource):
             financial_name=None,
             defaults_name=None)  # ['MSPTSingleOwner' | 'PhysicalTroughSingleOwner']  NOTE: not used for pyssc
         self.initialize_params()
+
         self.year_weather_df = self.tmy3_to_df()  # read entire weather file
 
         self.cycle_capacity_kw: float = csp_config['cycle_capacity_kw']
         self.solar_multiple: float = csp_config['solar_multiple']
         self.tes_hours: float = csp_config['tes_hours']
-        # TODO: what needs to be updated after these three parameters are set?
 
     def param_file_paths(self, relative_path):
         cwd = os.path.dirname(os.path.abspath(__file__))
@@ -74,9 +74,6 @@ class CspPlant(PowerSource):
         self.ssc.set({'sf_adjust:hourly': n_steps_year * [0]})
 
     def tmy3_to_df(self):
-        # if not isinstance(self.site.solar_resource.filename, str) or not os.path.isfile(self.site.solar_resource.filename):
-        #     raise Exception('Tmy3 file not found')
-
         # NOTE: be careful of leading spaces in the column names, they are hard to catch and break the parser
         df = pd.read_csv(self.site.solar_resource.filename, sep=',', skiprows=2, header=0)
         date_cols = ['Year', 'Month', 'Day', 'Hour', 'Minute']
@@ -124,7 +121,16 @@ class CspPlant(PowerSource):
         wlim_series = np.array(pd.read_csv(self.param_files['wlim_series_path']))
         self.ssc.set({'wlim_series': wlim_series})
 
-    def set_weather(self, weather_df, start_datetime, end_datetime):
+    def set_weather(self, weather_df: pd.DataFrame,
+                    start_datetime: datetime = None,
+                    end_datetime: datetime = None):
+        """
+        Sets 'solar_resource_data' for pySSC simulation. If start and end (datetime) are not provided, full year is
+        assumed.
+        :param weather_df: weather information
+        :param start_datetime: start of pySSC simulation (datetime)
+        :param end_datetime: end of pySSC simulation (datetime)
+        """
         weather_timedelta = weather_df.index[1] - weather_df.index[0]
         weather_time_steps_per_hour = int(1 / (weather_timedelta.total_seconds() / 3600))
         ssc_time_steps_per_hour = self.ssc.get('time_steps_per_hour')
@@ -132,17 +138,22 @@ class CspPlant(PowerSource):
             raise Exception('Configured time_steps_per_hour ({x}) is not that of weather file ({y})'.format(
                 x=ssc_time_steps_per_hour, y=weather_time_steps_per_hour))
 
-        weather_year = weather_df.index[0].year
-        if start_datetime.year != weather_year:
-            print('Replacing start and end years ({x}) with weather file\'s ({y}).'.format(
-                x=start_datetime.year, y=weather_year))
-            start_datetime = start_datetime.replace(year=weather_year)
-            end_datetime = end_datetime.replace(year=weather_year)
+        if start_datetime is None and end_datetime is None:
+            if len(weather_df) != ssc_time_steps_per_hour * 8760:
+                raise Exception('Full year weather dataframe required if start and end datetime are not provided')
+            weather_df_part = weather_df
+        else:
+            weather_year = weather_df.index[0].year
+            if start_datetime.year != weather_year:
+                print('Replacing start and end years ({x}) with weather file\'s ({y}).'.format(
+                    x=start_datetime.year, y=weather_year))
+                start_datetime = start_datetime.replace(year=weather_year)
+                end_datetime = end_datetime.replace(year=weather_year)
 
-        if end_datetime <= start_datetime:
-            end_datetime = start_datetime + weather_timedelta
-        weather_df_part = weather_df[start_datetime:(
-                    end_datetime - weather_timedelta)]  # times in weather file are the start (or middle) of timestep
+            if end_datetime <= start_datetime:
+                end_datetime = start_datetime + weather_timedelta
+            weather_df_part = weather_df[start_datetime:(
+                        end_datetime - weather_timedelta)]  # times in weather file are the start (or middle) of timestep
 
         def weather_df_to_ssc_table(weather_df):
             rename_from_to = {
@@ -204,6 +215,8 @@ class CspPlant(PowerSource):
                         if isinstance(solar_resource_data[k], list):
                             solar_resource_data[k] = front_padding + solar_resource_data[k] + back_padding
                     return solar_resource_data
+                else:
+                    return solar_resource_data
 
             solar_resource_data = pad_solar_resource_data(solar_resource_data)
             return solar_resource_data
@@ -240,15 +253,15 @@ class CspPlant(PowerSource):
 
         self.ssc.set(D)
 
-        # Set up weather
-        self.set_weather(self.year_weather_df, start_datetime, end_datetime)
         # Simulate
         results = self.ssc.execute()
         if not results["cmod_success"]:
             raise ValueError('PySSC simulation failed...')
+        # Save plant state at end of simulation
+
         # Save simulation output TODO: save information in a structure
 
-        # Save plant state at end of simulation
+
 
         pass
 

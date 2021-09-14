@@ -634,6 +634,7 @@ class CspDispatch(Dispatch):
         Sets up SSC simulation to get time series performance parameters after simulation.
         : param start_time: hour of the year starting dispatch horizon
         """
+        # TODO: we should combine both troughs and towers here
         n_horizon = len(self.blocks.index_set())
         self.time_duration = [1.0] * len(self.blocks.index_set())  # assume hourly for now
 
@@ -641,14 +642,12 @@ class CspDispatch(Dispatch):
         start_datetime, end_datetime = self.get_start_end_datetime(start_time, n_horizon)
         self._system_model.value('time_start', self.seconds_since_newyear(start_datetime))
         self._system_model.value('time_stop', self.seconds_since_newyear(end_datetime))
-        self._system_model.set_weather(self._system_model.year_weather_df, start_datetime, end_datetime)
 
     def update_initial_conditions(self):
         # FIXME: There is a bit of work to do here
         # TODO: set these values here
         self.initial_thermal_energy_storage = 0.0  # Might need to calculate this
 
-        # TODO: This appears to be coming from AMPL data files... This will take getters to be set up in pySAM...
         self.initial_receiver_startup_inventory = (self.receiver_required_startup_energy
                                                    - self._system_model.value('rec_startup_energy_remain_final') )
         self.is_field_generating_initial = self._system_model.value('is_field_tracking_final')
@@ -664,7 +663,7 @@ class CspDispatch(Dispatch):
     def get_start_end_datetime(start_time: int, n_horizon: int):
         # Setting simulation times
         start_datetime = CspDispatch.get_start_datetime_by_hour(start_time)
-        # Handling end of simulation horizon
+        # Handling end of simulation horizon -> assumes hourly data
         if start_time + n_horizon > 8760:
             end_datetime = start_datetime + datetime.timedelta(hours=8760 - start_time)
         else:
@@ -678,6 +677,7 @@ class CspDispatch(Dispatch):
         : param start_time: hour of year
         : return: datetime object
         """
+        # TODO: bring in the correct year from site data - or replace outside of function?
         beginning_of_year = datetime.datetime(2009, 1, 1, 0)
         return beginning_of_year + datetime.timedelta(hours=start_time)
 

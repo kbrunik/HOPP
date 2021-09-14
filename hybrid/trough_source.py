@@ -35,6 +35,8 @@ class TroughPlant(CspPlant):
 
         super().__init__("TroughPlant", 'trough_physical', site, financial_model, trough_config)
 
+        self.set_weather(self.year_weather_df)  # Set weather once
+
         self._dispatch: TroughDispatch = None
 
     @property

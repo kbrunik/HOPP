@@ -47,7 +47,7 @@ class TroughDispatch(CspDispatch):
         self.initial_receiver_startup_inventory = (self.receiver_required_startup_energy
                                                    - self._system_model.value('rec_startup_energy_remain_final') )
         self.is_field_generating_initial = self._system_model.value('is_field_tracking_final')
-        self.is_field_starting_initial = self._system_model.value('rec_op_mode_final') # TODO: this is not right
+        self.is_field_starting_initial = self._system_model.value('rec_op_mode_final')  # TODO: this is not right
 
         self.initial_cycle_startup_inventory = (self.cycle_required_startup_energy
                                                 - self._system_model.value('pc_startup_energy_remain_final') )

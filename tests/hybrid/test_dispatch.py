@@ -219,6 +219,7 @@ def test_tower_dispatch(site):
                               mutable=True,
                               units=u.USD / u.MWh)
 
+    # TODO: Use hybrid simulation class with grid and remove this objective set-up
     def create_test_objective_rule(m):
         return sum(m.tower[t].time_duration * m.price[t] * m.tower[t].cycle_generation
                    - m.tower[t].cost_per_field_generation * m.tower[t].receiver_thermal_power * m.tower[t].time_duration

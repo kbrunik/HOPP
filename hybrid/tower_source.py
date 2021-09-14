@@ -5,6 +5,7 @@ import datetime
 import PySAM.Singleowner as Singleowner
 
 from hybrid.dispatch.power_sources.tower_dispatch import TowerDispatch
+from hybrid.dispatch.power_sources.csp_dispatch import CspDispatch
 
 
 from hybrid.power_source import *
@@ -43,6 +44,9 @@ class TowerPlant(CspPlant):
         start_datetime = datetime.datetime(1900, 1, 1, 0, 0, 0)  # start of first timestep
         self.set_weather(self.year_weather_df, start_datetime, start_datetime)  # only one weather timestep is needed
         self.set_flux_eta_maps(self.simulate_flux_eta_maps())
+
+        # Set weather once -> required to be after set_flux_eta_maps call
+        self.set_weather(self.year_weather_df)
 
         self._dispatch: TowerDispatch = None
 

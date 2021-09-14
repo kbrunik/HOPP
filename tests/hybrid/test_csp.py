@@ -19,18 +19,17 @@ def test_pySSC_tower_model(site):
                     'solar_multiple': 2.0,
                     'tes_hours': 6.0}
 
-    expected_energy = 4265347.56120
+    expected_energy = 4264819.5612
 
     csp = TowerPlant(site, tower_config)
 
-    start_datetime = datetime.datetime(2018, 10, 21, 0, 0, 0)               # start of first timestep
-    end_datetime = datetime.datetime(2018, 10, 24, 0, 0, 0)                 # end of last timestep
-    # csp.initialize_params(keep_eta_flux_maps=True) # Will result in design variables to be overwritten
+    start_datetime = datetime.datetime(2012, 10, 21, 0, 0, 0)  # start of first timestep
+    end_datetime = datetime.datetime(2012, 10, 24, 1, 0, 0)  # end of last timestep
     csp.ssc.set({'time_start': CspDispatch.seconds_since_newyear(start_datetime)})
     csp.ssc.set({'time_stop': CspDispatch.seconds_since_newyear(end_datetime)})
-    csp.set_weather(csp.year_weather_df, start_datetime, end_datetime)
+
     tech_outputs = csp.ssc.execute()
-    print('Three days all at once starting 10/21/2018, annual energy = {e:.0f} MWhe'.format(e=tech_outputs['annual_energy'] * 1.e-3))
+    print('Three days all at once starting 10/21, annual energy = {e:.0f} MWhe'.format(e=tech_outputs['annual_energy'] * 1.e-3))
 
     assert csp.cycle_capacity_kw == tower_config['cycle_capacity_kw']
     assert csp.solar_multiple == tower_config['solar_multiple']
@@ -44,21 +43,17 @@ def test_pySSC_trough_model(site):
                      'solar_multiple': 1.5,
                      'tes_hours': 5.0}   # Different than json
 
-    expected_energy = 2100886.0210265624
+    expected_energy = 2100355.9888118473
 
     csp = TroughPlant(site, trough_config)
 
-    start_datetime = datetime.datetime(2018, 10, 21, 0, 0, 0)               # start of first timestep
-    end_datetime = datetime.datetime(2018, 10, 24, 0, 0, 0)                 # end of last timestep
-
-    #csp.initialize_params(keep_eta_flux_maps=True)
-    # TODO: when does this need to be called? Does this have to be called before each simulation?
-    #  If so, we need to store the variables within the class
+    start_datetime = datetime.datetime(2012, 10, 21, 0, 0, 0)  # start of first timestep
+    end_datetime = datetime.datetime(2012, 10, 24, 1, 0, 0)  # end of last timestep
     csp.ssc.set({'time_start': CspDispatch.seconds_since_newyear(start_datetime)})
     csp.ssc.set({'time_stop': CspDispatch.seconds_since_newyear(end_datetime)})
-    csp.set_weather(csp.year_weather_df, start_datetime, end_datetime)  # TODO: what does this exactly do?
+
     tech_outputs = csp.ssc.execute()
-    print('Three days all at once starting 10/21/2018, annual energy = {e:.0f} MWhe'.format(e=tech_outputs['annual_energy'] * 1.e-3))
+    print('Three days all at once starting 10/21, annual energy = {e:.0f} MWhe'.format(e=tech_outputs['annual_energy'] * 1.e-3))
 
     assert csp.cycle_capacity_kw == trough_config['cycle_capacity_kw']
     assert csp.solar_multiple == trough_config['solar_multiple']
