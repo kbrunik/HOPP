@@ -93,10 +93,9 @@ def test_solar_dispatch(site):
 
 
 def test_csp_dispatch_model(site):
-    expected_objective = 607360.184
+    expected_objective = 222414.39234292
     dispatch_n_look_ahead = 48
 
-    #csp = TroughPlant(site, technologies['csp'])
     model = pyomo.ConcreteModel(name='csp')
     model.forecast_horizon = pyomo.Set(initialize=range(dispatch_n_look_ahead))
     csp_dispatch = CspDispatch(model,
@@ -132,10 +131,6 @@ def test_csp_dispatch_model(site):
 
     assert_units_consistent(model)
 
-    # TODO: Update these calls
-    #csp_dispatch.initialize_dispatch_model_parameters()
-    #csp.simulate(1)
-
     # WITHIN csp_dispatch.initialize_dispatch_model_parameters()
     # Cost Parameters
     csp_dispatch.cost_per_field_generation = 3.0
@@ -165,7 +160,9 @@ def test_csp_dispatch_model(site):
                                             / (csp_dispatch.maximum_cycle_thermal_power
                                                - csp_dispatch.minimum_cycle_thermal_power))
 
-    csp_dispatch.time_duration = [1.0] * len(csp_dispatch.blocks.index_set())
+    n_horizon = len(csp_dispatch.blocks.index_set())
+    csp_dispatch.time_duration = [1.0] * n_horizon
+    csp_dispatch.cycle_ambient_efficiency_correction = [csp_dispatch.cycle_nominal_efficiency] * n_horizon
 
     heat_gen = [0.0]*6
     heat_gen.extend([0.222905449, 0.698358974, 0.812419872, 0.805703526, 0.805679487, 0.805360577, 0.805392628,
@@ -258,7 +255,9 @@ def test_tower_dispatch(site):
 
 def test_trough_dispatch(site):
     """Tests setting up trough dispatch using system model and running simulation with dispatch"""
-    expected_objective = 96842.65748429742  # TODO: why is the trough model 1.5x higher the towers?
+    expected_objective = 18376.85378359526
+    # TODO: why is the trough model 1.5x higher the towers?
+    #  [ ] Available thermal energy is double that of towers 6114 MWh compared to 2950 MWh...
     dispatch_n_look_ahead = 48
 
     trough = TroughPlant(site, technologies['trough'])

@@ -258,26 +258,7 @@ class CspPlant(PowerSource):
         self.value('time_start', CspDispatch.seconds_since_newyear(start_datetime))
         self.value('time_stop', CspDispatch.seconds_since_newyear(end_datetime))
 
-        # Set targets TODO: move this to function
-        yrsu = self.dispatch.is_field_starting
-        yr = self.dispatch.is_field_generating
-        y = self.dispatch.is_cycle_generating
-        ycsu = self.dispatch.is_cycle_starting
-
-        D = {}
-        D['is_dispatch_targets'] = 1
-
-        D['is_rec_su_allowed_in'] = [1 if (yr[t] + yrsu[t]) > 0.001 else 0 for t in range(n_periods)]  # Receiver on, startup, or standby (+ yrsb[t])
-        D['is_rec_sb_allowed_in'] = [0 for t in range(n_periods)]  # Receiver standby - NOT in dispatch currently
-
-        D['is_pc_su_allowed_in'] = [1 if (y[t] + ycsu[t]) > 0.001 else 0 for t in range(n_periods)]  # Cycle on or startup
-        D['is_pc_sb_allowed_in'] = [0 for t in range(n_periods)]  # Cycle standby
-
-        D['q_pc_target_su_in'] = [self.dispatch.allowable_cycle_startup_power if ycsu[t] > 0.001 else 0.0 for t in range(n_periods)]
-        D['q_pc_target_on_in'] = self.dispatch.cycle_thermal_power[0:n_periods]
-        D['q_pc_max_in'] = [self.cycle_thermal_rating for t in range(n_periods)]
-
-        self.ssc.set(D)
+        self.set_dispatch_targets(n_periods)
 
         # Simulate
         results = self.ssc.execute()
@@ -290,6 +271,31 @@ class CspPlant(PowerSource):
 
 
         pass
+
+    def set_dispatch_targets(self, n_periods: int):
+        """Set pySSC targets using dispatch model solution."""
+        # Set targets
+        dis = self.dispatch
+
+        dispatch_targets = {'is_dispatch_targets': 1,
+                            # Receiver on, startup, (or standby - NOT in dispatch currently)
+                            'is_rec_su_allowed_in': [1 if (dis.is_field_generating[t] + dis.is_field_starting[t]) > 0.01
+                                                     else 0 for t in range(n_periods)],
+                            # Receiver standby - NOT in dispatch currently
+                            'is_rec_sb_allowed_in': [0 for t in range(n_periods)],
+                            # Cycle on or startup
+                            'is_pc_su_allowed_in': [1 if (dis.is_cycle_generating[t] + dis.is_cycle_starting[t]) > 0.01
+                                                    else 0 for t in range(n_periods)],
+                            # Cycle standby - NOT in dispatch currently
+                            'is_pc_sb_allowed_in': [0 for t in range(n_periods)],
+                            # Cycle start up thermal power
+                            'q_pc_target_su_in': [dis.allowable_cycle_startup_power if dis.is_cycle_starting[t] > 0.01
+                                                  else 0.0 for t in range(n_periods)],
+                            # Cycle thermal power
+                            'q_pc_target_on_in': dis.cycle_thermal_power[0:n_periods],
+                            # Cycle max thermal power allowed
+                            'q_pc_max_in': [self.cycle_thermal_rating for t in range(n_periods)]}
+        self.ssc.set(dispatch_targets)
 
     @property
     def _system_model(self):

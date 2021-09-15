@@ -155,8 +155,7 @@ class CspDispatch(Dispatch):
             units=u.USD / u.MW)  # $/(Delta)MW (thermal)
         # Performance parameters
         csp.cycle_ambient_efficiency_correction = pyomo.Param(
-            doc="Cycle efficiency ambient temperature adjustment factor [-]",
-            default=1.0,
+            doc="Cycle efficiency ambient temperature adjustment [-]",
             within=pyomo.NonNegativeReals,
             mutable=True,
             units=u.dimensionless)
@@ -641,8 +640,9 @@ class CspDispatch(Dispatch):
         self._system_model.value('time_stop', self.seconds_since_newyear(end_datetime))
         tech_outputs = self._system_model.ssc.execute()
 
-        thermal_estimate_name_map = {'TowerDispatch': 'Q_thermal', 'TroughDispatch': 'q_inc_sf_tot'}
-        self.available_thermal_generation = tech_outputs[thermal_estimate_name_map[type(self).__name__]][0:n_horizon]
+        thermal_est_name_map = {'TowerDispatch': 'Q_thermal', 'TroughDispatch': 'q_dot_est_cr_on'}
+        rec_output = [max(heat, 0.0) for heat in tech_outputs[thermal_est_name_map[type(self).__name__]][0:n_horizon]]
+        self.available_thermal_generation = rec_output
 
         # Get ambient temperature array
         dry_bulb_temperature = tech_outputs['tdry'][0:n_horizon]
