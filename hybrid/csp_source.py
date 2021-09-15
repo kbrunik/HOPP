@@ -60,6 +60,8 @@ class CspPlant(PowerSource):
         self.solar_multiple: float = csp_config['solar_multiple']
         self.tes_hours: float = csp_config['tes_hours']
 
+        self.cycle_efficiency_tables = self.get_cycle_efficiency_tables()
+
     def param_file_paths(self, relative_path):
         cwd = os.path.dirname(os.path.abspath(__file__))
         data_path = os.path.join(cwd, relative_path)
@@ -223,6 +225,30 @@ class CspPlant(PowerSource):
 
         self.ssc.set({'solar_resource_data': weather_df_to_ssc_table(weather_df_part)})
 
+    def get_cycle_efficiency_tables(self) -> dict:
+        """
+        Gets off-design cycle performance tables from pySSC.
+        :return cycle_efficiency_tables: if tables exist, tables are return,
+                                        else if user defined cycle, tables are calculated,
+                                        else return emtpy dictionary with warning
+        """
+        start_datetime = datetime.datetime(self.year_weather_df.index[0].year, 1, 1, 0, 0, 0)  # start of first timestep
+        self.set_weather(self.year_weather_df, start_datetime, start_datetime)  # only one weather timestep is needed
+        self.ssc.set({'time_start': 0})
+        self.ssc.set({'time_stop': 0})
+        ssc_outputs = self.ssc.execute()
+
+        required_tables = ['cycle_eff_load_table', 'cycle_eff_Tdb_table', 'cycle_wcond_Tdb_table']
+        if all(table in ssc_outputs for table in required_tables):
+            return {table: ssc_outputs[table] for table in required_tables}
+        if ssc_outputs['pc_config'] == 1:
+            # Tables not returned from ssc, but can be taken from user-defined cycle inputs
+            return {'ud_ind_od': ssc_outputs['ud_ind_od']}
+        else:
+            print('WARNING: Cycle efficiency tables not found. Dispatch optimization will assume a constant cycle '
+                  'efficiency and no ambient temperature dependence.')
+            return {}
+
     def simulate_with_dispatch(self, n_periods: int, sim_start_time: int = None):
         """
         Step through dispatch solution and simulate trough system
@@ -248,7 +274,7 @@ class CspPlant(PowerSource):
         D['is_pc_sb_allowed_in'] = [0 for t in range(n_periods)]  # Cycle standby
 
         D['q_pc_target_su_in'] = [self.dispatch.allowable_cycle_startup_power if ycsu[t] > 0.001 else 0.0 for t in range(n_periods)]
-        D['q_pc_target_on_in'] = self.dispatch.cycle_generation[0:n_periods]
+        D['q_pc_target_on_in'] = self.dispatch.cycle_thermal_power[0:n_periods]
         D['q_pc_max_in'] = [self.cycle_thermal_rating for t in range(n_periods)]
 
         self.ssc.set(D)

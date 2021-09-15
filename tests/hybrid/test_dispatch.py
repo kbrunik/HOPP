@@ -188,7 +188,7 @@ def test_csp_dispatch_model(site):
 
 def test_tower_dispatch(site):
     """Tests setting up tower dispatch using system model and running simulation with dispatch"""
-    expected_objective = 236328.35940437872
+    expected_objective = 65866.1284343
     dispatch_n_look_ahead = 48
 
     tower = TowerPlant(site, technologies['tower'])
@@ -258,7 +258,7 @@ def test_tower_dispatch(site):
 
 def test_trough_dispatch(site):
     """Tests setting up trough dispatch using system model and running simulation with dispatch"""
-    expected_objective = 261992.0676634827
+    expected_objective = 96842.65748429742  # TODO: why is the trough model 1.5x higher the towers?
     dispatch_n_look_ahead = 48
 
     trough = TroughPlant(site, technologies['trough'])

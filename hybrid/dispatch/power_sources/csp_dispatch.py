@@ -3,6 +3,7 @@ from pyomo.network import Port
 from pyomo.environ import units as u
 from typing import Union
 import datetime
+import numpy as np
 
 from hybrid.dispatch.dispatch import Dispatch
 
@@ -624,17 +625,13 @@ class CspDispatch(Dispatch):
         self.allowable_cycle_startup_power = self._system_model.value('startup_time') * cycle_rated_thermal / 1.0
         self.minimum_cycle_thermal_power = self._system_model.value('cycle_cutoff_frac') * cycle_rated_thermal
         self.maximum_cycle_thermal_power = self._system_model.value('cycle_max_frac') * cycle_rated_thermal
-        # self.minimum_cycle_power = ???
-        self.maximum_cycle_power = self._system_model.value('P_ref')
-        self.cycle_performance_slope = ((self.maximum_cycle_power - 0.0)  # TODO: need low point evaluated...
-                                        / (self.maximum_cycle_thermal_power - self.minimum_cycle_thermal_power))
+        self.set_part_load_cycle_parameters()
 
     def update_time_series_dispatch_model_parameters(self, start_time: int):
         """
         Sets up SSC simulation to get time series performance parameters after simulation.
         : param start_time: hour of the year starting dispatch horizon
         """
-        # TODO: we should combine both troughs and towers here
         n_horizon = len(self.blocks.index_set())
         self.time_duration = [1.0] * len(self.blocks.index_set())  # assume hourly for now
 
@@ -642,6 +639,121 @@ class CspDispatch(Dispatch):
         start_datetime, end_datetime = self.get_start_end_datetime(start_time, n_horizon)
         self._system_model.value('time_start', self.seconds_since_newyear(start_datetime))
         self._system_model.value('time_stop', self.seconds_since_newyear(end_datetime))
+        tech_outputs = self._system_model.ssc.execute()
+
+        thermal_estimate_name_map = {'TowerDispatch': 'Q_thermal', 'TroughDispatch': 'q_inc_sf_tot'}
+        self.available_thermal_generation = tech_outputs[thermal_estimate_name_map[type(self).__name__]][0:n_horizon]
+
+        # Get ambient temperature array
+        dry_bulb_temperature = tech_outputs['tdry'][0:n_horizon]
+        self.set_ambient_temperature_cycle_parameters(dry_bulb_temperature)
+
+    def set_part_load_cycle_parameters(self):
+        """Set parameters in dispatch model for off-design cycle performance."""
+        # --- Cycle part-load efficiency
+        tables = self._system_model.cycle_efficiency_tables
+        if 'cycle_eff_load_table' in tables:
+            q_pb_design = self._system_model.cycle_thermal_rating
+            num_pts = len(tables['cycle_eff_load_table'])
+            norm_heat_pts = [tables['cycle_eff_load_table'][i][0] / q_pb_design for i in range(num_pts)]  # Load fraction
+            efficiency_pts = [tables['cycle_eff_load_table'][i][1] for i in range(num_pts)]  # Efficiency
+            self.set_linearized_cycle_part_load_params(norm_heat_pts, efficiency_pts)
+        elif 'ud_ind_od' in tables:
+            # Tables not returned from ssc, but can be taken from user-defined cycle inputs
+            D = self.interpret_user_defined_cycle_data(tables['ud_ind_od'])
+            k = 3 * D['nT'] + D['nm']
+            norm_heat_pts = D['mpts']  # Load fraction
+            efficiency_pts = [self._system_model.cycle_nominal_efficiency * (tables['ud_ind_od'][k + p][3] / tables['ud_ind_od'][k + p][4])
+                              for p in range(len(norm_heat_pts))]  # Efficiency
+            self.set_linearized_cycle_part_load_params(norm_heat_pts, efficiency_pts)
+        else:
+            print('WARNING: Dispatch optimization cycle part-load efficiency is not set. '
+                  'Defaulting to constant efficiency vs load.')
+            self.cycle_performance_slope = self._system_model.cycle_nominal_efficiency
+            # self.minimum_cycle_power = self.minimum_cycle_thermal_power * self._system_model.cycle_nominal_efficiency
+            self.maximum_cycle_power = self.maximum_cycle_thermal_power * self._system_model.cycle_nominal_efficiency
+
+    def set_linearized_cycle_part_load_params(self, norm_heat_pts, efficiency_pts):
+        q_pb_design = self._system_model.cycle_thermal_rating
+        fpts = [self._system_model.value('cycle_cutoff_frac'), self._system_model.value('cycle_max_frac')]
+        step = norm_heat_pts[1] - norm_heat_pts[0]
+        q, eta = [ [] for v in range(2)]
+        for j in range(2):
+            # Find first point in user-defined array of load fractions
+            p = max(0, min(int((fpts[j] - norm_heat_pts[0]) / step), len(norm_heat_pts) - 2))
+            eta.append(efficiency_pts[p] + (efficiency_pts[p + 1] - efficiency_pts[p]) / step * (fpts[j] - norm_heat_pts[p]))
+            q.append(fpts[j]*q_pb_design)
+        etap = (q[1]*eta[1]-q[0]*eta[0])/(q[1]-q[0])
+        b = q[1]*(eta[1] - etap)
+        self.cycle_performance_slope = etap
+        # self.minimum_cycle_power = b + self.minimum_cycle_thermal_power * self.cycle_performance_slope
+        self.maximum_cycle_power = b + self.maximum_cycle_thermal_power * self.cycle_performance_slope
+        return
+
+    def set_ambient_temperature_cycle_parameters(self, dry_bulb_temperature):
+        """Set ambient temperature dependent cycle performance parameters."""
+        # --- Cycle ambient-temperature efficiency corrections
+        tables = self._system_model.cycle_efficiency_tables
+        if 'cycle_eff_Tdb_table' in tables:
+            nT = len(tables['cycle_eff_Tdb_table'])
+            Tpts = [tables['cycle_eff_Tdb_table'][i][0] for i in range(nT)]
+            efficiency_pts = [tables['cycle_eff_Tdb_table'][i][1] * self._system_model.cycle_nominal_efficiency for i in range(nT)]  # Efficiency
+            wcondfpts = [tables['cycle_wcond_Tdb_table'][i][1] for i in range(nT)]  # Fraction of cycle design gross output consumed by cooling
+            self.set_cycle_ambient_corrections(dry_bulb_temperature, Tpts, efficiency_pts, wcondfpts)
+        elif 'ud_ind_od' in tables:
+            # Tables not returned from ssc, but can be taken from user-defined cycle inputs
+            D = self.interpret_user_defined_cycle_data(tables['ud_ind_od'])
+            k = 3 * D['nT'] + 3 * D['nm'] + D[
+                'nTamb']  # first index in udpc data corresponding to performance at design point HTF T, and design point mass flow
+            npts = D['nTamb']
+            efficiency_pts = [self._system_model.cycle_nominal_efficiency * (tables['ud_ind_od'][j][3] / tables['ud_ind_od'][j][4])
+                              for j in range(k, k + npts)]  # Efficiency
+            wcondfpts = [(self._system_model.value('ud_f_W_dot_cool_des') / 100.) * tables['ud_ind_od'][j][5] for j in
+                         range(k, k + npts)]  # Fraction of cycle design gross output consumed by cooling
+            self.set_cycle_ambient_corrections(dry_bulb_temperature, D['Tambpts'], efficiency_pts, wcondfpts)
+        else:
+            print('WARNING: Dispatch optimization cycle ambient temperature corrections are not set up.')
+            n = len(dry_bulb_temperature)
+            self.cycle_ambient_efficiency_correction = [self._system_model.cycle_nominal_efficiency] * n
+            self.condenser_losses = [0.0] * n
+        return
+
+    def set_cycle_ambient_corrections(self, Tdb, Tpts, etapts, wcondfpts):
+        n = len(Tdb)            # Tdb = set of ambient temperature points for each dispatch time step
+        npts = len(Tpts)        # Tpts = ambient temperature points with tabulated values
+        cycle_ambient_efficiency_correction = [1.0]*n
+        condenser_losses = [0.0]*n
+        Tstep = Tpts[1] - Tpts[0]
+        for j in range(n):
+            i = max(0, min( int((Tdb[j] - Tpts[0]) / Tstep), npts-2) )
+            r = (Tdb[j] - Tpts[i]) / Tstep
+            cycle_ambient_efficiency_correction[j] = etapts[i] + (etapts[i + 1] - etapts[i]) * r
+            condenser_losses[j] = wcondfpts[i] + (wcondfpts[i + 1] - wcondfpts[i]) * r
+        self.cycle_ambient_efficiency_correction = cycle_ambient_efficiency_correction
+        self.condenser_losses = condenser_losses
+        return
+
+    @staticmethod
+    def interpret_user_defined_cycle_data(ud_ind_od):
+        data = np.array(ud_ind_od)
+
+        i0 = 0
+        nT = np.where(np.diff(data[i0::, 0]) < 0)[0][0] + 1
+        Tpts = data[i0:i0 + nT, 0]
+        mlevels = [data[j, 1] for j in [i0, i0 + nT, i0 + 2 * nT]]
+
+        i0 = 3 * nT
+        nm = np.where(np.diff(data[i0::, 1]) < 0)[0][0] + 1
+        mpts = data[i0:i0 + nm, 1]
+        Tamblevels = [data[j, 2] for j in [i0, i0 + nm, i0 + 2 * nm]]
+
+        i0 = 3 * nT + 3 * nm
+        nTamb = np.where(np.diff(data[i0::, 2]) < 0)[0][0] + 1
+        Tambpts = data[i0:i0 + nTamb, 2]
+        Tlevels = [data[j, 0] for j in [i0, i0 + nm, i0 + 2 * nm]]
+
+        return {'nT': nT, 'Tpts': Tpts, 'Tlevels': Tlevels, 'nm': nm, 'mpts': mpts, 'mlevels': mlevels, 'nTamb': nTamb,
+                'Tambpts': Tambpts, 'Tamblevels': Tamblevels}
 
     def update_initial_conditions(self):
         # FIXME: There is a bit of work to do here
@@ -921,7 +1033,7 @@ class CspDispatch(Dispatch):
     def cycle_nominal_efficiency(self) -> float:
         """Power cycle nominal efficiency [-]"""
         for t in self.blocks.index_set():
-            return self.blocks[t].cycle_nominal_efficiency.value * 100.
+            return self.blocks[t].cycle_nominal_efficiency.value
 
     @cycle_nominal_efficiency.setter
     def cycle_nominal_efficiency(self, efficiency: float):

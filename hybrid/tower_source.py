@@ -41,8 +41,6 @@ class TowerPlant(CspPlant):
 
         # TODO: This needs to update layout, tower, and receiver based on user inputs
         # Calculate flux and eta maps for all simulations
-        start_datetime = datetime.datetime(1900, 1, 1, 0, 0, 0)  # start of first timestep
-        self.set_weather(self.year_weather_df, start_datetime, start_datetime)  # only one weather timestep is needed
         self.set_field_layout_and_flux_eta_maps(self.create_field_layout_and_simulate_flux_eta_maps())
 
         # Set weather once -> required to be after set_flux_eta_maps call
@@ -59,7 +57,6 @@ class TowerPlant(CspPlant):
         if keep_eta_flux_maps:
             self.set_flux_eta_maps(flux_eta_maps)
 
-    
     def set_params_from_files(self):
         super().set_params_from_files()
 
@@ -70,6 +67,8 @@ class TowerPlant(CspPlant):
         self.ssc.set({'helio_positions': helio_positions})
 
     def create_field_layout_and_simulate_flux_eta_maps(self):
+        start_datetime = datetime.datetime(1900, 1, 1, 0, 0, 0)  # start of first timestep
+        self.set_weather(self.year_weather_df, start_datetime, start_datetime)  # only one weather timestep is needed
         print('Creating field layout and simulating flux and eta maps ...')
         self.ssc.set({'time_start': 0})
         self.ssc.set({'time_stop': 0})
@@ -82,9 +81,10 @@ class TowerPlant(CspPlant):
             print('Warning: Receiver height or diameter is smaller than the heliostat dimension')
 
         original_values = {k: self.ssc.get(k) for k in['is_dispatch_targets', 'rec_clearsky_model', 'time_steps_per_hour', 'sf_adjust:hourly']}
+        # set so unneeded dispatch targets and clearsky DNI are not required
+        # TODO: probably don't need hourly sf adjustment factors
         self.ssc.set({'is_dispatch_targets': False, 'rec_clearsky_model': 1, 'time_steps_per_hour': 1,
-                      'sf_adjust:hourly': [0.0 for j in range(8760)]})  # set so unneeded dispatch targets and clearsky DNI are not required  # TODO: probably don't need hourly sf adjustment factors
-
+                      'sf_adjust:hourly': [0.0 for j in range(8760)]})
         tech_outputs = self.ssc.execute()
         print('Finished creating field layout and simulating flux and eta maps ...')
         self.ssc.set(original_values)
@@ -95,7 +95,6 @@ class TowerPlant(CspPlant):
         for k in ['helio_positions', 'N_hel', 'D_rec', 'rec_height', 'h_tower', 'land_area_base']:
             field_and_flux_maps[k] = tech_outputs[k]
         return field_and_flux_maps
-
 
     def set_field_layout_and_flux_eta_maps(self, field_and_flux_maps):
         self.ssc.set(field_and_flux_maps)  # set flux maps etc. so they don't have to be recalculated
