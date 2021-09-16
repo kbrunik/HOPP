@@ -362,6 +362,18 @@ class CspPlant(PowerSource):
     def cycle_nominal_efficiency(self) -> float:
         raise NotImplementedError
 
+    @property
+    def number_of_reflector_units(self) -> float:
+        raise NotImplementedError
+
+    @property
+    def minimum_receiver_power_fraction(self) -> float:
+        raise NotImplementedError
+
+    @property
+    def field_tracking_power(self) -> float:
+        raise NotImplementedError
+
     def value(self, var_name, var_value=None):
         attr_obj = None
         ssc_value = None
@@ -376,7 +388,6 @@ class CspPlant(PowerSource):
                         break
                 except:
                     pass
-        # TODO: ask matt if pySSC handles both financial model and system model? For now, check ssc last...
         if not attr_obj:
             try:
                 ssc_value = self.ssc.get(var_name)

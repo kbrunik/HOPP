@@ -65,3 +65,19 @@ class TroughPlant(CspPlant):
     @property
     def cycle_nominal_efficiency(self) -> float:
         return self.value('eta_ref')
+
+    @property
+    def number_of_reflector_units(self) -> float:
+        """Returns number of solar collector assemblies within the field."""
+        return self.value('nSCA') * self.value('nLoops')
+
+    @property
+    def minimum_receiver_power_fraction(self) -> float:
+        """Returns minimum field mass flowrate fraction."""
+        return self.value('m_dot_htfmin')/self.value('m_dot_htfmax')
+
+    @property
+    def field_tracking_power(self) -> float:
+        """Returns power load for field to track sun position in MWe"""
+        return self.value('SCA_drives_elec') * self.number_of_reflector_units / 1e6  # W to MW
+

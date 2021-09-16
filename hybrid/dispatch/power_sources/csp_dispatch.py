@@ -125,12 +125,12 @@ class CspDispatch(Dispatch):
             within=pyomo.NonNegativeReals,
             mutable=True,
             units=u.MW)
-        csp.heat_trace_losses = pyomo.Param(
-            doc="Piping heat trace parasitic loss [MWe]",
-            default=0.0,
-            within=pyomo.NonNegativeReals,
-            mutable=True,
-            units=u.MW)
+        # csp.heat_trace_losses = pyomo.Param(
+        #     doc="Piping heat trace parasitic loss [MWe]",
+        #     default=0.0,
+        #     within=pyomo.NonNegativeReals,
+        #     mutable=True,
+        #     units=u.MW)
 
     @staticmethod
     def _create_cycle_parameters(csp):
@@ -431,17 +431,18 @@ class CspDispatch(Dispatch):
         csp.cycle_startup = pyomo.Constraint(
             doc="Ensures that cycle start is accounted",
             expr=csp.incur_cycle_start >= csp.is_cycle_starting - csp.was_cycle_starting)
-        # System load# TODO: I don't really know if this level of detail is required...
+        # System load
         csp.generation_balance = pyomo.Constraint(
             doc="Calculates csp system load for grid model",
             expr=csp.system_load == (csp.cycle_generation * csp.condenser_losses
-                              + csp.receiver_pumping_losses * (csp.receiver_thermal_power
-                                                               + csp.receiver_startup_consumption)
-                              + csp.cycle_pumping_losses * csp.cycle_thermal_power
-                              + csp.field_track_losses * csp.is_field_generating
-                              + csp.heat_trace_losses * csp.is_field_starting
-                              + (csp.field_startup_losses/csp.time_duration) * csp.is_field_starting))
-        #TODO: This might need to update based on trough needs
+                                     + csp.receiver_pumping_losses * (csp.receiver_thermal_power
+                                                                      + csp.receiver_startup_consumption)
+                                     + csp.cycle_pumping_losses * (csp.cycle_thermal_power
+                                                                   + (csp.allowable_cycle_startup_power
+                                                                      * csp.is_cycle_starting))
+                                     + csp.field_track_losses * csp.is_field_generating
+                                     # + csp.heat_trace_losses * csp.is_field_starting
+                                     + (csp.field_startup_losses/csp.time_duration) * csp.is_field_starting))
 
     ##################################
     # Ports                          #
@@ -595,35 +596,38 @@ class CspDispatch(Dispatch):
             rule=cycle_starting_linking_rule)
 
     def initialize_dispatch_model_parameters(self):
-        cycle_rated_thermal = self._system_model.cycle_thermal_rating
-        field_rated_thermal = self._system_model.field_thermal_rating
+        csp = self._system_model
+
+        cycle_rated_thermal = csp.cycle_thermal_rating
+        field_rated_thermal = csp.field_thermal_rating
 
         # Cost Parameters
         self.cost_per_field_generation = 3.0
-        self.cost_per_field_start = self._system_model.value('disp_rsu_cost')
+        self.cost_per_field_start = csp.value('disp_rsu_cost')
         self.cost_per_cycle_generation = 2.0
-        self.cost_per_cycle_start = self._system_model.value('disp_csu_cost')
+        self.cost_per_cycle_start = csp.value('disp_csu_cost')
         self.cost_per_change_thermal_input = 0.3
 
-        # TODO: look how these are set in SSC
-        # TODO: Check units
         # Solar field and thermal energy storage performance parameters
-        self.field_startup_losses = 0.0
-        self.receiver_required_startup_energy = self._system_model.value('rec_qf_delay') * field_rated_thermal
-        self.storage_capacity = self._system_model.tes_hours * cycle_rated_thermal
-        self.minimum_receiver_power = 0.25 * field_rated_thermal
-        self.allowable_receiver_startup_power = self._system_model.value('rec_su_delay') * field_rated_thermal / 1.0
-        self.receiver_pumping_losses = 0.0
-        self.field_track_losses = 0.0
-        self.heat_trace_losses = 0.0
+        self.field_startup_losses = csp.value('p_start') * csp.number_of_reflector_units / 1e3
+        self.receiver_required_startup_energy = csp.value('rec_qf_delay') * field_rated_thermal
+        self.storage_capacity = csp.tes_hours * cycle_rated_thermal
+        self.minimum_receiver_power = csp.minimum_receiver_power_fraction * field_rated_thermal
+        self.allowable_receiver_startup_power = self.receiver_required_startup_energy / csp.value('rec_su_delay')
+        self.receiver_pumping_losses = 0.0  # in lore -> estimate_receiver_pumping_parasitic()
+        # TODO: get an estimate or calculate
+        self.field_track_losses = csp.field_tracking_power
+        #self.heat_trace_losses = 0.00163 * field_rated_thermal     # TODO: need to update for troughs
 
         # Power cycle performance
-        self.cycle_required_startup_energy = self._system_model.value('startup_frac') * cycle_rated_thermal
-        self.cycle_nominal_efficiency = self._system_model.cycle_nominal_efficiency
-        self.cycle_pumping_losses = self._system_model.value('pb_pump_coef')  # TODO: this is kW/kg ->
-        self.allowable_cycle_startup_power = self._system_model.value('startup_time') * cycle_rated_thermal / 1.0
-        self.minimum_cycle_thermal_power = self._system_model.value('cycle_cutoff_frac') * cycle_rated_thermal
-        self.maximum_cycle_thermal_power = self._system_model.value('cycle_max_frac') * cycle_rated_thermal
+        self.cycle_required_startup_energy = csp.value('startup_frac') * cycle_rated_thermal
+        self.cycle_nominal_efficiency = csp.cycle_nominal_efficiency
+
+        design_mass_flow = 0.0  # TODO: calculate design mass flowrate
+        self.cycle_pumping_losses = csp.value('pb_pump_coef') * design_mass_flow / (cycle_rated_thermal * 1e3)
+        self.allowable_cycle_startup_power = self.cycle_required_startup_energy / csp.value('startup_time')
+        self.minimum_cycle_thermal_power = csp.value('cycle_cutoff_frac') * cycle_rated_thermal
+        self.maximum_cycle_thermal_power = csp.value('cycle_max_frac') * cycle_rated_thermal
         self.set_part_load_cycle_parameters()
 
     def update_time_series_dispatch_model_parameters(self, start_time: int):
@@ -634,17 +638,21 @@ class CspDispatch(Dispatch):
         n_horizon = len(self.blocks.index_set())
         self.time_duration = [1.0] * len(self.blocks.index_set())  # assume hourly for now
 
-        # Setting simulation times
+        # Ensure simulation is not using dispatch targets for forecast simulation
+        self._system_model.ssc.set({'is_dispatch_targets': 0})
+
+        # Setting simulation times and simulate the horizon
         start_datetime, end_datetime = self.get_start_end_datetime(start_time, n_horizon)
         self._system_model.value('time_start', self.seconds_since_newyear(start_datetime))
         self._system_model.value('time_stop', self.seconds_since_newyear(end_datetime))
         tech_outputs = self._system_model.ssc.execute()
 
+        # Set receiver estimated thermal output
         thermal_est_name_map = {'TowerDispatch': 'Q_thermal', 'TroughDispatch': 'q_dot_est_cr_on'}
         rec_output = [max(heat, 0.0) for heat in tech_outputs[thermal_est_name_map[type(self).__name__]][0:n_horizon]]
         self.available_thermal_generation = rec_output
 
-        # Get ambient temperature array
+        # Get ambient temperature array and set cycle performance parameters that depend on ambient temperature
         dry_bulb_temperature = tech_outputs['tdry'][0:n_horizon]
         self.set_ambient_temperature_cycle_parameters(dry_bulb_temperature)
 
@@ -770,6 +778,60 @@ class CspDispatch(Dispatch):
         self.initial_cycle_thermal_power = self._system_model.value('q_pb')
         self.is_cycle_generating_initial = self._system_model.value('pc_op_mode_final')  # TODO: figure out what this is...
         self.is_cycle_starting_initial = False
+
+        # def set_initial_state(self, plant):
+        #     m_des = plant.get_design_storage_mass()
+        #
+        #     m_hot = (plant.state['csp_pt_tes_init_hot_htf_percent'] / 100) * m_des  # Available active mass in hot tank
+        #     m_cold = ((100 - plant.state[
+        #         'csp_pt_tes_init_hot_htf_percent']) / 100) * m_des  # Available active mass in cold tank
+        #     cp = plant.get_cp_htf(0.5 * (plant.state['T_tank_hot_init'] + plant.design['T_htf_cold_des']))  # J/kg/K
+        #
+        #     self.T_cs0 = min(max(self.T_cs_min, plant.state['T_tank_cold_init']), self.T_cs_max)
+        #     self.T_hs0 = min(max(self.T_hs_min, plant.state['T_tank_hot_init']), self.T_hs_max)
+        #     self.s0 = min(self.Eu, m_hot * cp * (plant.state['T_tank_hot_init'] - plant.design[
+        #         'T_htf_cold_des']) * 1.e-3 / 3600)  # Note s0 is calculated internally in the pyomo dispatch model
+        #     self.mass_cs0 = min(max(self.mass_cs_min, m_cold), self.mass_cs_max)
+        #     self.mass_hs0 = min(max(self.mass_hs_min, m_hot), self.mass_hs_max)
+        #     max_allowable_mass = 0.995 * self.Eu * 3600 / self.Cp / (
+        #                 self.T_hs0 - self.T_cs_des) + self.mass_hs_min  # Max allowable mass for s0 = Eu from dispatch model s0 calculation in pyomo
+        #     self.mass_hs0 = min(self.mass_hs0, max_allowable_mass)
+        #     self.wdot0 = plant.state['wdot0'] * 1000.
+        #
+        #     self.yr0 = (plant.state['rec_op_mode_initial'] == 2)
+        #     self.yrsb0 = False  # TODO: no official receiver "standby" mode currently exists in ssc.  Might be able to use the new cold-tank recirculation to define this
+        #     self.yrsu0 = (plant.state['rec_op_mode_initial'] == 1)
+        #     self.yrsd0 = False  # TODO: no official receiver "shutdown" mode currently exists in ssc.
+        #     self.y0 = (plant.state['pc_op_mode_initial'] == 1)
+        #     self.ycsb0 = (plant.state['pc_op_mode_initial'] == 2)
+        #     self.ycsu0 = (plant.state['pc_op_mode_initial'] == 0 or plant.state['pc_op_mode_initial'] == 4)
+        #
+        #     self.drsu0 = plant.state['disp_rec_persist0'] if self.yrsu0 else 0.0
+        #     self.drsd0 = plant.state['disp_rec_persist0'] if plant.state[
+        #                                                          'rec_op_mode_initial'] == 0 else 0.0  # TODO: defining time in shutdown mode as time "off", will this work in the dispatch model?
+        #     self.Yu0 = plant.state['disp_pc_persist0'] if self.y0 else 0.0
+        #     self.Yd0 = plant.state['disp_pc_off0'] if (not self.y0) else 0.0
+        #
+        #     # Initial startup energy accumulated
+        #     if isnan(plant.state[
+        #                  'pc_startup_energy_remain_initial']):  # ssc seems to report nan when startup is completed
+        #         self.ucsu = self.Ec
+        #     else:
+        #         self.ucsu0 = max(0.0, self.Ec - plant.state['pc_startup_energy_remain_initial'])
+        #         if self.ucsu0 > (1.0 - 1.e-6) * self.Ec:
+        #             self.ucsu0 = self.Ec
+        #
+        #     rec_accum_time = max(0.0, self.Drsu - plant.state['rec_startup_time_remain_init'])
+        #     rec_accum_energy = max(0.0, self.Er - plant.state['rec_startup_energy_remain_init'] / 1000.)
+        #     self.ursu0 = min(rec_accum_energy,
+        #                      rec_accum_time * self.Qru)  # Note, SS receiver model in ssc assumes full available power is used for startup (even if, time requirement is binding)
+        #     if self.ursu0 > (1.0 - 1.e-6) * self.Er:
+        #         self.ursu0 = self.Er
+        #
+        #     self.ursd0 = 0.0  # TODO: How can we track accumulated shut-down energy (not modeled in ssc)
+        #
+        #     return
+
 
     @staticmethod
     def get_start_end_datetime(start_time: int, n_horizon: int):
@@ -1005,17 +1067,17 @@ class CspDispatch(Dispatch):
         for t in self.blocks.index_set():
             self.blocks[t].field_track_losses.set_value(round(electric_power, self.round_digits))
 
-    @property
-    def heat_trace_losses(self) -> float:
-        """Piping heat trace parasitic loss [MWe]"""
-        for t in self.blocks.index_set():
-            return self.blocks[t].heat_trace_losses.value
-
-    @heat_trace_losses.setter
-    def heat_trace_losses(self, electric_power: float):
-        """Piping heat trace parasitic loss [MWe]"""
-        for t in self.blocks.index_set():
-            self.blocks[t].heat_trace_losses.set_value(round(electric_power, self.round_digits))
+    # @property
+    # def heat_trace_losses(self) -> float:
+    #     """Piping heat trace parasitic loss [MWe]"""
+    #     for t in self.blocks.index_set():
+    #         return self.blocks[t].heat_trace_losses.value
+    #
+    # @heat_trace_losses.setter
+    # def heat_trace_losses(self, electric_power: float):
+    #     """Piping heat trace parasitic loss [MWe]"""
+    #     for t in self.blocks.index_set():
+    #         self.blocks[t].heat_trace_losses.set_value(round(electric_power, self.round_digits))
 
     @property
     def cycle_required_startup_energy(self) -> float:
