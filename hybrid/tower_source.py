@@ -47,6 +47,9 @@ class TowerPlant(CspPlant):
         # Set weather once -> required to be after set_flux_eta_maps call
         self.set_weather(self.year_weather_df)
 
+        self.set_intial_plant_state()
+        self.update_ssc_inputs_from_plant_state()
+
         self._dispatch: TowerDispatch = None
 
     def initialize_params(self, keep_eta_flux_maps=False):
@@ -155,6 +158,55 @@ class TowerPlant(CspPlant):
             print('HTF %d not recognized' % self.value('rec_htf'))
             return 0.0
         return max(1e-4, 0.02270616 - 1.199514e-4*TC + 2.279989e-7*TC*TC - 1.473302e-10*TC*TC*TC)
+
+    def get_plant_state_io_map(self):
+        io_map = { # State:
+                   # Number Inputs                         # Arrays Outputs (end of timestep)
+                   'is_field_tracking_init':               'is_field_tracking_final',
+                   'rec_op_mode_initial':                  'rec_op_mode_final',
+                   'rec_startup_time_remain_init':         'rec_startup_time_remain_final',
+                   'rec_startup_energy_remain_init':       'rec_startup_energy_remain_final',
+
+                   'T_tank_cold_init':                     'T_tes_cold',
+                   'T_tank_hot_init':                      'T_tes_hot',
+                   'csp.pt.tes.init_hot_htf_percent':      'hot_tank_htf_percent_final',
+
+                   'pc_op_mode_initial':                   'pc_op_mode_final',
+                   'pc_startup_time_remain_init':          'pc_startup_time_remain_final',
+                   'pc_startup_energy_remain_initial':     'pc_startup_energy_remain_final'
+                   }
+        return io_map        
+
+    # TODO: Better place to handle initial state?  Inputs are optional (with default values in ssc) and many are not included in tech_model_defaults.json. Don't "need" to initialize for ssc, but might be handy to pass to dispatch?
+    def set_intial_plant_state(self):  
+        io_map = self.get_plant_state_io_map()
+        self.plant_state = {k:0 for k in io_map.keys()}   # Note values for inital startup time/energy requiements will be set by ssc internally if cycle or receiver is initially off
+        self.plant_state['rec_op_mode_initial'] = 0  # Receiver initially off
+        self.plant_state['pc_op_mode_initial'] = 3  # Cycle initially off
+        self.plant_state['csp.pt.tes.init_hot_htf_percent'] = self.ssc.get('csp.pt.tes.init_hot_htf_percent')  # Use initial storage charge state that came from tech_model_defaults.json file
+        self.plant_state['T_tank_cold_init'] = self.ssc.get('T_htf_cold_des')
+        self.plant_state['T_tank_hot_init'] = self.ssc.get('T_htf_hot_des')
+        self.plant_state['sim_time_at_last_update'] = 0.0
+        return
+
+    # TODO: Put this into the parent class, but note trough input 'T_out_scas_last_final' is not a time series and needs to be handled differently
+    def set_plant_state_from_ssc_outputs(self, ssc_outputs, seconds_relative_to_start):  
+        time_steps_per_hour = self.ssc.get('time_steps_per_hour')
+        time_start = self.ssc.get('time_start')
+        idx = round(seconds_relative_to_start/3600) * int(time_steps_per_hour) - 1  # Note: values returned in ssc_outputs are at the front of the output arrays
+        io_map = self.get_plant_state_io_map()
+        for input, output in io_map.items():
+            self.plant_state[input] = ssc_outputs[output][idx]
+        self.plant_state['sim_time_at_last_update'] = time_start + seconds_relative_to_start  # Track time at which plant state was last updated
+        return
+
+    #TODO: Put this into the parent class
+    def update_ssc_inputs_from_plant_state(self):
+        state = self.plant_state.copy()
+        state.pop('sim_time_at_last_update') 
+        self.ssc.set(state)
+        return
+
 
     @property
     def solar_multiple(self) -> float:
