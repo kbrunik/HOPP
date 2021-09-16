@@ -19,23 +19,41 @@ def test_pySSC_tower_model(site):
                     'solar_multiple': 2.0,
                     'tes_hours': 6.0}
 
-    expected_energy = 3940002.236
+    expected_energy = 3940530.24
 
     csp = TowerPlant(site, tower_config)
 
     start_datetime = datetime.datetime(2012, 10, 21, 0, 0, 0)  # start of first timestep
-    end_datetime = datetime.datetime(2012, 10, 24, 1, 0, 0)  # end of last timestep
-    csp.ssc.set({'time_start': CspDispatch.seconds_since_newyear(start_datetime)})
-    csp.ssc.set({'time_stop': CspDispatch.seconds_since_newyear(end_datetime)})
+    end_datetime = datetime.datetime(2012, 10, 24, 0, 0, 0)  # end of last timestep
 
-    tech_outputs = csp.ssc.execute()
-    print('Three days all at once starting 10/21, annual energy = {e:.0f} MWhe'.format(e=tech_outputs['annual_energy'] * 1.e-3))
+    is_increments = False # Simulate in increments?
+    increment_duration = datetime.timedelta(hours=24)  # Time duration of each simulated horizon
+    if not is_increments:
+        csp.ssc.set({'time_start': CspDispatch.seconds_since_newyear(start_datetime)})
+        csp.ssc.set({'time_stop': CspDispatch.seconds_since_newyear(end_datetime)})
+        tech_outputs = csp.ssc.execute()
+        annual_energy = tech_outputs['annual_energy']
+    else:
+        n = int((end_datetime - start_datetime).total_seconds()/increment_duration.total_seconds())
+        annual_energy = 0.0
+        for j in range(n):
+            start_datetime += increment_duration
+            end_datetime = start_datetime + increment_duration
+            csp.ssc.set({'time_start': CspDispatch.seconds_since_newyear(start_datetime)})
+            csp.ssc.set({'time_stop': CspDispatch.seconds_since_newyear(end_datetime)})     
+            csp.update_ssc_inputs_from_plant_state()
+            tech_outputs = csp.ssc.execute()
+            annual_energy += tech_outputs['annual_energy']
+            csp.set_plant_state_from_ssc_outputs(tech_outputs, increment_duration.total_seconds())
+            
+
+    print('Three days all at once starting 10/21, annual energy = {e:.0f} MWhe'.format(e=annual_energy * 1.e-3))
 
     assert csp.cycle_capacity_kw == tower_config['cycle_capacity_kw']
     assert csp.solar_multiple == tower_config['solar_multiple']
     assert csp.tes_hours == tower_config['tes_hours']
 
-    assert tech_outputs['annual_energy'] == pytest.approx(expected_energy, 1e-5)
+    assert annual_energy == pytest.approx(expected_energy, 1e-5)
 
 def test_pySSC_trough_model(site):
     """Testing pySSC trough model using heuristic dispatch method"""

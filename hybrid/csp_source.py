@@ -60,7 +60,11 @@ class CspPlant(PowerSource):
         self.solar_multiple: float = csp_config['solar_multiple']
         self.tes_hours: float = csp_config['tes_hours']
 
+
         self.cycle_efficiency_tables = self.get_cycle_efficiency_tables()
+
+        self.plant_state = {}
+
 
     def param_file_paths(self, relative_path):
         cwd = os.path.dirname(os.path.abspath(__file__))
