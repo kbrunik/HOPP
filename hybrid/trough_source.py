@@ -37,7 +37,7 @@ class TroughPlant(CspPlant):
         # Set weather once
         self.set_weather(self.year_weather_df)
 
-        self.update_ssc_inputs_from_plant_state()
+
 
         self._dispatch: TroughDispatch = None
 

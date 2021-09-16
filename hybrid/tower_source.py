@@ -47,8 +47,6 @@ class TowerPlant(CspPlant):
         # Set weather once -> required to be after set_flux_eta_maps call
         self.set_weather(self.year_weather_df)
 
-        self.update_ssc_inputs_from_plant_state()
-
         self._dispatch: TowerDispatch = None
 
     def initialize_params(self, keep_eta_flux_maps=False):

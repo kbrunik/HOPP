@@ -62,6 +62,8 @@ class CspPlant(PowerSource):
 
         self.cycle_efficiency_tables = self.get_cycle_efficiency_tables()
         self.plant_state = self.set_initial_plant_state()
+        self.update_ssc_inputs_from_plant_state()
+
 
     def param_file_paths(self, relative_path):
         cwd = os.path.dirname(os.path.abspath(__file__))
