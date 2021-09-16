@@ -127,8 +127,8 @@ class TowerPlant(CspPlant):
     def set_intial_plant_state(self):  
         io_map = self.get_plant_state_io_map()
         self.plant_state = {k:0 for k in io_map.keys()}   # Note values for inital startup time/energy requiements will be set by ssc internally if cycle or receiver is initially off
-        self.plant_state = ['rec_op_mode_initial'] = 0  # Receiver initially off
-        self.plant_state = ['pc_op_mode_initial'] = 3  # Cycle initially off
+        self.plant_state['rec_op_mode_initial'] = 0  # Receiver initially off
+        self.plant_state['pc_op_mode_initial'] = 3  # Cycle initially off
         self.plant_state['csp.pt.tes.init_hot_htf_percent'] = self.ssc.get('csp.pt.tes.init_hot_htf_percent')  # Use initial storage charge state that came from tech_model_defaults.json file
         self.plant_state['T_tank_cold_init'] = self.ssc.get('T_htf_cold_des')
         self.plant_state['T_tank_hot_init'] = self.ssc.get('T_htf_hot_des')

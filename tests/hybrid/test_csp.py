@@ -37,10 +37,10 @@ def test_pySSC_tower_model(site):
         n = int((end_datetime - start_datetime).total_seconds()/increment_duration.total_seconds())
         annual_energy = 0.0
         for j in range(n):
-            start_datetime += increment_duration
-            end_datetime = start_datetime + increment_duration
-            csp.ssc.set({'time_start': CspDispatch.seconds_since_newyear(start_datetime)})
-            csp.ssc.set({'time_stop': CspDispatch.seconds_since_newyear(end_datetime)})     
+            start_datetime_new = start_datetime + j*increment_duration
+            end_datetime_new = start_datetime_new + increment_duration
+            csp.ssc.set({'time_start': CspDispatch.seconds_since_newyear(start_datetime_new)})
+            csp.ssc.set({'time_stop': CspDispatch.seconds_since_newyear(end_datetime_new)})      
             csp.update_ssc_inputs_from_plant_state()
             tech_outputs = csp.ssc.execute()
             annual_energy += tech_outputs['annual_energy']
