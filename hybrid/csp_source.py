@@ -60,11 +60,8 @@ class CspPlant(PowerSource):
         self.solar_multiple: float = csp_config['solar_multiple']
         self.tes_hours: float = csp_config['tes_hours']
 
-
         self.cycle_efficiency_tables = self.get_cycle_efficiency_tables()
-
-        self.plant_state = {}
-
+        self.plant_state = self.set_initial_plant_state()
 
     def param_file_paths(self, relative_path):
         cwd = os.path.dirname(os.path.abspath(__file__))
@@ -229,6 +226,41 @@ class CspPlant(PowerSource):
 
         self.ssc.set({'solar_resource_data': weather_df_to_ssc_table(weather_df_part)})
 
+    @staticmethod
+    def get_plant_state_io_map() -> dict:
+        raise NotImplementedError
+
+    def set_initial_plant_state(self) -> dict:
+        io_map = self.get_plant_state_io_map()
+        plant_state = {k: 0 for k in io_map.keys()}
+        # Note values for initial startup time/energy requirements will be set by ssc internally
+        # if cycle or receiver is initially off
+        plant_state['rec_op_mode_initial'] = 0  # Receiver initially off
+        plant_state['pc_op_mode_initial'] = 3  # Cycle initially off
+        plant_state['sim_time_at_last_update'] = 0.0
+        return plant_state
+
+    def set_plant_state_from_ssc_outputs(self, ssc_outputs, seconds_relative_to_start):
+        time_steps_per_hour = self.ssc.get('time_steps_per_hour')
+        time_start = self.ssc.get('time_start')
+        # Note: values returned in ssc_outputs are at the front of the output arrays
+        idx = round(seconds_relative_to_start/3600) * int(time_steps_per_hour) - 1
+        io_map = self.get_plant_state_io_map()
+        for ssc_input, output in io_map.items():
+            if ssc_input == 'T_out_scas_initial':
+                self.plant_state[ssc_input] = ssc_outputs[output]
+            else:
+                self.plant_state[ssc_input] = ssc_outputs[output][idx]
+        # Track time at which plant state was last updated
+        self.plant_state['sim_time_at_last_update'] = time_start + seconds_relative_to_start
+        return
+
+    def update_ssc_inputs_from_plant_state(self):
+        state = self.plant_state.copy()
+        state.pop('sim_time_at_last_update')
+        self.ssc.set(state)
+        return
+
     def get_cycle_efficiency_tables(self) -> dict:
         """
         Gets off-design cycle performance tables from pySSC.
@@ -268,7 +300,10 @@ class CspPlant(PowerSource):
         results = self.ssc.execute()
         if not results["cmod_success"]:
             raise ValueError('PySSC simulation failed...')
+
         # Save plant state at end of simulation
+        simulation_time = (end_datetime - start_datetime).total_seconds()
+        self.set_plant_state_from_ssc_outputs(results, simulation_time)
 
         # Save simulation output TODO: save information in a structure
 

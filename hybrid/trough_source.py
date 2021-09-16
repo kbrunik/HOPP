@@ -34,13 +34,45 @@ class TroughPlant(CspPlant):
         self.param_file_paths(rel_path_to_param_files)
 
         super().__init__("TroughPlant", 'trough_physical', site, financial_model, trough_config)
+        # Set weather once
+        self.set_weather(self.year_weather_df)
 
-        self.set_weather(self.year_weather_df)  # Set weather once
+        self.update_ssc_inputs_from_plant_state()
 
         self._dispatch: TroughDispatch = None
 
-    def estimate_receiver_pumping_parasitic(self):
-        raise 0.0125  # [MWe/MWt] Assuming because troughs pressure drop is difficult to estimate reasonably
+    @staticmethod
+    def estimate_receiver_pumping_parasitic():
+        return 0.0125  # [MWe/MWt] Assuming because troughs pressure drop is difficult to estimate reasonably
+
+    @staticmethod
+    def get_plant_state_io_map() -> dict:
+        io_map = {  # State:
+                  # Number Inputs                         # Arrays Outputs
+                  'defocus_initial':                      'defocus_final',
+                  'rec_op_mode_initial':                  'rec_op_mode_final',
+                  'T_in_loop_initial':                    'T_in_loop_final',
+                  'T_out_loop_initial':                   'T_out_loop_final',
+                  'T_out_scas_initial':                   'T_out_scas_last_final',        # array
+
+                  'T_tank_cold_init':                     'T_tes_cold',
+                  'T_tank_hot_init':                      'T_tes_hot',
+                  'init_hot_htf_percent':                 'hot_tank_htf_percent_final',
+
+                  'pc_op_mode_initial':                   'pc_op_mode_final',
+                  'pc_startup_time_remain_init':          'pc_startup_time_remain_final',
+                  'pc_startup_energy_remain_initial':     'pc_startup_energy_remain_final'
+                  }
+        return io_map
+
+    def set_initial_plant_state(self) -> dict:
+        plant_state = super().set_initial_plant_state()
+        # Use initial storage charge state that came from tech_model_defaults.json file
+        plant_state['init_hot_htf_percent'] = self.ssc.get('init_hot_htf_percent')
+        plant_state['T_tank_cold_init'] = self.ssc.get('T_loop_in_des')
+        plant_state['T_tank_hot_init'] = self.ssc.get('T_loop_out')
+        plant_state.pop('T_out_scas_initial')
+        return plant_state
 
     @property
     def solar_multiple(self) -> float:

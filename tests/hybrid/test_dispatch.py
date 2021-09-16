@@ -308,6 +308,8 @@ def test_trough_dispatch(site):
 
     trough.simulate_with_dispatch(48, 0)
 
+
+
     assert results.solver.termination_condition == TerminationCondition.optimal
     assert pyomo.value(model.test_objective) == pytest.approx(expected_objective, 1e-5)
     assert sum(trough.dispatch.receiver_thermal_power) > 0.0  # Useful thermal generation
