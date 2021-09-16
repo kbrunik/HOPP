@@ -180,3 +180,17 @@ class TowerPlant(CspPlant):
     def cycle_nominal_efficiency(self) -> float:
         return self.value('design_eff')
 
+    @property
+    def number_of_reflector_units(self) -> float:
+        """Returns number of heliostats within the field"""
+        return self.value('N_hel')
+
+    @property
+    def minimum_receiver_power_fraction(self) -> float:
+        """Returns minimum receiver mass flow rate turn down fraction."""
+        return self.value('f_rec_min')
+
+    @property
+    def field_tracking_power(self) -> float:
+        """Returns power load for field to track sun position in MWe"""
+        return self.value('p_track') * self.number_of_reflector_units / 1e3

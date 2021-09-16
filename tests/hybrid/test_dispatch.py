@@ -185,7 +185,7 @@ def test_csp_dispatch_model(site):
 
 def test_tower_dispatch(site):
     """Tests setting up tower dispatch using system model and running simulation with dispatch"""
-    expected_objective = 65866.1284343
+    expected_objective = 66002.2022596669
     dispatch_n_look_ahead = 48
 
     tower = TowerPlant(site, technologies['tower'])
@@ -255,9 +255,7 @@ def test_tower_dispatch(site):
 
 def test_trough_dispatch(site):
     """Tests setting up trough dispatch using system model and running simulation with dispatch"""
-    expected_objective = 18376.85378359526
-    # TODO: why is the trough model 1.5x higher the towers?
-    #  [ ] Available thermal energy is double that of towers 6114 MWh compared to 2950 MWh...
+    expected_objective = 21810.475711324852
     dispatch_n_look_ahead = 48
 
     trough = TroughPlant(site, technologies['trough'])
