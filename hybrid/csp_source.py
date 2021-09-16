@@ -297,6 +297,37 @@ class CspPlant(PowerSource):
                             'q_pc_max_in': [self.cycle_thermal_rating for t in range(n_periods)]}
         self.ssc.set(dispatch_targets)
 
+    def get_cycle_design_mass_flow(self):
+        cold_temp_name_map = {'TowerPlant': 'T_htf_cold_des', 'TroughPlant': 'T_loop_in_des'}
+        cold_des_temp = self.value(cold_temp_name_map[type(self).__name__])
+
+        hot_temp_name_map = {'TowerPlant': 'T_htf_hot_des', 'TroughPlant': 'T_loop_out'}
+        hot_des_temp = self.value(hot_temp_name_map[type(self).__name__])
+
+        q_des = self.cycle_thermal_rating  # MWt
+        cp_des = self.get_cp_htf(0.5 * (hot_des_temp + cold_des_temp))  # J/kg/K
+        m_des = q_des * 1.e6 / (cp_des * (hot_des_temp - cold_des_temp))  # kg/s
+        return m_des
+
+    def get_cp_htf(self, TC):
+        """Returns specific heat at temperature TC in [J/kg/K]"""
+        # TODO: add a field option or something for troughs
+        #  Troughs: TES "store_fluid", Field HTF "Fluid"
+        #  Ask Matt is 'Fluid' always driving the power cycle
+        fluid_name_map = {'TowerPlant': 'rec_htf', 'TroughPlant': 'Fluid'}
+        tes_fluid = self.value(fluid_name_map[type(self).__name__])
+
+        TK = TC + 273.15
+        if tes_fluid == 17:
+            return (-1.0e-10 * (TK ** 3) + 2.0e-7 * (TK ** 2) + 5.0e-6 * TK + 1.4387) * 1000.  # J/kg/K
+        elif tes_fluid == 18:
+            return 1443. + 0.172 * (TK - 273.15)
+        elif tes_fluid == 21:
+            return (1.509 + 0.002496 * TC + 0.0000007888 * (TC ** 2)) * 1000.;
+        else:
+            print('HTF %d not recognized' % tes_fluid)
+            return 0.0
+
     @property
     def _system_model(self):
         """Used for dispatch to mimic other dispatch class building in hybrid dispatch builder"""

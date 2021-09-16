@@ -1,6 +1,7 @@
 from typing import Optional, Union, Sequence
 import os
 import datetime
+from math import pi, log
 
 import PySAM.Singleowner as Singleowner
 
@@ -101,6 +102,60 @@ class TowerPlant(CspPlant):
         self.ssc.set({'field_model_type': 3})  # use the provided flux and eta map inputs
         self.ssc.set({'eta_map_aod_format': False})  #
 
+    def estimate_receiver_pumping_parasitic(self, nonheated_length=0.2):
+        m_rec_design = self.get_receiver_design_mass_flow()  # kg/s
+        Tavg = 0.5 * (self.value('T_htf_cold_des') + self.value('T_htf_hot_des'))
+        rho = self.get_density_htf(Tavg)
+        visc = self.get_visc_htf(Tavg)
+
+        npath = 1
+        nperpath = self.value('N_panels')
+        if self.value('Flow_type') == 1 or self.value('Flow_type') == 2:
+            npath = 2
+            nperpath = int(nperpath / 2)
+        elif self.value('Flow_type') == 9:
+            npath = int(nperpath / 2)
+            nperpath = 2
+
+        ntube = int(pi * self.value('D_rec') / self.value('N_panels') / (
+                self.value('d_tube_out') * 1.e-3))  # Number of tubes per panel
+        m_per_tube = m_rec_design / npath / ntube  # kg/s per tube
+        tube_id = (self.value('d_tube_out') - 2 * self.value('th_tube')) / 1000.  # Tube ID in m
+        Ac = 0.25 * pi * (tube_id ** 2)
+        vel = m_per_tube / rho / Ac  # HTF velocity
+        Re = rho * vel * tube_id / visc
+        eD = 4.6e-5 / tube_id
+        ff = (-1.737 * log(0.269 * eD - 2.185 / Re * log(0.269 * eD + 14.5 / Re))) ** -2
+        fd = 4 * ff
+        Htot = self.value('rec_height') * (1 + nonheated_length)
+        dp = 0.5 * fd * rho * (vel ** 2) * (
+                Htot / tube_id + 4 * 30 + 2 * 16) * nperpath  # Frictional pressure drop (Pa) (straight tube, 90deg bends, 45def bends)
+        dp += rho * 9.8 * self.value('h_tower')  # Add pressure drop from pumping up the tower
+        if nperpath % 2 == 1:
+            dp += rho * 9.8 * Htot
+
+        wdot = dp * m_rec_design / rho / self.value('eta_pump') / 1.e6  # Pumping parasitic at design point reciever mass flow rate (MWe)
+        return wdot / self.field_thermal_rating  # MWe / MWt
+
+    def get_receiver_design_mass_flow(self):
+        cp_des = self.get_cp_htf(0.5*(self.value('T_htf_cold_des') + self.value('T_htf_hot_des')))  # J/kg/K
+        m_des = self.field_thermal_rating*1.e6 / (cp_des * (self.value('T_htf_hot_des')
+                                                            - self.value('T_htf_cold_des')))  # kg/s
+        return m_des
+
+    def get_density_htf(self, TC):
+        if self.value('rec_htf') != 17:
+            print('HTF %d not recognized' % self.value('rec_htf'))
+            return 0.0
+        TK = TC+273.15
+        return -1.0e-7*(TK**3) + 2.0e-4*(TK**2) - 0.7875*TK + 2299.4  # kg/m3
+
+    def get_visc_htf(self, TC):
+        if self.value('rec_htf') != 17:
+            print('HTF %d not recognized' % self.value('rec_htf'))
+            return 0.0
+        return max(1e-4, 0.02270616 - 1.199514e-4*TC + 2.279989e-7*TC*TC - 1.473302e-10*TC*TC*TC)
+
     @property
     def solar_multiple(self) -> float:
         return self.ssc.get('solarm')
@@ -141,3 +196,5 @@ class TowerPlant(CspPlant):
     def field_tracking_power(self) -> float:
         """Returns power load for field to track sun position in MWe"""
         return self.value('p_track') * self.number_of_reflector_units / 1e3
+
+

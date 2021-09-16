@@ -39,6 +39,9 @@ class TroughPlant(CspPlant):
 
         self._dispatch: TroughDispatch = None
 
+    def estimate_receiver_pumping_parasitic(self):
+        raise 0.0125  # [MWe/MWt] Assuming because troughs pressure drop is difficult to estimate reasonably
+
     @property
     def solar_multiple(self) -> float:
         return self.ssc.get('specified_solar_multiple')
@@ -69,7 +72,7 @@ class TroughPlant(CspPlant):
     @property
     def number_of_reflector_units(self) -> float:
         """Returns number of solar collector assemblies within the field."""
-        return self.value('nSCA') * self.value('nLoops')
+        return self.value('nSCA') * self.value('nLoops') * self.value('FieldConfig')
 
     @property
     def minimum_receiver_power_fraction(self) -> float:

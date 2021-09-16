@@ -614,8 +614,7 @@ class CspDispatch(Dispatch):
         self.storage_capacity = csp.tes_hours * cycle_rated_thermal
         self.minimum_receiver_power = csp.minimum_receiver_power_fraction * field_rated_thermal
         self.allowable_receiver_startup_power = self.receiver_required_startup_energy / csp.value('rec_su_delay')
-        self.receiver_pumping_losses = 0.0  # in lore -> estimate_receiver_pumping_parasitic()
-        # TODO: get an estimate or calculate
+        self.receiver_pumping_losses = csp.estimate_receiver_pumping_parasitic()
         self.field_track_losses = csp.field_tracking_power
         #self.heat_trace_losses = 0.00163 * field_rated_thermal     # TODO: need to update for troughs
 
@@ -623,7 +622,7 @@ class CspDispatch(Dispatch):
         self.cycle_required_startup_energy = csp.value('startup_frac') * cycle_rated_thermal
         self.cycle_nominal_efficiency = csp.cycle_nominal_efficiency
 
-        design_mass_flow = 0.0  # TODO: calculate design mass flowrate
+        design_mass_flow = csp.get_cycle_design_mass_flow()
         self.cycle_pumping_losses = csp.value('pb_pump_coef') * design_mass_flow / (cycle_rated_thermal * 1e3)
         self.allowable_cycle_startup_power = self.cycle_required_startup_energy / csp.value('startup_time')
         self.minimum_cycle_thermal_power = csp.value('cycle_cutoff_frac') * cycle_rated_thermal
