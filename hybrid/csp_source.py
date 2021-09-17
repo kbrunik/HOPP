@@ -234,10 +234,10 @@ class CspPlant(PowerSource):
     def set_initial_plant_state(self) -> dict:
         io_map = self.get_plant_state_io_map()
         plant_state = {k: 0 for k in io_map.keys()}
-        # Note values for initial startup time/energy requirements will be set by ssc internally
-        # if cycle or receiver is initially off
         plant_state['rec_op_mode_initial'] = 0  # Receiver initially off
         plant_state['pc_op_mode_initial'] = 3  # Cycle initially off
+        plant_state['pc_startup_time_remain_init'] = self.ssc.get('startup_time')
+        plant_state['pc_startup_energy_remain_initial'] = self.ssc.get('startup_frac')*self.cycle_thermal_rating*1000.
         plant_state['sim_time_at_last_update'] = 0.0
         plant_state['T_tank_cold_init'] = self.htf_cold_design_temperature
         plant_state['T_tank_hot_init'] = self.htf_hot_design_temperature
