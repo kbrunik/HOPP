@@ -15,6 +15,34 @@ from hybrid.power_source import PowerSource
 from hybrid.sites import SiteInfo
 
 
+class Csp_Outputs():
+    def __init__(self):
+        self.ssc_time_series = {}
+        self.ssc_annual= {}
+
+    def update_from_ssc_output(self, ssc_outputs):
+        seconds_per_step = int(3600/ssc_outputs['time_steps_per_hour'])
+        ntot = int(ssc_outputs['time_steps_per_hour'] * 8760)
+        is_empty = (len(self.ssc_time_series) == 0)
+        i = int(ssc_outputs['time_start'] / seconds_per_step) 
+        n = int((ssc_outputs['time_stop'] - ssc_outputs['time_start'])/seconds_per_step)
+
+        if is_empty:
+            for name, val in ssc_outputs.items():
+                if isinstance(val, list) and len(val) == ntot:  
+                    self.ssc_time_series[name] = [0.0]*ntot
+                if name in ['annual_energy', 'annual_W_cycle_gross']:
+                    self.ssc_annual[name] = 0.0
+        
+        for name in self.ssc_time_series.keys():
+            self.ssc_time_series[name][i:i+n] = ssc_outputs[name][0:n]
+        for name in self.ssc_annual.keys():  # TODO: could accumulate these (and others) outside of ssc
+            self.ssc_annual[name] += ssc_outputs[name]
+
+        return
+
+
+
 class CspPlant(PowerSource):
     _system_model: None
     _financial_model: Singleowner
@@ -63,6 +91,8 @@ class CspPlant(PowerSource):
         self.cycle_efficiency_tables = self.get_cycle_efficiency_tables()
         self.plant_state = self.set_initial_plant_state()
         self.update_ssc_inputs_from_plant_state()
+
+        self.ssc_results = Csp_Outputs()
 
     def param_file_paths(self, relative_path):
         cwd = os.path.dirname(os.path.abspath(__file__))

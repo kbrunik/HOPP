@@ -35,7 +35,6 @@ def test_pySSC_tower_model(site):
         annual_energy = tech_outputs['annual_energy']
     else:
         n = int((end_datetime - start_datetime).total_seconds()/increment_duration.total_seconds())
-        annual_energy = 0.0
         for j in range(n):
             start_datetime_new = start_datetime + j*increment_duration
             end_datetime_new = start_datetime_new + increment_duration
@@ -43,8 +42,10 @@ def test_pySSC_tower_model(site):
             csp.ssc.set({'time_stop': CspDispatch.seconds_since_newyear(end_datetime_new)})      
             csp.update_ssc_inputs_from_plant_state()
             tech_outputs = csp.ssc.execute()
-            annual_energy += tech_outputs['annual_energy']
+            csp.ssc_results.update_from_ssc_output(tech_outputs)
             csp.set_plant_state_from_ssc_outputs(tech_outputs, increment_duration.total_seconds())
+    
+        annual_energy = csp.ssc_results.ssc_annual['annual_energy']
             
 
     print('Three days all at once starting 10/21, annual energy = {e:.0f} MWhe'.format(e=annual_energy * 1.e-3))
