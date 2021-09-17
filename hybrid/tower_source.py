@@ -175,14 +175,18 @@ class TowerPlant(CspPlant):
                   }
         return io_map        
 
-    # TODO: Better place to handle initial state?  Inputs are optional (with default values in ssc) and many are not
-
     def set_initial_plant_state(self) -> dict:
         plant_state = super().set_initial_plant_state()
         # Use initial storage charge state that came from tech_model_defaults.json file
+    
         plant_state['csp.pt.tes.init_hot_htf_percent'] = self.ssc.get('csp.pt.tes.init_hot_htf_percent')
         plant_state['T_tank_cold_init'] = self.ssc.get('T_htf_cold_des')
         plant_state['T_tank_hot_init'] = self.ssc.get('T_htf_hot_des')
+
+        plant_state['is_field_tracking_init'] = 0
+        plant_state['rec_startup_time_remain_init'] = self.ssc.get('rec_su_delay')
+        plant_state['rec_startup_energy_remain_init'] = self.ssc.get('rec_qf_delay')*self.field_thermal_rating*1.e6
+
         return plant_state
 
     @property
