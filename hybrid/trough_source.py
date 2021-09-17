@@ -61,17 +61,17 @@ class TroughPlant(CspPlant):
 
                   'pc_op_mode_initial':                   'pc_op_mode_final',
                   'pc_startup_time_remain_init':          'pc_startup_time_remain_final',
-                  'pc_startup_energy_remain_initial':     'pc_startup_energy_remain_final'
+                  'pc_startup_energy_remain_initial':     'pc_startup_energy_remain_final',
+                  # For dispatch ramping penalty
+                  'heat_into_cycle':                      'q_pb'
                   }
         return io_map
 
     def set_initial_plant_state(self) -> dict:
         plant_state = super().set_initial_plant_state()
         # Use initial storage charge state that came from tech_model_defaults.json file
-        plant_state['init_hot_htf_percent'] = self.ssc.get('init_hot_htf_percent')
-        plant_state['T_tank_cold_init'] = self.ssc.get('T_loop_in_des')
-        plant_state['T_tank_hot_init'] = self.ssc.get('T_loop_out')
-        plant_state.pop('T_out_scas_initial')
+        plant_state['init_hot_htf_percent'] = self.value('init_hot_htf_percent')
+        plant_state.pop('T_out_scas_initial')   # initially not needed
         return plant_state
 
     @property
@@ -115,4 +115,19 @@ class TroughPlant(CspPlant):
     def field_tracking_power(self) -> float:
         """Returns power load for field to track sun position in MWe"""
         return self.value('SCA_drives_elec') * self.number_of_reflector_units / 1e6  # W to MW
+
+    @property
+    def htf_cold_design_temperature(self) -> float:
+        """Returns cold design temperature for HTF [C]"""
+        return self.value('T_loop_in_des')
+
+    @property
+    def htf_hot_design_temperature(self) -> float:
+        """Returns hot design temperature for HTF [C]"""
+        return self.value('T_loop_out')
+
+    @property
+    def initial_tes_hot_mass_fraction(self) -> float:
+        """Returns initial thermal energy storage fraction of mass in hot tank [-]"""
+        return self.plant_state['init_hot_htf_percent'] / 100.
 

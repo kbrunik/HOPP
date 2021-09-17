@@ -595,7 +595,7 @@ class CspDispatch(Dispatch):
             doc="Is cycle starting up binary block linking constraint",
             rule=cycle_starting_linking_rule)
 
-    def initialize_dispatch_model_parameters(self):
+    def initialize_parameters(self):
         csp = self._system_model
 
         cycle_rated_thermal = csp.cycle_thermal_rating
@@ -629,7 +629,7 @@ class CspDispatch(Dispatch):
         self.maximum_cycle_thermal_power = csp.value('cycle_max_frac') * cycle_rated_thermal
         self.set_part_load_cycle_parameters()
 
-    def update_time_series_dispatch_model_parameters(self, start_time: int):
+    def update_time_series_parameters(self, start_time: int):
         """
         Sets up SSC simulation to get time series performance parameters after simulation.
         : param start_time: hour of the year starting dispatch horizon
@@ -763,74 +763,37 @@ class CspDispatch(Dispatch):
                 'Tambpts': Tambpts, 'Tamblevels': Tamblevels}
 
     def update_initial_conditions(self):
-        # FIXME: There is a bit of work to do here
-        # TODO: set these values here
-        self.initial_thermal_energy_storage = 0.0  # Might need to calculate this
+        csp = self._system_model
 
-        self.initial_receiver_startup_inventory = (self.receiver_required_startup_energy
-                                                   - self._system_model.value('rec_startup_energy_remain_final') )
-        self.is_field_generating_initial = self._system_model.value('is_field_tracking_final')
-        self.is_field_starting_initial = self._system_model.value('rec_op_mode_final') # TODO: this is not right
+        m_des = csp.get_design_storage_mass()
+        m_hot = csp.initial_tes_hot_mass_fraction * m_des  # Available active mass in hot tank
+        cp = csp.get_cp_htf(0.5 * (csp.plant_state['T_tank_hot_init'] + csp.htf_cold_design_temperature))  # J/kg/K
+        self.initial_thermal_energy_storage = min(self.storage_capacity,
+                                                  m_hot * cp * (csp.plant_state['T_tank_hot_init']
+                                                                - csp.htf_cold_design_temperature) * 1.e-6 / 3600)
 
-        self.initial_cycle_startup_inventory = (self.cycle_required_startup_energy
-                                                - self._system_model.value('pc_startup_energy_remain_final') )
-        self.initial_cycle_thermal_power = self._system_model.value('q_pb')
-        self.is_cycle_generating_initial = self._system_model.value('pc_op_mode_final')  # TODO: figure out what this is...
-        self.is_cycle_starting_initial = False
+        self.is_field_generating_initial = (csp.plant_state['rec_op_mode_initial'] == 2)
+        self.is_field_starting_initial = (csp.plant_state['rec_op_mode_initial'] == 1)
 
-        # def set_initial_state(self, plant):
-        #     m_des = plant.get_design_storage_mass()
-        #
-        #     m_hot = (plant.state['csp_pt_tes_init_hot_htf_percent'] / 100) * m_des  # Available active mass in hot tank
-        #     m_cold = ((100 - plant.state[
-        #         'csp_pt_tes_init_hot_htf_percent']) / 100) * m_des  # Available active mass in cold tank
-        #     cp = plant.get_cp_htf(0.5 * (plant.state['T_tank_hot_init'] + plant.design['T_htf_cold_des']))  # J/kg/K
-        #
-        #     self.T_cs0 = min(max(self.T_cs_min, plant.state['T_tank_cold_init']), self.T_cs_max)
-        #     self.T_hs0 = min(max(self.T_hs_min, plant.state['T_tank_hot_init']), self.T_hs_max)
-        #     self.s0 = min(self.Eu, m_hot * cp * (plant.state['T_tank_hot_init'] - plant.design[
-        #         'T_htf_cold_des']) * 1.e-3 / 3600)  # Note s0 is calculated internally in the pyomo dispatch model
-        #     self.mass_cs0 = min(max(self.mass_cs_min, m_cold), self.mass_cs_max)
-        #     self.mass_hs0 = min(max(self.mass_hs_min, m_hot), self.mass_hs_max)
-        #     max_allowable_mass = 0.995 * self.Eu * 3600 / self.Cp / (
-        #                 self.T_hs0 - self.T_cs_des) + self.mass_hs_min  # Max allowable mass for s0 = Eu from dispatch model s0 calculation in pyomo
-        #     self.mass_hs0 = min(self.mass_hs0, max_allowable_mass)
-        #     self.wdot0 = plant.state['wdot0'] * 1000.
-        #
-        #     self.yr0 = (plant.state['rec_op_mode_initial'] == 2)
-        #     self.yrsb0 = False  # TODO: no official receiver "standby" mode currently exists in ssc.  Might be able to use the new cold-tank recirculation to define this
-        #     self.yrsu0 = (plant.state['rec_op_mode_initial'] == 1)
-        #     self.yrsd0 = False  # TODO: no official receiver "shutdown" mode currently exists in ssc.
-        #     self.y0 = (plant.state['pc_op_mode_initial'] == 1)
-        #     self.ycsb0 = (plant.state['pc_op_mode_initial'] == 2)
-        #     self.ycsu0 = (plant.state['pc_op_mode_initial'] == 0 or plant.state['pc_op_mode_initial'] == 4)
-        #
-        #     self.drsu0 = plant.state['disp_rec_persist0'] if self.yrsu0 else 0.0
-        #     self.drsd0 = plant.state['disp_rec_persist0'] if plant.state[
-        #                                                          'rec_op_mode_initial'] == 0 else 0.0  # TODO: defining time in shutdown mode as time "off", will this work in the dispatch model?
-        #     self.Yu0 = plant.state['disp_pc_persist0'] if self.y0 else 0.0
-        #     self.Yd0 = plant.state['disp_pc_off0'] if (not self.y0) else 0.0
-        #
-        #     # Initial startup energy accumulated
-        #     if isnan(plant.state[
-        #                  'pc_startup_energy_remain_initial']):  # ssc seems to report nan when startup is completed
-        #         self.ucsu = self.Ec
-        #     else:
-        #         self.ucsu0 = max(0.0, self.Ec - plant.state['pc_startup_energy_remain_initial'])
-        #         if self.ucsu0 > (1.0 - 1.e-6) * self.Ec:
-        #             self.ucsu0 = self.Ec
-        #
-        #     rec_accum_time = max(0.0, self.Drsu - plant.state['rec_startup_time_remain_init'])
-        #     rec_accum_energy = max(0.0, self.Er - plant.state['rec_startup_energy_remain_init'] / 1000.)
-        #     self.ursu0 = min(rec_accum_energy,
-        #                      rec_accum_time * self.Qru)  # Note, SS receiver model in ssc assumes full available power is used for startup (even if, time requirement is binding)
-        #     if self.ursu0 > (1.0 - 1.e-6) * self.Er:
-        #         self.ursu0 = self.Er
-        #
-        #     self.ursd0 = 0.0  # TODO: How can we track accumulated shut-down energy (not modeled in ssc)
-        #
-        #     return
+        # Initial startup energy accumulated
+        # ssc seems to report nan when startup is completed
+        if csp.plant_state['pc_startup_energy_remain_initial'] != csp.plant_state['pc_startup_energy_remain_initial']:
+            self.initial_cycle_startup_inventory = self.cycle_required_startup_energy
+        else:
+            self.initial_cycle_startup_inventory = max(0.0, self.cycle_required_startup_energy
+                                                       - csp.plant_state['pc_startup_energy_remain_initial'] / 1e3)
+            if self.initial_cycle_startup_inventory > (1.0 - 1.e-6) * self.cycle_required_startup_energy:
+                self.initial_cycle_startup_inventory = self.cycle_required_startup_energy
 
+        self.is_cycle_generating_initial = (csp.plant_state['pc_op_mode_initial'] == 1)
+        self.is_cycle_starting_initial = (csp.plant_state['pc_op_mode_initial'] == 0
+                                          or csp.plant_state['pc_op_mode_initial'] == 4)
+        # self.ycsb0 = (plant.state['pc_op_mode_initial'] == 2)
+
+        if self.is_cycle_generating_initial:
+            self.initial_cycle_thermal_power = csp.plant_state['heat_into_cycle']
+        else:
+            self.initial_cycle_thermal_power = 0.0
 
     @staticmethod
     def get_start_end_datetime(start_time: int, n_horizon: int):

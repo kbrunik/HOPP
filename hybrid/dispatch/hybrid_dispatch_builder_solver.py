@@ -41,7 +41,7 @@ class HybridDispatchBuilderSolver:
         if self.needs_dispatch:
             self._pyomo_model = self._create_dispatch_optimization_model()
             self.dispatch.create_gross_profit_objective()
-            self.dispatch.initialize_dispatch_model_parameters()
+            self.dispatch.initialize_parameters()
             self.dispatch.create_arcs()
             assert_units_consistent(self.pyomo_model)
 
@@ -182,7 +182,7 @@ class HybridDispatchBuilderSolver:
         # Dispatch Optimization Simulation with Rolling Horizon
         # Solving the year in series
         ti = list(range(0, self.site.n_timesteps, self.options.n_roll_periods))
-        self.dispatch.initialize_dispatch_model_parameters()
+        self.dispatch.initialize_parameters()
         self.power_sources['battery']._system_model.setup()
 
         for i, t in enumerate(ti):
@@ -209,7 +209,7 @@ class HybridDispatchBuilderSolver:
             for model in self.power_sources.values():
                 if model.system_capacity_kw == 0:
                     continue
-                model.dispatch.update_time_series_dispatch_model_parameters(sim_start_time)
+                model.dispatch.update_time_series_parameters(sim_start_time)
             # Solve dispatch model
             # TODO: this is not a good way to do this... This won't work with CSP addition...
             if 'heuristic' in self.options.battery_dispatch:

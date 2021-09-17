@@ -77,10 +77,10 @@ def test_solar_dispatch(site):
 
     assert_units_consistent(model)
 
-    solar.dispatch.initialize_dispatch_model_parameters()
+    solar.dispatch.initialize_parameters()
     solar.simulate(1)
 
-    solar.dispatch.update_time_series_dispatch_model_parameters(0)
+    solar.dispatch.update_time_series_parameters(0)
 
     results = HybridDispatchBuilderSolver.glpk_solve_call(model)
     assert results.solver.termination_condition == TerminationCondition.optimal
@@ -131,7 +131,7 @@ def test_csp_dispatch_model(site):
 
     assert_units_consistent(model)
 
-    # WITHIN csp_dispatch.initialize_dispatch_model_parameters()
+    # WITHIN csp_dispatch.initialize_parameters()
     # Cost Parameters
     csp_dispatch.cost_per_field_generation = 3.0
     csp_dispatch.cost_per_field_start = 5650.0
@@ -185,7 +185,7 @@ def test_csp_dispatch_model(site):
 
 def test_tower_dispatch(site):
     """Tests setting up tower dispatch using system model and running simulation with dispatch"""
-    expected_objective = 66002.2022596669
+    expected_objective = 72642.80566838199
     dispatch_n_look_ahead = 48
 
     tower = TowerPlant(site, technologies['tower'])
@@ -229,10 +229,9 @@ def test_tower_dispatch(site):
         rule=create_test_objective_rule,
         sense=pyomo.maximize)
 
-    tower.dispatch.initialize_dispatch_model_parameters()
-    tower.dispatch.update_time_series_dispatch_model_parameters(0)
-    # TODO: set up this function
-    # trough.dispatch.update_initial_conditions()
+    tower.dispatch.initialize_parameters()
+    tower.dispatch.update_time_series_parameters(0)
+    tower.dispatch.update_initial_conditions()
 
     assert_units_consistent(model)
     results = HybridDispatchBuilderSolver.glpk_solve_call(model)
@@ -255,7 +254,7 @@ def test_tower_dispatch(site):
 
 def test_trough_dispatch(site):
     """Tests setting up trough dispatch using system model and running simulation with dispatch"""
-    expected_objective = 21810.475711324852
+    expected_objective = 28516.592861387388
     dispatch_n_look_ahead = 48
 
     trough = TroughPlant(site, technologies['trough'])
@@ -298,17 +297,14 @@ def test_trough_dispatch(site):
         rule=create_test_objective_rule,
         sense=pyomo.maximize)
 
-    trough.dispatch.initialize_dispatch_model_parameters()
-    trough.dispatch.update_time_series_dispatch_model_parameters(0)
-    # TODO: how are we going to get information from the simulation to set parameters
-    # trough.dispatch.update_initial_conditions()
+    trough.dispatch.initialize_parameters()
+    trough.dispatch.update_time_series_parameters(0)
+    trough.dispatch.update_initial_conditions()
 
     assert_units_consistent(model)
     results = HybridDispatchBuilderSolver.glpk_solve_call(model)
 
     trough.simulate_with_dispatch(48, 0)
-
-
 
     assert results.solver.termination_condition == TerminationCondition.optimal
     assert pyomo.value(model.test_objective) == pytest.approx(expected_objective, 1e-5)
@@ -356,10 +352,10 @@ def test_wind_dispatch(site):
 
     assert_units_consistent(model)
 
-    wind.dispatch.initialize_dispatch_model_parameters()
+    wind.dispatch.initialize_parameters()
     wind.simulate(1)
 
-    wind.dispatch.update_time_series_dispatch_model_parameters(0)
+    wind.dispatch.update_time_series_parameters(0)
 
     results = HybridDispatchBuilderSolver.glpk_solve_call(model)
     assert results.solver.termination_condition == TerminationCondition.optimal
@@ -412,8 +408,8 @@ def test_simple_battery_dispatch(site):
         rule=create_test_objective_rule,
         sense=pyomo.maximize)
 
-    battery.dispatch.initialize_dispatch_model_parameters()
-    battery.dispatch.update_time_series_dispatch_model_parameters(0)
+    battery.dispatch.initialize_parameters()
+    battery.dispatch.update_time_series_parameters(0)
     battery.dispatch.update_dispatch_initial_soc(battery.dispatch.minimum_soc)   # Set initial SOC to minimum
     assert_units_consistent(model)
     results = HybridDispatchBuilderSolver.glpk_solve_call(model)
@@ -477,8 +473,8 @@ def test_simple_battery_dispatch_lifecycle_count(site):
         rule=create_test_objective_rule,
         sense=pyomo.maximize)
 
-    battery.dispatch.initialize_dispatch_model_parameters()
-    battery.dispatch.update_time_series_dispatch_model_parameters(0)
+    battery.dispatch.initialize_parameters()
+    battery.dispatch.update_time_series_parameters(0)
     model.initial_SOC = battery.dispatch.minimum_soc   # Set initial SOC to minimum
     assert_units_consistent(model)
 
@@ -541,8 +537,8 @@ def test_detailed_battery_dispatch(site):
         rule=create_test_objective_rule,
         sense=pyomo.maximize)
 
-    battery.dispatch.initialize_dispatch_model_parameters()
-    battery.dispatch.update_time_series_dispatch_model_parameters(0)
+    battery.dispatch.initialize_parameters()
+    battery.dispatch.update_time_series_parameters(0)
     model.initial_SOC = battery.dispatch.minimum_soc   # Set initial SOC to minimum
     assert_units_consistent(model)
 
@@ -573,8 +569,8 @@ def test_hybrid_dispatch(site):
     hybrid_plant.pv.simulate(1)
     hybrid_plant.wind.simulate(1)
 
-    hybrid_plant.dispatch_builder.dispatch.initialize_dispatch_model_parameters()
-    hybrid_plant.dispatch_builder.dispatch.update_time_series_dispatch_model_parameters(0)
+    hybrid_plant.dispatch_builder.dispatch.initialize_parameters()
+    hybrid_plant.dispatch_builder.dispatch.update_time_series_parameters(0)
     hybrid_plant.battery.dispatch.initial_SOC = hybrid_plant.battery.dispatch.minimum_soc   # Set to min SOC
 
     results = HybridDispatchBuilderSolver.glpk_solve_call(hybrid_plant.dispatch_builder.pyomo_model)
@@ -649,8 +645,8 @@ def test_hybrid_solar_battery_dispatch(site):
     hybrid_plant.grid.value("state_tax_rate", (0., ))
     hybrid_plant.pv.simulate(1)
 
-    hybrid_plant.dispatch_builder.dispatch.initialize_dispatch_model_parameters()
-    hybrid_plant.dispatch_builder.dispatch.update_time_series_dispatch_model_parameters(0)
+    hybrid_plant.dispatch_builder.dispatch.initialize_parameters()
+    hybrid_plant.dispatch_builder.dispatch.update_time_series_parameters(0)
     hybrid_plant.battery.dispatch.initial_SOC = hybrid_plant.battery.dispatch.minimum_soc   # Set to min SOC
 
     n_look_ahead_periods = hybrid_plant.dispatch_builder.options.n_look_ahead_periods

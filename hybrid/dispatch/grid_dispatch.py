@@ -178,13 +178,13 @@ class GridDispatch(Dispatch):
         grid.port.add(grid.electricity_sales)
         grid.port.add(grid.electricity_purchases)
 
-    def initialize_dispatch_model_parameters(self):
+    def initialize_parameters(self):
         grid_limit_kw = self._system_model.value('grid_interconnection_limit_kwac')
         self.transmission_limit = [grid_limit_kw / 1e3] * len(self.blocks.index_set())
         self.electricity_sales_tax = (self._financial_model.value("state_tax_rate")[0] +
                                       self._financial_model.value("federal_tax_rate")[0]) * 0.01
 
-    def update_time_series_dispatch_model_parameters(self, start_time: int):
+    def update_time_series_parameters(self, start_time: int):
         n_horizon = len(self.blocks.index_set())
         dispatch_factors = self._financial_model.value("dispatch_factors_ts")
         ppa_price = self._financial_model.value("ppa_price_input")[0]

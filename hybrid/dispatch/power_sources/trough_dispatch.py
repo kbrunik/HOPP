@@ -21,18 +21,9 @@ class TroughDispatch(CspDispatch):
         super().__init__(pyomo_model, indexed_set, system_model, financial_model, block_set_name=block_set_name)
 
     def update_initial_conditions(self):
-        # FIXME: There is a bit of work to do here
-        # TODO: set these values here
-        self.initial_thermal_energy_storage = 0.0  # Might need to calculate this
+        super().update_initial_conditions()
+        self.initial_receiver_startup_inventory = 0.0  # FIXME:
+        if self.is_field_starting_initial:
+            print('Warning: Solar field is starting at the initial time step of the dispatch horizon, but initial '
+                  'startup energy inventory is assumed to be zero. This may result in persistent receiver start-up')
 
-        # TODO: This appears to be coming from AMPL data files... This will take getters to be set up in pySAM...
-        self.initial_receiver_startup_inventory = (self.receiver_required_startup_energy
-                                                   - self._system_model.value('rec_startup_energy_remain_final') )
-        self.is_field_generating_initial = self._system_model.value('is_field_tracking_final')
-        self.is_field_starting_initial = self._system_model.value('rec_op_mode_final')  # TODO: this is not right
-
-        self.initial_cycle_startup_inventory = (self.cycle_required_startup_energy
-                                                - self._system_model.value('pc_startup_energy_remain_final') )
-        self.initial_cycle_thermal_power = self._system_model.value('q_pb')
-        self.is_cycle_generating_initial = self._system_model.value('pc_op_mode_final')  # TODO: figure out what this is...
-        self.is_cycle_starting_initial = False

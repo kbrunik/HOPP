@@ -234,14 +234,14 @@ class HybridDispatch(Dispatch):
 
         pyomo.TransformationFactory("network.expand_arcs").apply_to(self.model)
 
-    def initialize_dispatch_model_parameters(self):
+    def initialize_parameters(self):
         self.time_weighting_factor = 1.0
         for tech in self.power_sources.values():
-            tech.dispatch.initialize_dispatch_model_parameters()
+            tech.dispatch.initialize_parameters()
 
-    def update_time_series_dispatch_model_parameters(self, start_time: int):
+    def update_time_series_parameters(self, start_time: int):
         for tech in self.power_sources.values():
-            tech.dispatch.update_time_series_dispatch_model_parameters(start_time)
+            tech.dispatch.update_time_series_parameters(start_time)
 
     def _delete_objective(self):
         if hasattr(self.model, "objective"):

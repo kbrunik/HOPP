@@ -64,7 +64,6 @@ class CspPlant(PowerSource):
         self.plant_state = self.set_initial_plant_state()
         self.update_ssc_inputs_from_plant_state()
 
-
     def param_file_paths(self, relative_path):
         cwd = os.path.dirname(os.path.abspath(__file__))
         data_path = os.path.join(cwd, relative_path)
@@ -240,6 +239,10 @@ class CspPlant(PowerSource):
         plant_state['rec_op_mode_initial'] = 0  # Receiver initially off
         plant_state['pc_op_mode_initial'] = 3  # Cycle initially off
         plant_state['sim_time_at_last_update'] = 0.0
+        plant_state['T_tank_cold_init'] = self.htf_cold_design_temperature
+        plant_state['T_tank_hot_init'] = self.htf_hot_design_temperature
+        plant_state['pc_startup_energy_remain_initial'] = (self.value('startup_frac') * self.cycle_thermal_rating
+                                                           * 1e6)  # MWh -> kWh
         return plant_state
 
     def set_plant_state_from_ssc_outputs(self, ssc_outputs, seconds_relative_to_start):
@@ -260,6 +263,7 @@ class CspPlant(PowerSource):
     def update_ssc_inputs_from_plant_state(self):
         state = self.plant_state.copy()
         state.pop('sim_time_at_last_update')
+        state.pop('heat_into_cycle')
         self.ssc.set(state)
         return
 
@@ -309,8 +313,6 @@ class CspPlant(PowerSource):
 
         # Save simulation output TODO: save information in a structure
 
-
-
         pass
 
     def set_dispatch_targets(self, n_periods: int):
@@ -338,16 +340,18 @@ class CspPlant(PowerSource):
                             'q_pc_max_in': [self.cycle_thermal_rating for t in range(n_periods)]}
         self.ssc.set(dispatch_targets)
 
+    def get_design_storage_mass(self):
+        """Returns active storage mass [kg]"""
+        q_pb_design = self.cycle_thermal_rating
+        e_storage = q_pb_design * self.tes_hours * 1000.  # Storage capacity (kWht)
+        cp = self.get_cp_htf(0.5 * (self.htf_hot_design_temperature + self.htf_cold_design_temperature)) * 1.e-3  # kJ/kg/K
+        m_storage = e_storage * 3600. / cp / (self.htf_hot_design_temperature - self.htf_cold_design_temperature)
+        return m_storage
+
     def get_cycle_design_mass_flow(self):
-        cold_temp_name_map = {'TowerPlant': 'T_htf_cold_des', 'TroughPlant': 'T_loop_in_des'}
-        cold_des_temp = self.value(cold_temp_name_map[type(self).__name__])
-
-        hot_temp_name_map = {'TowerPlant': 'T_htf_hot_des', 'TroughPlant': 'T_loop_out'}
-        hot_des_temp = self.value(hot_temp_name_map[type(self).__name__])
-
         q_des = self.cycle_thermal_rating  # MWt
-        cp_des = self.get_cp_htf(0.5 * (hot_des_temp + cold_des_temp))  # J/kg/K
-        m_des = q_des * 1.e6 / (cp_des * (hot_des_temp - cold_des_temp))  # kg/s
+        cp_des = self.get_cp_htf(0.5 * (self.htf_hot_design_temperature + self.htf_cold_design_temperature))  # J/kg/K
+        m_des = q_des * 1.e6 / (cp_des * (self.htf_hot_design_temperature - self.htf_cold_design_temperature))  # kg/s
         return m_des
 
     def get_cp_htf(self, TC):
@@ -444,6 +448,21 @@ class CspPlant(PowerSource):
 
     @property
     def field_tracking_power(self) -> float:
+        raise NotImplementedError
+
+    @property
+    def htf_cold_design_temperature(self) -> float:
+        """Returns cold design temperature for HTF [C]"""
+        raise NotImplementedError
+
+    @property
+    def htf_hot_design_temperature(self) -> float:
+        """Returns hot design temperature for HTF [C]"""
+        raise NotImplementedError
+
+    @property
+    def initial_tes_hot_mass_fraction(self) -> float:
+        """Returns initial thermal energy storage fraction of mass in hot tank [-]"""
         raise NotImplementedError
 
     def value(self, var_name, var_value=None):

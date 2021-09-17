@@ -171,18 +171,20 @@ class TowerPlant(CspPlant):
 
                   'pc_op_mode_initial':                   'pc_op_mode_final',
                   'pc_startup_time_remain_init':          'pc_startup_time_remain_final',
-                  'pc_startup_energy_remain_initial':     'pc_startup_energy_remain_final'
+                  'pc_startup_energy_remain_initial':     'pc_startup_energy_remain_final',
+                  # For dispatch ramping penalty
+                  'heat_into_cycle':                      'q_pb'
                   }
         return io_map        
-
-    # TODO: Better place to handle initial state?  Inputs are optional (with default values in ssc) and many are not
 
     def set_initial_plant_state(self) -> dict:
         plant_state = super().set_initial_plant_state()
         # Use initial storage charge state that came from tech_model_defaults.json file
-        plant_state['csp.pt.tes.init_hot_htf_percent'] = self.ssc.get('csp.pt.tes.init_hot_htf_percent')
-        plant_state['T_tank_cold_init'] = self.ssc.get('T_htf_cold_des')
-        plant_state['T_tank_hot_init'] = self.ssc.get('T_htf_hot_des')
+        plant_state['csp.pt.tes.init_hot_htf_percent'] = self.value('csp.pt.tes.init_hot_htf_percent')
+
+        plant_state['rec_startup_time_remain_init'] = self.value('rec_su_delay')
+        plant_state['rec_startup_energy_remain_init'] = (self.value('rec_qf_delay') * self.field_thermal_rating
+                                                         * 1e6)  # MWh -> Wh
         return plant_state
 
     @property
@@ -225,5 +227,20 @@ class TowerPlant(CspPlant):
     def field_tracking_power(self) -> float:
         """Returns power load for field to track sun position in MWe"""
         return self.value('p_track') * self.number_of_reflector_units / 1e3
+
+    @property
+    def htf_cold_design_temperature(self) -> float:
+        """Returns cold design temperature for HTF [C]"""
+        return self.value('T_htf_cold_des')
+
+    @property
+    def htf_hot_design_temperature(self) -> float:
+        """Returns hot design temperature for HTF [C]"""
+        return self.value('T_htf_hot_des')
+
+    @property
+    def initial_tes_hot_mass_fraction(self) -> float:
+        """Returns initial thermal energy storage fraction of mass in hot tank [-]"""
+        return self.plant_state['csp.pt.tes.init_hot_htf_percent'] / 100.
 
 
