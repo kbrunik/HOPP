@@ -182,13 +182,17 @@ class HybridDispatchBuilderSolver:
         # Dispatch Optimization Simulation with Rolling Horizon
         # Solving the year in series
         ti = list(range(0, self.site.n_timesteps, self.options.n_roll_periods))
-        self.dispatch.initialize_parameters()
-        self.power_sources['battery']._system_model.setup()
+        self.dispatch.initialize_parameters()  # TODO: This is called twice
+
+        if 'battery' in self.power_sources:
+            self.power_sources['battery']._system_model.setup()  # TODO: this should be moved to battery or something
 
         for i, t in enumerate(ti):
             self.simulate_with_dispatch(t)
-            if self.options.is_test and i > 10:
-                break
+            if self.options.is_test:
+                print('Day {} dispatch optimized.'.format(i))
+                if i > 5:
+                    break
 
     def simulate_with_dispatch(self,
                                start_time: int,
@@ -210,20 +214,22 @@ class HybridDispatchBuilderSolver:
                 if model.system_capacity_kw == 0:
                     continue
                 model.dispatch.update_time_series_parameters(sim_start_time)
-            # Solve dispatch model
+
             # TODO: this is not a good way to do this... This won't work with CSP addition...
             if 'heuristic' in self.options.battery_dispatch:
                 self.battery_heuristic()
             else:
+                # Solve dispatch model
                 self.glpk_solve()       # TODO: need to condition for other non-convex model
+
             if i < n_initial_sims:
                 sim_start_time = None
 
-            # step through dispatch solution for battery and simulate battery
+            # simulate using dispatch solution
             if 'battery' in self.power_sources.keys():
                 self.power_sources['battery'].simulate_with_dispatch(self.options.n_roll_periods,
                                                                      sim_start_time=sim_start_time)
-            # TODO: simulate csp with dispatch targets here
+
             if 'trough' in self.power_sources.keys():
                 self.power_sources['trough'].simulate_with_dispatch(self.options.n_roll_periods,
                                                                     sim_start_time=sim_start_time)

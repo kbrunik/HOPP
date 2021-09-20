@@ -199,8 +199,6 @@ class Battery(PowerSource):
         if time_step is not None:
             self.update_battery_stored_values(time_step)
 
-        # TODO: Do we need to update financial model after battery simulation is complete?
-
     def update_battery_stored_values(self, time_step):
         # Physical model values
         for attr in self.Outputs.stateful_attributes:

@@ -144,6 +144,7 @@ class GridDispatch(Dispatch):
 
     @staticmethod
     def _create_grid_aux_constraints(grid):
+        # TODO: why do these have 1.5 in front of them...
         # Aux system generation variable
         grid.generation_ub = pyomo.Constraint(
             doc="Auxiliary variable upper bound",

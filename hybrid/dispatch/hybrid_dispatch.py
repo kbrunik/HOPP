@@ -332,6 +332,22 @@ class HybridDispatch(Dispatch):
         return [self.blocks[t].wind_generation.value for t in self.blocks.index_set()]
 
     @property
+    def tower_generation(self) -> list:
+        return [self.blocks[t].tower_generation.value for t in self.blocks.index_set()]
+
+    @property
+    def tower_load(self) -> list:
+        return [self.blocks[t].tower_load.value for t in self.blocks.index_set()]
+
+    @property
+    def trough_generation(self) -> list:
+        return [self.blocks[t].trough_generation.value for t in self.blocks.index_set()]
+
+    @property
+    def trough_load(self) -> list:
+        return [self.blocks[t].trough_load.value for t in self.blocks.index_set()]
+
+    @property
     def battery_charge(self) -> list:
         return [self.blocks[t].battery_charge.value for t in self.blocks.index_set()]
 

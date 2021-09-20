@@ -655,6 +655,8 @@ class CspDispatch(Dispatch):
         dry_bulb_temperature = tech_outputs['tdry'][0:n_horizon]
         self.set_ambient_temperature_cycle_parameters(dry_bulb_temperature)
 
+        self.update_initial_conditions()  # other dispatch models do not have this method
+
     def set_part_load_cycle_parameters(self):
         """Set parameters in dispatch model for off-design cycle performance."""
         # --- Cycle part-load efficiency

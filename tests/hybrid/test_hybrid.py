@@ -3,7 +3,9 @@ import pytest
 from hybrid.sites import SiteInfo, flatirons_site
 from hybrid.layout.hybrid_layout import WindBoundaryGridParameters, PVGridParameters
 from hybrid.hybrid_simulation import HybridSimulation
+from hybrid.keys import set_nrel_key_dot_env
 
+set_nrel_key_dot_env()
 
 @pytest.fixture
 def site():
@@ -176,7 +178,8 @@ def test_trough_pv_battery_hybrid(site):
 
     """
     solar_hybrid = {key: technologies[key] for key in ('pv', 'trough', 'battery', 'grid')}
-    hybrid_plant = HybridSimulation(solar_hybrid, site, interconnect_kw=interconnection_size_kw)
+    hybrid_plant = HybridSimulation(solar_hybrid, site, interconnect_kw=interconnection_size_kw,
+                                    dispatch_options={'is_test': True})
     #hybrid_plant.layout.plot()
     hybrid_plant.ppa_price = (0.01, )
     hybrid_plant.pv.dc_degradation = [0] * 25
