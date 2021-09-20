@@ -40,12 +40,12 @@ class TowerPlant(CspPlant):
 
         super().__init__("TowerPlant", 'tcsmolten_salt', site, financial_model, tower_config)
 
+        # Set full annual weather data before field layout
+        self.set_weather(self.year_weather_df)  
+
         # TODO: This needs to update layout, tower, and receiver based on user inputs
         # Calculate flux and eta maps for all simulations
         self.set_field_layout_and_flux_eta_maps(self.create_field_layout_and_simulate_flux_eta_maps())
-
-        # Set weather once -> required to be after set_flux_eta_maps call
-        self.set_weather(self.year_weather_df)
 
         self._dispatch: TowerDispatch = None
 
@@ -68,8 +68,6 @@ class TowerPlant(CspPlant):
         self.ssc.set({'helio_positions': helio_positions})
 
     def create_field_layout_and_simulate_flux_eta_maps(self):
-        start_datetime = datetime.datetime(1900, 1, 1, 0, 0, 0)  # start of first timestep
-        self.set_weather(self.year_weather_df, start_datetime, start_datetime)  # only one weather timestep is needed
         print('Creating field layout and simulating flux and eta maps ...')
         self.ssc.set({'time_start': 0})
         self.ssc.set({'time_stop': 0})
