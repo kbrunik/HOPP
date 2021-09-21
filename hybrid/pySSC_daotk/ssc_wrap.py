@@ -128,9 +128,9 @@ class PysscWrap(SscWrap):
 
         # Outputs:
         file.write("\n")
-        file.write("outln('Annual energy (year 1) ' + var('annual_energy'));")
-        file.write("outln('Capacity factor (year 1) ' + var('capacity_factor'));")
-        file.write("outln('Annual Water Usage ' + var('annual_total_water_use'));")
+        file.write("outln('Annual energy (year 1) ' + var('annual_energy'));\n")
+        file.write("outln('Capacity factor (year 1) ' + var('capacity_factor'));\n")
+        file.write("outln('Annual Water Usage ' + var('annual_total_water_use'));\n")
         file.close()
 
 
