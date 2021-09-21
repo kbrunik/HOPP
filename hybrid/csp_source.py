@@ -39,6 +39,8 @@ class Csp_Outputs():
         for name in self.ssc_annual.keys():  # TODO: could accumulate these (and others) outside of ssc
             self.ssc_annual[name] += ssc_outputs[name]
 
+        # TODO: add dispatch model outputs
+
         return
 
 
@@ -330,6 +332,7 @@ class CspPlant(PowerSource):
         self.value('time_stop', CspDispatch.seconds_since_newyear(end_datetime))
 
         self.set_dispatch_targets(n_periods)
+        self.update_ssc_inputs_from_plant_state()
 
         # Simulate
         results = self.ssc.execute()
