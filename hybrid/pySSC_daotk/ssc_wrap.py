@@ -79,6 +79,60 @@ class PysscWrap(SscWrap):
     def export_params(self):
         return copy.deepcopy(self.params)
 
+    def create_lk_inputs_file(self, filename: str, weather_file):
+        file = open(filename, "w")
+        file.write("clear();\n")
+        # Handling weather file differently due to the solar_resource_data
+        clean_path = str(os.path.normpath(weather_file))
+        #clean_path.replace('\\', '/')
+        file.write("var( 'solar_resource_file', '" + clean_path.replace('\\', '/') + "' );\n")
+
+        # Inputs
+        for key, value in self.params.items():
+            if key is 'tech_model' or key is 'financial_model':
+                continue
+            elif any([type(value) is scalar_type for scalar_type in [int, float, str]]):
+                file.write("var( '" + key + "', " + str(value) + " );\n")
+            elif type(value) is bool:
+                if value:
+                    file.write("var( '" + key + "', " + str(1) + " );\n")
+                else:
+                    file.write("var( '" + key + "', " + str(0) + " );\n")
+            elif type(value) is list:
+                if type(value[0]) is list:
+                    file.write("var( '" + key + "', \n")
+                    file.write("[ ")
+                    # Matrix
+                    for row_count, row in enumerate(value):
+                        file.write("[ ")
+                        for item_count, item in enumerate(row):
+                            suffix = ", "
+                            if item_count == len(row) - 1:
+                                suffix = " ],\n"
+                                if row_count == len(value) - 1:
+                                    suffix = " ] ] );\n"
+                            file.write(str(item) + suffix)
+                else:
+                    file.write("var( '" + key + "', ")
+                    file.write("[ ")
+                    # List
+                    for item_count, item in enumerate(value):
+                        suffix = ", "
+                        if item_count == len(value) - 1:
+                            suffix = " ] );\n"
+                        file.write(str(item) + suffix)
+        # Run calls
+        file.write("run('" + str(self.params['tech_model']) + "');\n")
+        if self.params['financial_model'] is not None:
+            file.write("run('" + str(self.params['financial_model']) + "');\n")
+
+        # Outputs:
+        file.write("\n")
+        file.write("outln('Annual energy (year 1) ' + var('annual_energy'));")
+        file.write("outln('Capacity factor (year 1) ' + var('capacity_factor'));")
+        file.write("outln('Annual Water Usage ' + var('annual_total_water_use'));")
+        file.close()
+
 
 class PysamWrap(SscWrap):
     def __init__(self, tech_name, financial_name, defaults_name=None):

@@ -29,6 +29,8 @@ def test_pySSC_tower_model(site):
 
     csp.ssc.set({'time_start': CspDispatch.seconds_since_newyear(start_datetime)})
     csp.ssc.set({'time_stop': CspDispatch.seconds_since_newyear(end_datetime)})
+
+    # csp.ssc.create_lk_inputs_file("test.lk", csp.site.solar_resource.filename)
     tech_outputs = csp.ssc.execute()
     annual_energy = tech_outputs['annual_energy']
 

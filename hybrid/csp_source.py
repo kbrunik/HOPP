@@ -399,7 +399,7 @@ class CspPlant(PowerSource):
         elif tes_fluid == 18:
             return 1443. + 0.172 * (TK - 273.15)
         elif tes_fluid == 21:
-            return (1.509 + 0.002496 * TC + 0.0000007888 * (TC ** 2)) * 1000.;
+            return (1.509 + 0.002496 * TC + 0.0000007888 * (TC ** 2)) * 1000.
         else:
             print('HTF %d not recognized' % tes_fluid)
             return 0.0
