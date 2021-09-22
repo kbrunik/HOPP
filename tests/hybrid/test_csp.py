@@ -73,10 +73,10 @@ def test_pySSC_tower_increment_simulation(site):
         csp.ssc.set({'time_stop': CspDispatch.seconds_since_newyear(end_datetime_new)})
         csp.update_ssc_inputs_from_plant_state()
         tech_outputs = csp.ssc.execute()
-        csp.ssc_results.update_from_ssc_output(tech_outputs)
+        csp.outputs.update_from_ssc_output(tech_outputs)
         csp.set_plant_state_from_ssc_outputs(tech_outputs, increment_duration.total_seconds())
 
-    increments_annual_energy = csp.ssc_results.ssc_annual['annual_energy']
+    increments_annual_energy = csp.outputs.ssc_annual['annual_energy']
 
     assert increments_annual_energy == pytest.approx(wo_increments_annual_energy, 1e-5)
 
@@ -135,10 +135,10 @@ def test_pySSC_trough_increment_simulation(site):
         csp.ssc.set({'time_stop': CspDispatch.seconds_since_newyear(end_datetime_new)})
         csp.update_ssc_inputs_from_plant_state()
         tech_outputs = csp.ssc.execute()
-        csp.ssc_results.update_from_ssc_output(tech_outputs)
+        csp.outputs.update_from_ssc_output(tech_outputs)
         csp.set_plant_state_from_ssc_outputs(tech_outputs, increment_duration.total_seconds())
 
-    increments_annual_energy = csp.ssc_results.ssc_annual['annual_energy']
+    increments_annual_energy = csp.outputs.ssc_annual['annual_energy']
 
     assert increments_annual_energy == pytest.approx(wo_increments_annual_energy, 1e-5)
 
@@ -167,7 +167,7 @@ def test_value_csp_call(site):
 
 def test_tower_with_dispatch_model(site):
     """Testing pySSC tower model using HOPP built-in dispatch model"""
-    expected_energy = 2290102.8481448935
+    expected_energy = 3319453.711116379
 
     interconnection_size_kw = 50000
     technologies = {'tower': {'cycle_capacity_kw': 50 * 1000,
@@ -183,12 +183,33 @@ def test_tower_with_dispatch_model(site):
     system.simulate()
 
     assert system.tower.annual_energy_kw == pytest.approx(expected_energy, 1e-5)
-    # TODO: add more checks
+
+    # Check dispatch targets
+    disp_outputs = system.tower.outputs.dispatch
+    ssc_outputs = system.tower.outputs.ssc_time_series
+    for i in range(len(ssc_outputs['gen'])):
+        # cycle start-up allowed
+        target = 1 if (disp_outputs['is_cycle_generating'][i] + disp_outputs['is_cycle_starting'][i]) > 0.01 else 0
+        assert target == pytest.approx(ssc_outputs['is_pc_su_allowed'][i], 1e-5)
+        # receiver start-up allowed
+        target = 1 if (disp_outputs['is_field_generating'][i] + disp_outputs['is_field_starting'][i]) > 0.01 else 0
+        assert target == pytest.approx(ssc_outputs['is_rec_su_allowed'][i], 1e-5)
+        # cycle thermal power
+        start_power = system.tower.dispatch.allowable_cycle_startup_power if disp_outputs['is_cycle_starting'][i] else 0
+        target = disp_outputs['cycle_thermal_power'][i] + start_power
+        assert target == pytest.approx(ssc_outputs['q_dot_pc_target_on'][i], 1e-3)
+        # thermal energy storage state-of-charge
+        if i % system.dispatch_builder.options.n_roll_periods == 0:
+            tes_estimate = disp_outputs['thermal_energy_storage'][i]
+            tes_actual = ssc_outputs['e_ch_tes'][i]
+            assert tes_estimate == pytest.approx(tes_actual, 0.01)
+        # else:
+        #     assert tes_estimate == pytest.approx(tes_actual, 0.15)
 
 
 def test_trough_with_dispatch_model(site):
     """Testing pySSC tower model using HOPP built-in dispatch model"""
-    expected_energy = 670521.460899721      # Seems a lot lower than towers need to check outputs
+    expected_energy = 1974482.68647
 
     interconnection_size_kw = 50000
     technologies = {'trough': {'cycle_capacity_kw': 50 * 1000,
@@ -204,4 +225,25 @@ def test_trough_with_dispatch_model(site):
     system.simulate()
 
     assert system.trough.annual_energy_kw == pytest.approx(expected_energy, 1e-5)
-    # TODO: add more checks
+
+    # Check dispatch targets
+    disp_outputs = system.trough.outputs.dispatch
+    ssc_outputs = system.trough.outputs.ssc_time_series
+    for i in range(len(ssc_outputs['gen'])):
+        # cycle start-up allowed
+        target = 1 if (disp_outputs['is_cycle_generating'][i] + disp_outputs['is_cycle_starting'][i]) > 0.01 else 0
+        assert target == pytest.approx(ssc_outputs['is_pc_su_allowed'][i], 1e-5)
+        # receiver start-up allowed
+        target = 1 if (disp_outputs['is_field_generating'][i] + disp_outputs['is_field_starting'][i]) > 0.01 else 0
+        assert target == pytest.approx(ssc_outputs['is_rec_su_allowed'][i], 1e-5)
+        # cycle thermal power
+        start_power = system.trough.dispatch.allowable_cycle_startup_power if disp_outputs['is_cycle_starting'][i] else 0
+        target = disp_outputs['cycle_thermal_power'][i] + start_power
+        assert target == pytest.approx(ssc_outputs['q_dot_pc_target'][i], 1e-3)
+        # thermal energy storage state-of-charge
+        if i % system.dispatch_builder.options.n_roll_periods == 0:
+            tes_estimate = disp_outputs['thermal_energy_storage'][i]
+            tes_actual = ssc_outputs['e_ch_tes'][i]
+            assert tes_estimate == pytest.approx(tes_actual, 0.01)
+        # else:
+        #     assert tes_estimate == pytest.approx(tes_actual, 0.15)

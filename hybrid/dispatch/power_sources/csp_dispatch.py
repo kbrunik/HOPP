@@ -778,7 +778,7 @@ class CspDispatch(Dispatch):
         self.initial_thermal_energy_storage = min(self.storage_capacity,
                                                   m_hot * cp * (csp.plant_state['T_tank_hot_init']
                                                                 - csp.htf_cold_design_temperature) * 1.e-6 / 3600)
-
+        
         self.is_field_generating_initial = (csp.plant_state['rec_op_mode_initial'] == 2)
         self.is_field_starting_initial = (csp.plant_state['rec_op_mode_initial'] == 1)
 

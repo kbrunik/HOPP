@@ -19,6 +19,7 @@ class Csp_Outputs():
     def __init__(self):
         self.ssc_time_series = {}
         self.ssc_annual = {}
+        self.dispatch = {}
 
     def update_from_ssc_output(self, ssc_outputs):
         seconds_per_step = int(3600/ssc_outputs['time_steps_per_hour'])
@@ -38,10 +39,22 @@ class Csp_Outputs():
             self.ssc_time_series[name][i:i+n] = ssc_outputs[name][0:n]
         for name in self.ssc_annual.keys():  # TODO: could accumulate these (and others) outside of ssc
             self.ssc_annual[name] += ssc_outputs[name]
-
-        # TODO: add dispatch model outputs
-
         return
+
+    def store_dispatch_outputs(self, dispatch: CspDispatch, n_periods: int, sim_start_time: int):
+        outputs_keys = ['available_thermal_generation', 'cycle_ambient_efficiency_correction', 'condenser_losses',
+                        'thermal_energy_storage', 'receiver_startup_inventory', 'receiver_thermal_power',
+                        'receiver_startup_consumption', 'is_field_generating', 'is_field_starting', 'incur_field_start',
+                        'cycle_startup_inventory', 'system_load', 'cycle_generation', 'cycle_thermal_ramp',
+                        'cycle_thermal_power', 'is_cycle_generating', 'is_cycle_starting', 'incur_cycle_start']
+
+        is_empty = (len(self.dispatch) == 0)
+        if is_empty:
+            for key in outputs_keys:
+                self.dispatch[key] = [0.0] * 8760  # FIXME
+
+        for key in outputs_keys:
+            self.dispatch[key][sim_start_time: sim_start_time + n_periods] = getattr(dispatch, key)[0: n_periods]
 
 
 class CspPlant(PowerSource):
@@ -93,7 +106,7 @@ class CspPlant(PowerSource):
         self.plant_state = self.set_initial_plant_state()
         self.update_ssc_inputs_from_plant_state()
 
-        self.ssc_results = Csp_Outputs()
+        self.outputs = Csp_Outputs()
 
     def param_file_paths(self, relative_path):
         cwd = os.path.dirname(os.path.abspath(__file__))
@@ -344,7 +357,8 @@ class CspPlant(PowerSource):
         self.set_plant_state_from_ssc_outputs(results, simulation_time)
 
         # Save simulation output
-        self.ssc_results.update_from_ssc_output(results)
+        self.outputs.update_from_ssc_output(results)
+        self.outputs.store_dispatch_outputs(self.dispatch, n_periods, sim_start_time)
 
     def set_dispatch_targets(self, n_periods: int):
         """Set pySSC targets using dispatch model solution."""
@@ -578,20 +592,20 @@ class CspPlant(PowerSource):
     @property
     def annual_energy_kw(self) -> float:        # This should be kWh not kW
         if self.system_capacity_kw > 0:
-            return self.ssc_results.ssc_annual['annual_energy']
+            return self.outputs.ssc_annual['annual_energy']
         else:
             return 0
 
     @property
     def generation_profile(self) -> list:
         if self.system_capacity_kw:
-            return list(self.ssc_results.ssc_time_series['gen'])
+            return list(self.outputs.ssc_time_series['gen'])
         else:
             return [0] * self.site.n_timesteps
 
     @property
     def capacity_factor(self) -> float:
         if self.system_capacity_kw > 0:
-            return self.ssc_results.ssc_annual['annual_energy'] / self.system_capacity_kw * 8760
+            return self.outputs.ssc_annual['annual_energy'] / self.system_capacity_kw * 8760
         else:
             return 0

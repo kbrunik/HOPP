@@ -173,18 +173,17 @@ def test_wind_pv_with_storage_dispatch(site):
     assert rev.hybrid[0] == pytest.approx(1266592, 1e3)
 
 
-def test_trough_pv_battery_hybrid(site):
+def test_trough_pv_hybrid(site):
     """
 
     """
-    solar_hybrid = {key: technologies[key] for key in ('pv', 'trough', 'battery', 'grid')}
+    solar_hybrid = {key: technologies[key] for key in ('pv', 'trough', 'grid')}
     hybrid_plant = HybridSimulation(solar_hybrid, site, interconnect_kw=interconnection_size_kw,
                                     dispatch_options={'is_test': True})
-    #hybrid_plant.layout.plot()
-    hybrid_plant.ppa_price = (0.01, )
+    hybrid_plant.ppa_price = (0.12, )  # $/kWh
     hybrid_plant.pv.dc_degradation = [0] * 25
     hybrid_plant.simulate()
-    # plt.show()
+
     aeps = hybrid_plant.annual_energies
     npvs = hybrid_plant.net_present_values
 
