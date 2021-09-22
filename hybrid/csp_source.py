@@ -131,10 +131,6 @@ class CspPlant(PowerSource):
 
         df.index = df.index.map(lambda t: t.replace(year=df.index[0].year))  # normalize all years to that of 1/1
         df = df[df.columns.drop(list(df.filter(regex='Unnamed')))]  # drop unnamed columns (which are empty)
-        timestep = df.index[1] - df.index[0]
-        if timestep == datetime.timedelta(hours=1) and df.index[0].minute == 30:
-            df.index = df.index.map(
-                lambda t: t.replace(minute=0))  # make minute convention 0 instead of 30 in hourly files
 
         def get_weatherfile_location(tmy3_path):
             df_meta = pd.read_csv(tmy3_path, sep=',', header=0, nrows=1)
@@ -198,8 +194,12 @@ class CspPlant(PowerSource):
                 start_datetime = start_datetime.replace(year=weather_year)
                 end_datetime = end_datetime.replace(year=weather_year)
 
+            if start_datetime < weather_df.index[0]:
+                start_datetime = weather_df.index[0]
+
             if end_datetime <= start_datetime:
                 end_datetime = start_datetime + weather_timedelta
+
             weather_df_part = weather_df[start_datetime:(
                         end_datetime - weather_timedelta)]  # times in weather file are the start (or middle) of timestep
 

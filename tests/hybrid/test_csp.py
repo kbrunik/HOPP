@@ -20,7 +20,7 @@ def test_pySSC_tower_model(site):
                     'solar_multiple': 2.0,
                     'tes_hours': 6.0}
 
-    expected_energy = 4087102.58
+    expected_energy = 4029953.45
 
     csp = TowerPlant(site, tower_config)
 
@@ -87,7 +87,7 @@ def test_pySSC_trough_model(site):
                      'solar_multiple': 1.5,
                      'tes_hours': 5.0}   # Different than json
 
-    expected_energy = 2100355.9888118473
+    expected_energy = 2100428.199
 
     csp = TroughPlant(site, trough_config)
 
