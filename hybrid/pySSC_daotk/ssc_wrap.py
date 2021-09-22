@@ -84,8 +84,9 @@ class PysscWrap(SscWrap):
         file.write("clear();\n")
         # Handling weather file differently due to the solar_resource_data
         clean_path = str(os.path.normpath(weather_file))
-        #clean_path.replace('\\', '/')
-        file.write("var( 'solar_resource_file', '" + clean_path.replace('\\', '/') + "' );\n")
+        solar_file_map = {'tcsmolten_salt': 'solar_resource_file', 'trough_physical': 'file_name'}
+        solar_file_name = solar_file_map[self.params['tech_model']]
+        file.write("var( '" + solar_file_name + "', '" + clean_path.replace('\\', '/') + "' );\n")
 
         # Inputs
         for key, value in self.params.items():

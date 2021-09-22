@@ -33,6 +33,7 @@ def test_pySSC_tower_model(site):
     # csp.ssc.create_lk_inputs_file("test.lk", csp.site.solar_resource.filename)
     tech_outputs = csp.ssc.execute()
     annual_energy = tech_outputs['annual_energy']
+    # TODO: SDKTool energy = 4029953.44 != expected_energy
 
     print('Three days all at once starting 10/21, annual energy = {e:.0f} MWhe'.format(e=annual_energy * 1.e-3))
 
@@ -95,6 +96,7 @@ def test_pySSC_trough_model(site):
     csp.ssc.set({'time_start': CspDispatch.seconds_since_newyear(start_datetime)})
     csp.ssc.set({'time_stop': CspDispatch.seconds_since_newyear(end_datetime)})
 
+    # csp.ssc.create_lk_inputs_file("trough_test.lk", csp.site.solar_resource.filename)  # Energy output: 2100428.248543
     tech_outputs = csp.ssc.execute()
     print('Three days all at once starting 10/21, annual energy = {e:.0f} MWhe'.format(e=tech_outputs['annual_energy'] * 1.e-3))
 
