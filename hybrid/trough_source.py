@@ -37,9 +37,11 @@ class TroughPlant(CspPlant):
         # Set weather once
         self.set_weather(self.year_weather_df)
 
-
-
         self._dispatch: TroughDispatch = None
+
+    def calculate_total_installed_cost(self) -> float:
+        # TODO: Janna copy SSC calculations here
+        return 0.0
 
     @staticmethod
     def estimate_receiver_pumping_parasitic():

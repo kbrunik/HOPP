@@ -100,6 +100,10 @@ class TowerPlant(CspPlant):
         self.ssc.set({'field_model_type': 3})  # use the provided flux and eta map inputs
         self.ssc.set({'eta_map_aod_format': False})  #
 
+    def calculate_total_installed_cost(self) -> float:
+        # TODO: Janna copy SSC calculations here
+        return 0.0
+
     def estimate_receiver_pumping_parasitic(self, nonheated_length=0.2):
         m_rec_design = self.get_receiver_design_mass_flow()  # kg/s
         Tavg = 0.5 * (self.value('T_htf_cold_des') + self.value('T_htf_hot_des'))

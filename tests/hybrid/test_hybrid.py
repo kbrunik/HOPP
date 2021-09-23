@@ -237,3 +237,38 @@ def test_troughs_pv_hybrid(site):
     assert npvs.pv == pytest.approx(45233832.23, 1e3)
     #assert npvs.tower == pytest.approx(-13909363, 1e3)
     #assert npvs.hybrid == pytest.approx(-19216589, 1e3)
+
+
+def test_tower_pv_battery_hybrid(site):
+    # Low values of for receiver sizing cause bad flow conditions and can break the SSC model
+    interconnection_size_kw_test = 50000
+    technologies_test = {'tower': {'cycle_capacity_kw': 50 * 1000,
+                                   'solar_multiple': 2.0,
+                                   'tes_hours': 12.0},
+                         'pv': {'system_capacity_kw': 50 * 1000},
+                         'battery': {'system_capacity_kwh': 40 * 1000,
+                                     'system_capacity_kw': 20 * 1000},
+                         'grid': 50000}
+
+    solar_hybrid = {key: technologies_test[key] for key in ('tower', 'pv', 'battery', 'grid')}
+    hybrid_plant = HybridSimulation(solar_hybrid, site,
+                                    interconnect_kw=interconnection_size_kw_test,
+                                    dispatch_options={'is_test_start_year': True,
+                                                      'is_test_end_year': True})
+    hybrid_plant.ppa_price = (0.12, )  # $/kWh
+    hybrid_plant.pv.dc_degradation = [0] * 25
+
+    hybrid_plant.simulate()
+
+    aeps = hybrid_plant.annual_energies
+    npvs = hybrid_plant.net_present_values
+
+    assert aeps.pv == pytest.approx(87692005.68, 1e-3)
+    assert aeps.tower == pytest.approx(3596233.93, 1e-3)
+    assert aeps.battery == pytest.approx(-5768.09, 1e-3)
+    assert aeps.hybrid == pytest.approx(91400130.68, 1e-3)
+
+    assert npvs.pv == pytest.approx(45233832.23, 1e3)
+    #assert npvs.tower == pytest.approx(-13909363, 1e3)
+    #assert npvs.hybrid == pytest.approx(-19216589, 1e3)
+

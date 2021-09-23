@@ -426,6 +426,9 @@ class CspPlant(PowerSource):
         # TODO: we could use the cost calculator in SAM
         return self._construction_financing_cost_per_kw * self.system_capacity_kw
 
+    def calculate_total_installed_cost(self) -> float:
+        raise NotImplementedError
+
     def simulate(self, project_life: int = 25, skip_fin=False):
         """
         Run the system

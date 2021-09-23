@@ -251,7 +251,6 @@ class HybridSimulation:
         self.pv.system_capacity_kw = solar_size_kw
         logger.info("HybridSystem set system capacities to REopt output")
 
-    # TODO: add tower and trough
     def calculate_installed_cost(self):
         if not self.cost_model:
             raise RuntimeError("'calculate_installed_cost' called before 'setup_cost_calculator'.")
@@ -272,12 +271,19 @@ class HybridSimulation:
                                                                                              pv_mw,
                                                                                              battery_mw,
                                                                                              battery_mwh)
+        # TODO: add tower and trough to cost_model functionality
         if self.pv:
             self.pv.total_installed_cost = pv_cost
         if self.wind:
             self.wind.total_installed_cost = wind_cost
         if self.battery:
             self.battery.total_installed_cost = storage_cost
+        if self.tower:
+            self.tower.total_installed_cost = self.tower.calculate_total_installed_cost()
+            total_cost += self.tower.total_installed_cost
+        if self.trough:
+            self.trough.total_installed_cost = self.trough.calculate_total_installed_cost()
+            total_cost += self.trough.total_installed_cost
 
         self.grid.total_installed_cost = total_cost
         logger.info("HybridSystem set hybrid total installed cost to to {}".format(total_cost))

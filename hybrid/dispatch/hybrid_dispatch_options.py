@@ -26,8 +26,9 @@ class HybridDispatchOptions:
                 'n_look_ahead_periods': int (default=48), number of time periods dispatch looks ahead
                 'n_roll_periods': int (default=24), number of time periods simulation rolls forward after each dispatch,
                 'log_name': str (default='hybrid_dispatch_optimization.log'), dispatch log file name,
-                'is_test_start_year' : bool (default=False), if True, simulation solves for first 5 days of the year (for development)
-                'is_test_end_year' : bool (default=False), if True, simulation solves for last 5 days of the year (for development)
+                (for development)
+                'is_test_start_year' : bool (default=False), if True, simulation solves for first 5 days of the year
+                'is_test_end_year' : bool (default=False), if True, simulation solves for last 5 days of the year
                 }
         """
         self.battery_dispatch: str = 'simple'
