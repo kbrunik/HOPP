@@ -168,6 +168,10 @@ def test_tower_with_dispatch_model(site):
     """Testing pySSC tower model using HOPP built-in dispatch model"""
     expected_energy = 3684265.8779387316
 
+    # 2575563.469905628 (start)
+    # 1101229.373851588 (end)
+    # 3676792.844 (total) (pretty close)
+
     interconnection_size_kw = 50000
     technologies = {'tower': {'cycle_capacity_kw': 50 * 1000,
                               'solar_multiple': 2.0,
@@ -254,39 +258,3 @@ def test_trough_with_dispatch_model(site):
         #     assert tes_estimate == pytest.approx(tes_actual, 0.01)
         # else:
         #     assert tes_estimate == pytest.approx(tes_actual, 0.15)
-
-
-def test_tower_year_end_simulation(site):
-    interconnection_size_kw = 50000
-    technologies = {'tower': {'cycle_capacity_kw': 50 * 1000,
-                                   'solar_multiple': 2.0,
-                                   'tes_hours': 12.0},
-                         'pv': {'system_capacity_kw': 50 * 1000},
-                         'grid': 50000}
-
-    solar_hybrid = {key: technologies[key] for key in ('tower', 'pv', 'grid')}
-    hybrid_plant = HybridSimulation(solar_hybrid, site,
-                                    interconnect_kw=interconnection_size_kw,
-                                    dispatch_options={'is_test_end_year': True})
-    hybrid_plant.ppa_price = (0.12, )  # $/kWh
-    hybrid_plant.pv.dc_degradation = [0] * 25
-
-    hybrid_plant.simulate()
-    # Simulate PV system:
-    #hybrid_plant.pv.simulate(25)
-
-    # Simulate End of Year CSP:
-
-
-
-    aeps = hybrid_plant.annual_energies
-    npvs = hybrid_plant.net_present_values
-
-    assert aeps.pv == pytest.approx(87692005.68, 1e-3)
-    assert aeps.tower == pytest.approx(3514289.31, 1e-3)
-    assert aeps.hybrid == pytest.approx(90775519.95, 1e-3)
-
-    # TODO: check npv for csp would require a full simulation
-    assert npvs.pv == pytest.approx(45233832.23, 1e3)
-    #assert npvs.tower == pytest.approx(-13909363, 1e3)
-    #assert npvs.hybrid == pytest.approx(-19216589, 1e3)
