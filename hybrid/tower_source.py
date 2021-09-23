@@ -114,7 +114,7 @@ class TowerPlant(CspPlant):
 
     def calculate_total_installed_cost(self) -> float:
         # Note this must be called after heliostat field layout is created
-        # Tower total installed cost is also a direct ouput from the ssc compute module 
+        # Tower total installed cost is also a direct output from the ssc compute module
         site_improvement_cost = self.ssc.get('site_spec_cost') * self.ssc.get('A_sf_in')
         heliostat_cost = self.ssc.get('cost_sf_fixed') + self.ssc.get('heliostat_spec_cost') * self.ssc.get('A_sf_in')
         height = self.ssc.get('h_tower')-0.5*self.ssc.get('rec_height') + 0.5*self.ssc.get('helio_height')

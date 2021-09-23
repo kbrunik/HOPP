@@ -24,8 +24,7 @@ def test_pySSC_tower_model(site):
 
     csp = TowerPlant(site, tower_config)
 
-    start_datetime = datetime.datetime(2012, 10, 21, 0, 0, 0)  # start of first timestep
-    end_datetime = datetime.datetime(2012, 10, 24, 0, 0, 0)  # end of last timestep
+    start_datetime, end_datetime = CspDispatch.get_start_end_datetime(293*24, 72)
 
     csp.ssc.set({'time_start': CspDispatch.seconds_since_newyear(start_datetime)})
     csp.ssc.set({'time_stop': CspDispatch.seconds_since_newyear(end_datetime)})
@@ -52,9 +51,7 @@ def test_pySSC_tower_increment_simulation(site):
 
     csp = TowerPlant(site, tower_config)
 
-    start_datetime = datetime.datetime(2012, 10, 21, 0, 0, 0)  # start of first timestep
-    end_datetime = datetime.datetime(2012, 10, 24, 0, 0, 0)  # end of last timestep
-
+    start_datetime, end_datetime = CspDispatch.get_start_end_datetime(293*24, 72)
     increment_duration = datetime.timedelta(hours=24)  # Time duration of each simulated horizon
 
     # Without Increments
@@ -86,16 +83,16 @@ def test_pySSC_trough_model(site):
                      'solar_multiple': 1.5,
                      'tes_hours': 5.0}   # Different than json
 
-    expected_energy = 2100428.199
+    expected_energy = 2100958.230758022
 
     csp = TroughPlant(site, trough_config)
 
-    start_datetime = datetime.datetime(2012, 10, 21, 0, 0, 0)  # start of first timestep
-    end_datetime = datetime.datetime(2012, 10, 24, 1, 0, 0)  # end of last timestep
+    start_datetime, end_datetime = CspDispatch.get_start_end_datetime(293*24, 72)
+
     csp.ssc.set({'time_start': CspDispatch.seconds_since_newyear(start_datetime)})
     csp.ssc.set({'time_stop': CspDispatch.seconds_since_newyear(end_datetime)})
 
-    # csp.ssc.create_lk_inputs_file("trough_test.lk", csp.site.solar_resource.filename)  # Energy output: 2100428.248543
+    # csp.ssc.create_lk_inputs_file("trough_test.lk", csp.site.solar_resource.filename)  # Energy output: 2100958.280693
     tech_outputs = csp.ssc.execute()
     print('Three days all at once starting 10/21, annual energy = {e:.0f} MWhe'.format(e=tech_outputs['annual_energy'] * 1.e-3))
 
@@ -114,8 +111,7 @@ def test_pySSC_trough_increment_simulation(site):
 
     csp = TroughPlant(site, trough_config)
 
-    start_datetime = datetime.datetime(2012, 10, 21, 0, 0, 0)  # start of first timestep
-    end_datetime = datetime.datetime(2012, 10, 24, 0, 0, 0)  # end of last timestep
+    start_datetime, end_datetime = CspDispatch.get_start_end_datetime(293*24, 72)
 
     increment_duration = datetime.timedelta(hours=24)  # Time duration of each simulated horizon
 
@@ -166,7 +162,7 @@ def test_value_csp_call(site):
 
 def test_tower_with_dispatch_model(site):
     """Testing pySSC tower model using HOPP built-in dispatch model"""
-    expected_energy = 3684265.8779387316
+    expected_energy = 3674426.1856781975
 
     # 2575563.469905628 (start)
     # 1101229.373851588 (end)
