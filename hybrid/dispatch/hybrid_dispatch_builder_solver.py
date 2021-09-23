@@ -221,11 +221,13 @@ class HybridDispatchBuilderSolver:
         # Solving the year in series
         ti = list(range(0, self.site.n_timesteps, self.options.n_roll_periods))
         self.dispatch.initialize_parameters()
-        # TODO: called twice because system models can be change between
-        #  init and simulate...
 
+        # TODO: This could be cleaned up a bit...
+        if 'tower' in self.power_sources:
+            if self.power_sources['tower'].optimize_field_before_sim:
+                self.power_sources['tower'].optimize_field_and_tower()
         if 'battery' in self.power_sources:
-            self.power_sources['battery']._system_model.setup()  # TODO: this should be moved to battery or something
+            self.power_sources['battery']._system_model.setup()
 
         for i, t in enumerate(ti):
             if self.options.is_test_start_year or self.options.is_test_end_year:
@@ -234,6 +236,8 @@ class HybridDispatchBuilderSolver:
                     self.simulate_with_dispatch(t)
                 else:
                     continue
+                    # TODO: can we make the csp and battery model run with heuristic dispatch here?
+                    #  Maybe calling a simulate_with_heuristic() method
             else:
                 self.simulate_with_dispatch(t)
 

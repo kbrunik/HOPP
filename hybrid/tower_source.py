@@ -29,7 +29,6 @@ class TowerPlant(CspPlant):
 
         # set-up param file paths
         # TODO: Site should have dispatch factors consistent across all models
-        # TODO: get
         self.param_files = {'tech_model_params_path': 'tech_model_defaults.json',
                             'dispatch_factors_ts_path': 'dispatch_factors_ts.csv',
                             'ud_ind_od_path': 'ud_ind_od.csv',
@@ -46,6 +45,10 @@ class TowerPlant(CspPlant):
         # TODO: This needs to update layout, tower, and receiver based on user inputs
         # Calculate flux and eta maps for all simulations
         self.set_field_layout_and_flux_eta_maps(self.create_field_layout_and_simulate_flux_eta_maps())
+
+        self.optimize_field_before_sim = False
+        if 'optimize_field_before_sim' in tower_config:
+            self.optimize_field_before_sim = tower_config['optimize_field_before_sim']
 
         self._dispatch: TowerDispatch = None
 
@@ -67,13 +70,17 @@ class TowerPlant(CspPlant):
         helio_positions = [heliostat_layout[j, 0:2].tolist() for j in range(N_hel)]
         self.ssc.set({'helio_positions': helio_positions})
 
-    def create_field_layout_and_simulate_flux_eta_maps(self):
+    def create_field_layout_and_simulate_flux_eta_maps(self, optimize_tower_field: bool = False):
         print('Creating field layout and simulating flux and eta maps ...')
         self.ssc.set({'time_start': 0})
         self.ssc.set({'time_stop': 0})
 
-        # TODO: change to field_model_type = 0 to optimize receiver/tower sizing
-        self.ssc.set({'field_model_type': 1})  # Create field layout and generate flux and eta maps, but don't optimize field or tower 
+        if optimize_tower_field:
+            # Run field, tower height, and receiver diameter and height optimization
+            self.ssc.set({'field_model_type': 0})
+        else:
+            # Create field layout and generate flux and eta maps, but don't optimize field or tower
+            self.ssc.set({'field_model_type': 1})
 
         # Check if specified receiver dimensions make sense relative to heliostat dimensions (if not optimizing receiver sizing)
         if self.ssc.get('field_model_type') > 0 and min(self.ssc.get('rec_height'), self.ssc.get('D_rec')) < max(self.ssc.get('helio_width'), self.ssc.get('helio_height')):
@@ -98,7 +105,11 @@ class TowerPlant(CspPlant):
     def set_field_layout_and_flux_eta_maps(self, field_and_flux_maps):
         self.ssc.set(field_and_flux_maps)  # set flux maps etc. so they don't have to be recalculated
         self.ssc.set({'field_model_type': 3})  # use the provided flux and eta map inputs
-        self.ssc.set({'eta_map_aod_format': False})  #
+        self.ssc.set({'eta_map_aod_format': False})
+
+    def optimize_field_and_tower(self):
+        self.set_field_layout_and_flux_eta_maps(
+            self.create_field_layout_and_simulate_flux_eta_maps(optimize_tower_field=True))
 
     def calculate_total_installed_cost(self) -> float:
         # TODO: Janna copy SSC calculations here

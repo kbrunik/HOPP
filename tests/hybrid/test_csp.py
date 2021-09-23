@@ -258,3 +258,38 @@ def test_trough_with_dispatch_model(site):
         #     assert tes_estimate == pytest.approx(tes_actual, 0.01)
         # else:
         #     assert tes_estimate == pytest.approx(tes_actual, 0.15)
+
+
+def test_tower_field_optimize_before_sim(site):
+    """Testing pySSC tower model using HOPP built-in dispatch model"""
+    interconnection_size_kw = 50000
+    technologies = {'tower': {'cycle_capacity_kw': 50 * 1000,
+                              'solar_multiple': 2.0,
+                              'tes_hours': 6.0,
+                              'optimize_field_before_sim': True},
+                    'grid': 50000}
+
+    system = {key: technologies[key] for key in ('tower', 'grid')}
+    system = HybridSimulation(system, site,
+                              interconnect_kw=interconnection_size_kw,
+                              dispatch_options={'is_test_start_year': True})
+    system.ppa_price = (0.12,)
+
+    # Get old field:
+    field_parameters = ['N_hel', 'D_rec', 'rec_height', 'h_tower', 'land_area_base', 'A_sf_in']
+    old_values = {}
+    for k in field_parameters:
+        old_values[k] = system.tower.value(k)
+
+    system.simulate()
+
+    new_values = {}
+    for k in field_parameters:
+        new_values[k] = system.tower.value(k)
+
+    assert system.tower.optimize_field_before_sim
+
+    for k in field_parameters:
+        assert old_values[k] != new_values[k]
+
+
