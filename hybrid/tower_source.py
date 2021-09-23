@@ -75,10 +75,6 @@ class TowerPlant(CspPlant):
         # TODO: change to field_model_type = 0 to optimize receiver/tower sizing
         self.ssc.set({'field_model_type': 1})  # Create field layout and generate flux and eta maps, but don't optimize field or tower 
 
-        # Check if specified receiver dimensions make sense relative to heliostat dimensions (if not optimizing receiver sizing)
-        if self.ssc.get('field_model_type') > 0 and min(self.ssc.get('rec_height'), self.ssc.get('D_rec')) < max(self.ssc.get('helio_width'), self.ssc.get('helio_height')):
-            print('Warning: Receiver height or diameter is smaller than the heliostat dimension')
-
         original_values = {k: self.ssc.get(k) for k in['is_dispatch_targets', 'rec_clearsky_model', 'time_steps_per_hour', 'sf_adjust:hourly']}
         # set so unneeded dispatch targets and clearsky DNI are not required
         # TODO: probably don't need hourly sf adjustment factors
@@ -93,6 +89,11 @@ class TowerPlant(CspPlant):
         field_and_flux_maps = {'eta_map': eta_map, 'flux_maps': flux_maps, 'A_sf_in': A_sf_in}
         for k in ['helio_positions', 'N_hel', 'D_rec', 'rec_height', 'h_tower', 'land_area_base']:
             field_and_flux_maps[k] = tech_outputs[k]
+
+        # Check if specified receiver dimensions make sense relative to heliostat dimensions
+        if min(field_and_flux_maps['rec_height'], field_and_flux_maps['D_rec']) < max(self.ssc.get('helio_width'), self.ssc.get('helio_height')):
+            print('Warning: Receiver height or diameter is smaller than the heliostat dimension. Design will likely have high spillage loss')
+
         return field_and_flux_maps
 
     def set_field_layout_and_flux_eta_maps(self, field_and_flux_maps):
