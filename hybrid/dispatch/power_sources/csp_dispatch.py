@@ -603,10 +603,10 @@ class CspDispatch(Dispatch):
 
         # Cost Parameters
         self.cost_per_field_generation = 3.0
-        self.cost_per_field_start = csp.value('disp_rsu_cost')
+        self.cost_per_field_start = 10.0 * field_rated_thermal  # csp.value('disp_rsu_cost')
         self.cost_per_cycle_generation = 2.0
-        self.cost_per_cycle_start = csp.value('disp_csu_cost')
-        self.cost_per_change_thermal_input = 0.3
+        self.cost_per_cycle_start = 40.0 * csp.value('P_ref')  # csp.value('disp_csu_cost')
+        self.cost_per_change_thermal_input = 0.0  # 0.3
 
         # Solar field and thermal energy storage performance parameters
         self.field_startup_losses = csp.value('p_start') * csp.number_of_reflector_units / 1e3
@@ -778,7 +778,7 @@ class CspDispatch(Dispatch):
         self.initial_thermal_energy_storage = min(self.storage_capacity,
                                                   m_hot * cp * (csp.plant_state['T_tank_hot_init']
                                                                 - csp.htf_cold_design_temperature) * 1.e-6 / 3600)
-        
+
         self.is_field_generating_initial = (csp.plant_state['rec_op_mode_initial'] == 2)
         self.is_field_starting_initial = (csp.plant_state['rec_op_mode_initial'] == 1)
 
@@ -1133,17 +1133,17 @@ class CspDispatch(Dispatch):
         for t in self.blocks.index_set():
             self.blocks[t].maximum_cycle_thermal_power.set_value(round(thermal_power, self.round_digits))
 
-    @property
-    def minimum_cycle_power(self) -> float:
-        """Minimum cycle electric power output [MWe]"""
-        for t in self.blocks.index_set():
-            return self.blocks[t].minimum_cycle_power.value
-
-    @minimum_cycle_power.setter
-    def minimum_cycle_power(self, electric_power: float):
-        """Minimum cycle electric power output [MWe]"""
-        for t in self.blocks.index_set():
-            self.blocks[t].minimum_cycle_power.set_value(round(electric_power, self.round_digits))
+    # @property
+    # def minimum_cycle_power(self) -> float:
+    #     """Minimum cycle electric power output [MWe]"""
+    #     for t in self.blocks.index_set():
+    #         return self.blocks[t].minimum_cycle_power.value
+    #
+    # @minimum_cycle_power.setter
+    # def minimum_cycle_power(self, electric_power: float):
+    #     """Minimum cycle electric power output [MWe]"""
+    #     for t in self.blocks.index_set():
+    #         self.blocks[t].minimum_cycle_power.set_value(round(electric_power, self.round_digits))
 
     @property
     def maximum_cycle_power(self) -> float:

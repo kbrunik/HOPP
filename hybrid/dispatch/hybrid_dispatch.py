@@ -373,7 +373,7 @@ class HybridDispatch(Dispatch):
 
     @property
     def electricity_sales(self) -> list:
-        return [self.blocks[t].electricity_sale.value for t in self.blocks.index_set()]
+        return [self.blocks[t].electricity_sales.value for t in self.blocks.index_set()]
 
     @property
     def electricity_purchases(self) -> list:

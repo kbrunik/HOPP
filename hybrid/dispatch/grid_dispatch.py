@@ -144,29 +144,28 @@ class GridDispatch(Dispatch):
 
     @staticmethod
     def _create_grid_aux_constraints(grid):
-        # TODO: why do these have 1.5 in front of them...
         # Aux system generation variable
         grid.generation_ub = pyomo.Constraint(
             doc="Auxiliary variable upper bound",
             expr=grid.aux_system_generation <= grid.system_generation)
         grid.generation_ub_binary = pyomo.Constraint(
             doc="Auxiliary variable upper bound with binary",
-            expr=grid.aux_system_generation <= 1.5 * grid.transmission_limit * grid.is_system_producing)
+            expr=grid.aux_system_generation <= grid.transmission_limit * grid.is_system_producing)
         grid.generation_lb_binary = pyomo.Constraint(
             doc="Auxiliary variable lower bound with binary",
             expr=grid.aux_system_generation >= (grid.system_generation
-                                                - 1.5 * grid.transmission_limit * (1 - grid.is_system_producing)))
+                                                - grid.transmission_limit * (1 - grid.is_system_producing)))
         # Aux system load variable
         grid.load_ub = pyomo.Constraint(
             doc="Auxiliary variable upper bound",
             expr=grid.aux_system_load <= grid.system_load)
         grid.load_ub_binary = pyomo.Constraint(
             doc="Auxiliary variable upper bound with binary",
-            expr=grid.aux_system_load <= 1.5 * grid.transmission_limit * grid.is_system_producing)
+            expr=grid.aux_system_load <= grid.transmission_limit * grid.is_system_producing)
         grid.load_lb_binary = pyomo.Constraint(
             doc="Auxiliary variable lower bound with binary",
             expr=grid.aux_system_load >= (grid.system_load
-                                          - 1.5 * grid.transmission_limit * (1 - grid.is_system_producing)))
+                                          - grid.transmission_limit * (1 - grid.is_system_producing)))
 
     @staticmethod
     def _create_grid_ports(grid):
@@ -257,6 +256,14 @@ class GridDispatch(Dispatch):
                 self.blocks[t].system_load.set_value(round(load, self.round_digits))
         else:
             raise ValueError("'system_load_mw' list must be the same length as time horizon")
+
+    @property
+    def aux_system_generation(self) -> list:
+        return [self.blocks[t].aux_system_generation.value for t in self.blocks.index_set()]
+
+    @property
+    def aux_system_load(self) -> list:
+        return [self.blocks[t].aux_system_load.value for t in self.blocks.index_set()]
 
     @property
     def electricity_sold(self) -> list:

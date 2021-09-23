@@ -122,6 +122,8 @@ class TowerPlant(CspPlant):
         Ac = 0.25 * pi * (tube_id ** 2)
         vel = m_per_tube / rho / Ac  # HTF velocity
         Re = rho * vel * tube_id / visc
+        if Re < 2300:
+            print("Warning: Poor Receiver Design! Receiver will experience laminar flow. Consider revising.")
         eD = 4.6e-5 / tube_id
         ff = (-1.737 * log(0.269 * eD - 2.185 / Re * log(0.269 * eD + 14.5 / Re))) ** -2
         fd = 4 * ff
