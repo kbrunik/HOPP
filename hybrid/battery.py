@@ -71,6 +71,9 @@ class Battery(PowerSource):
 
         logger.info("Initialized battery with parameters and state {}".format(self._system_model.export()))
 
+    def setup_system_model(self):
+        self._system_model.setup()
+
     @property
     def system_capacity_voltage(self) -> tuple:
         return self._system_model.ParamsPack.nominal_energy, self._system_model.ParamsPack.nominal_voltage

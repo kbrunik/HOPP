@@ -348,6 +348,15 @@ class HybridSimulation:
         Runs the individual system models then combines the financials
         :return:
         """
+        # Calling simulation set-up functions that have to be called before calculate_installed_cost()
+        if 'tower' in self.power_sources:
+            if self.power_sources['tower'].optimize_field_before_sim:
+                self.power_sources['tower'].optimize_field_and_tower()
+            else:
+                self.power_sources['tower'].generate_field()
+        if 'battery' in self.power_sources:
+            self.power_sources['battery'].setup_system_model()
+
         self.calculate_installed_cost()
         self.calculate_financials()
 

@@ -23,6 +23,7 @@ def test_pySSC_tower_model(site):
     expected_energy = 4029953.45
 
     csp = TowerPlant(site, tower_config)
+    csp.generate_field()
 
     start_datetime, end_datetime = CspDispatch.get_start_end_datetime(293*24, 72)
 
@@ -50,6 +51,7 @@ def test_pySSC_tower_increment_simulation(site):
                     'tes_hours': 6.0}
 
     csp = TowerPlant(site, tower_config)
+    csp.generate_field()
 
     start_datetime, end_datetime = CspDispatch.get_start_end_datetime(293*24, 72)
     increment_duration = datetime.timedelta(hours=24)  # Time duration of each simulated horizon
@@ -270,6 +272,7 @@ def test_tower_field_optimize_before_sim(site):
                               interconnect_kw=interconnection_size_kw,
                               dispatch_options={'is_test_start_year': True})
     system.ppa_price = (0.12,)
+    system.tower.generate_field()
 
     # Get old field:
     field_parameters = ['N_hel', 'D_rec', 'rec_height', 'h_tower', 'land_area_base', 'A_sf_in']

@@ -23,7 +23,8 @@ class TowerPlant(CspPlant):
                  tower_config: dict):
         """
 
-        :param tower_config: dict, with keys ('cycle_capacity_kw', 'solar_multiple', 'tes_hours')
+        :param tower_config: dict, with keys ('cycle_capacity_kw', 'solar_multiple', 'tes_hours',
+        'optimize_field_before_sim')
         """
         financial_model = Singleowner.default('MSPTSingleOwner')
 
@@ -41,10 +42,6 @@ class TowerPlant(CspPlant):
 
         # Set full annual weather data before field layout
         self.set_weather(self.year_weather_df)  
-
-        # TODO: This needs to update layout, tower, and receiver based on user inputs
-        # Calculate flux and eta maps for all simulations
-        self.set_field_layout_and_flux_eta_maps(self.create_field_layout_and_simulate_flux_eta_maps())
 
         self.optimize_field_before_sim = False
         if 'optimize_field_before_sim' in tower_config:
@@ -111,6 +108,9 @@ class TowerPlant(CspPlant):
     def optimize_field_and_tower(self):
         self.set_field_layout_and_flux_eta_maps(
             self.create_field_layout_and_simulate_flux_eta_maps(optimize_tower_field=True))
+
+    def generate_field(self):
+        self.set_field_layout_and_flux_eta_maps(self.create_field_layout_and_simulate_flux_eta_maps())
 
     def calculate_total_installed_cost(self) -> float:
         # Note this must be called after heliostat field layout is created

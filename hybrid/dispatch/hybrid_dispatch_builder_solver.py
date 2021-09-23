@@ -41,7 +41,7 @@ class HybridDispatchBuilderSolver:
         if self.needs_dispatch:
             self._pyomo_model = self._create_dispatch_optimization_model()
             self.dispatch.create_gross_profit_objective()
-            self.dispatch.initialize_parameters()
+            # self.dispatch.initialize_parameters()
             self.dispatch.create_arcs()
             assert_units_consistent(self.pyomo_model)
 
@@ -221,13 +221,6 @@ class HybridDispatchBuilderSolver:
         # Solving the year in series
         ti = list(range(0, self.site.n_timesteps, self.options.n_roll_periods))
         self.dispatch.initialize_parameters()
-
-        # TODO: This could be cleaned up a bit...
-        if 'tower' in self.power_sources:
-            if self.power_sources['tower'].optimize_field_before_sim:
-                self.power_sources['tower'].optimize_field_and_tower()
-        if 'battery' in self.power_sources:
-            self.power_sources['battery']._system_model.setup()
 
         for i, t in enumerate(ti):
             if self.options.is_test_start_year or self.options.is_test_end_year:
