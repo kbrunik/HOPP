@@ -190,7 +190,7 @@ def test_tower_pv_hybrid(site):
     solar_hybrid = {key: technologies_test[key] for key in ('tower', 'pv', 'grid')}
     hybrid_plant = HybridSimulation(solar_hybrid, site,
                                     interconnect_kw=interconnection_size_kw_test,
-                                    dispatch_options={'is_test': True})
+                                    dispatch_options={'is_test_start_year': True})
     hybrid_plant.ppa_price = (0.12, )  # $/kWh
     hybrid_plant.pv.dc_degradation = [0] * 25
 
@@ -221,7 +221,7 @@ def test_troughs_pv_hybrid(site):
     solar_hybrid = {key: technologies_test[key] for key in ('trough', 'pv', 'grid')}
     hybrid_plant = HybridSimulation(solar_hybrid, site,
                                     interconnect_kw=interconnection_size_kw_test,
-                                    dispatch_options={'is_test': True})
+                                    dispatch_options={'is_test_start_year': True})
     hybrid_plant.ppa_price = (0.12, )  # $/kWh
     hybrid_plant.pv.dc_degradation = [0] * 25
 

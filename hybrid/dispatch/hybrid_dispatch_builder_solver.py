@@ -182,17 +182,22 @@ class HybridDispatchBuilderSolver:
         # Dispatch Optimization Simulation with Rolling Horizon
         # Solving the year in series
         ti = list(range(0, self.site.n_timesteps, self.options.n_roll_periods))
-        self.dispatch.initialize_parameters()  # TODO: This is called twice
+        self.dispatch.initialize_parameters()
+        # TODO: called twice because system models can be change between
+        #  init and simulate...
 
         if 'battery' in self.power_sources:
             self.power_sources['battery']._system_model.setup()  # TODO: this should be moved to battery or something
 
         for i, t in enumerate(ti):
-            self.simulate_with_dispatch(t)
-            if self.options.is_test:
-                print('Day {} dispatch optimized.'.format(i))
-                if i > 5:
-                    break
+            if self.options.is_test_start_year or self.options.is_test_end_year:
+                if (self.options.is_test_start_year and i < 5) or (self.options.is_test_end_year and i > 359):
+                    print('Day {} dispatch optimized.'.format(i))
+                    self.simulate_with_dispatch(t)
+                else:
+                    continue
+            else:
+                self.simulate_with_dispatch(t)
 
     def simulate_with_dispatch(self,
                                start_time: int,

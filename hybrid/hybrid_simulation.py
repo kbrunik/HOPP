@@ -336,7 +336,6 @@ class HybridSimulation:
         if self.battery:
             self.grid._financial_model.SystemCosts.om_replacement_cost1 = self.battery._financial_model.SystemCosts.om_replacement_cost1
 
-    # TODO: add tower and trough
     def simulate(self,
                  project_life: int = 25):
         """
