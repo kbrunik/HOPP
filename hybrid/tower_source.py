@@ -82,10 +82,6 @@ class TowerPlant(CspPlant):
             # Create field layout and generate flux and eta maps, but don't optimize field or tower
             self.ssc.set({'field_model_type': 1})
 
-        # Check if specified receiver dimensions make sense relative to heliostat dimensions (if not optimizing receiver sizing)
-        if self.ssc.get('field_model_type') > 0 and min(self.ssc.get('rec_height'), self.ssc.get('D_rec')) < max(self.ssc.get('helio_width'), self.ssc.get('helio_height')):
-            print('Warning: Receiver height or diameter is smaller than the heliostat dimension')
-
         original_values = {k: self.ssc.get(k) for k in['is_dispatch_targets', 'rec_clearsky_model', 'time_steps_per_hour', 'sf_adjust:hourly']}
         # set so unneeded dispatch targets and clearsky DNI are not required
         # TODO: probably don't need hourly sf adjustment factors
@@ -100,6 +96,11 @@ class TowerPlant(CspPlant):
         field_and_flux_maps = {'eta_map': eta_map, 'flux_maps': flux_maps, 'A_sf_in': A_sf_in}
         for k in ['helio_positions', 'N_hel', 'D_rec', 'rec_height', 'h_tower', 'land_area_base']:
             field_and_flux_maps[k] = tech_outputs[k]
+
+        # Check if specified receiver dimensions make sense relative to heliostat dimensions
+        if min(field_and_flux_maps['rec_height'], field_and_flux_maps['D_rec']) < max(self.ssc.get('helio_width'), self.ssc.get('helio_height')):
+            print('Warning: Receiver height or diameter is smaller than the heliostat dimension. Design will likely have high spillage loss')
+
         return field_and_flux_maps
 
     def set_field_layout_and_flux_eta_maps(self, field_and_flux_maps):
@@ -112,8 +113,39 @@ class TowerPlant(CspPlant):
             self.create_field_layout_and_simulate_flux_eta_maps(optimize_tower_field=True))
 
     def calculate_total_installed_cost(self) -> float:
-        # TODO: Janna copy SSC calculations here
-        return 0.0
+        # Note this must be called after heliostat field layout is created
+        # Tower total installed cost is also a direct ouput from the ssc compute module 
+        site_improvement_cost = self.ssc.get('site_spec_cost') * self.ssc.get('A_sf_in')
+        heliostat_cost = self.ssc.get('cost_sf_fixed') + self.ssc.get('heliostat_spec_cost') * self.ssc.get('A_sf_in')
+        height = self.ssc.get('h_tower')-0.5*self.ssc.get('rec_height') + 0.5*self.ssc.get('helio_height')
+        tower_cost = self.ssc.get('tower_fixed_cost') * np.exp(self.ssc.get('tower_exp') * height)
+        Arec = 3.1415926 * self.ssc.get('rec_height') * self.ssc.get('D_rec')
+        receiver_cost = self.ssc.get('rec_ref_cost') * (Arec / self.ssc.get('rec_ref_area'))**self.ssc.get('rec_cost_exp')
+        tes_capacity = self.ssc.get('P_ref') / self.ssc.get('design_eff')*self.ssc.get('tshours')
+        tes_cost = tes_capacity * 1000 * self.ssc.get('tes_spec_cost')
+        cycle_cost = self.ssc.get('P_ref') * 1000 * self.ssc.get('plant_spec_cost')
+        bop_cost = self.ssc.get('P_ref') * 1000 * self.ssc.get('bop_spec_cost')
+        fossil_backup_cost = self.ssc.get('P_ref') * 1000 * self.ssc.get('fossil_spec_cost')
+        direct_cost = site_improvement_cost + heliostat_cost + tower_cost + receiver_cost + tes_cost + cycle_cost + bop_cost + fossil_backup_cost
+        contingency_cost = self.ssc.get('contingency_rate')/100 * direct_cost
+        total_direct_cost = direct_cost + contingency_cost
+        total_land_area = self.ssc.get('land_area_base') * self.ssc.get('csp.pt.sf.land_overhead_factor') + self.ssc.get('csp.pt.sf.fixed_land_area')
+        plant_net_capacity = self.ssc.get('P_ref') * self.ssc.get('gross_net_conversion_factor')
+        
+        land_cost = total_land_area * self.ssc.get('land_spec_cost') + \
+                    total_direct_cost * self.ssc.get('csp.pt.cost.plm.percent')/100 + \
+                    plant_net_capacity * 1e6 * self.ssc.get('csp.pt.cost.plm.per_watt') + \
+                    self.ssc.get('csp.pt.cost.plm.fixed')
+
+        epc_cost = total_land_area * self.ssc.get('csp.pt.cost.epc.per_acre') + \
+                   total_direct_cost * self.ssc.get('csp.pt.cost.epc.percent')/100 + \
+                   plant_net_capacity * 1e6 * self.ssc.get('csp.pt.cost.epc.per_watt') + \
+                   self.ssc.get('csp.pt.cost.epc.fixed')
+        
+        sales_tax_cost = total_direct_cost * self.ssc.get('sales_tax_frac')/100 * self.ssc.get('sales_tax_rate')/100
+        total_indirect_cost = land_cost + epc_cost + sales_tax_cost
+        total_installed_cost = total_direct_cost + total_indirect_cost
+        return total_installed_cost
 
     def estimate_receiver_pumping_parasitic(self, nonheated_length=0.2):
         m_rec_design = self.get_receiver_design_mass_flow()  # kg/s

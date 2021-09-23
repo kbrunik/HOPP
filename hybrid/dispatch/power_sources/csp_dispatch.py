@@ -828,8 +828,8 @@ class CspDispatch(Dispatch):
     def seconds_since_newyear(dt):
         # Substitute a non-leap year (2009) to keep multiple of 8760 assumption:
         newyear = datetime.datetime(2009, 1, 1, 0, 0, 0, 0)
-        # time_diff = dt.replace(year=2009) - newyear
-        time_diff = dt - newyear
+        time_diff = dt.replace(year=2009) - newyear
+        #time_diff = dt - newyear
         return int(time_diff.total_seconds())
 
 
