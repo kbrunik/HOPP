@@ -261,10 +261,11 @@ class HybridDispatchBuilderSolver:
             # TODO: this is not a good way to do this... This won't work with CSP addition...
             if 'heuristic' in self.options.battery_dispatch:
                 self.battery_heuristic()
+                # TODO: whe could just run the csp model without dispatch here
             else:
                 # Solve dispatch model
                 self.glpk_solve()       # TODO: need to condition for other non-convex model
-                self.cbc_solve()        # TODO: Get cbc solver working
+                # self.cbc_solve()        # TODO: Get cbc solver working
 
             if i < n_initial_sims:
                 sim_start_time = None
