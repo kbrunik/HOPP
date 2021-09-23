@@ -88,27 +88,65 @@ class HybridDispatchBuilderSolver:
 
     @staticmethod
     def glpk_solve_call(pyomo_model: pyomo.ConcreteModel,
-                        log_name: str = ""):
+                        log_name: str = "",
+                        print_solver_log: bool = True):
+
         solver = pyomo.SolverFactory('glpk')  # Ref. on solver options: https://en.wikibooks.org/wiki/GLPK/Using_GLPSOL
         solver_options = {'cuts': None,
                           #'mipgap': 0.001,
                           'tmlim': 30
                           }
 
-        if log_name is not "":
-            solver_options['log'] = log_name
+        if print_solver_log:
+            solver_options['log'] = "dispatch_solver.log"
 
         results = solver.solve(pyomo_model, options=solver_options)
 
-        if log_name is not "":
+        if log_name is not "" and print_solver_log:
             HybridDispatchBuilderSolver.append_solve_to_log(log_name, solver_options['log'])
 
         if results.solver.termination_condition == TerminationCondition.infeasible:
             HybridDispatchBuilderSolver.print_infeasible_problem(pyomo_model)
+        elif not results.solver.termination_condition == TerminationCondition.optimal:
+            print("Warning: Dispatch problem termination condition was '"
+                  + str(results.solver.termination_condition) + "'")
         return results
 
     def glpk_solve(self):
         return HybridDispatchBuilderSolver.glpk_solve_call(self.pyomo_model, self.options.log_name)
+
+    @staticmethod
+    def cbc_solve_call(pyomo_model: pyomo.ConcreteModel,
+                        log_name: str = "",
+                        print_solver_log: bool = True):
+
+        # FIXME: This does not work!
+        solver = pyomo.SolverFactory('cbc_solver/cbc.exe')
+        solver.options["threads"] = 4
+
+        solver_options = {#'cuts': None,
+                          #'mipgap': 0.001,
+                          'tmlim': 30
+                          }
+
+        if print_solver_log:
+            solver_options['log'] = "dispatch_solver.log"
+
+        # results = solver.solve(pyomo_model, options=solver_options)
+        results = solver.solve(pyomo_model)
+
+        if log_name is not "" and print_solver_log:
+            HybridDispatchBuilderSolver.append_solve_to_log(log_name, solver_options['log'])
+
+        if results.solver.termination_condition == TerminationCondition.infeasible:
+            HybridDispatchBuilderSolver.print_infeasible_problem(pyomo_model)
+        elif not results.solver.termination_condition == TerminationCondition.optimal:
+            print("Warning: Dispatch problem termination condition was '"
+                  + str(results.solver.termination_condition) + "'")
+        return results
+
+    def cbc_solve(self):
+        return HybridDispatchBuilderSolver.cbc_solve_call(self.pyomo_model, self.options.log_name)
 
     @staticmethod
     def mindtpy_solve_call(pyomo_model: pyomo.ConcreteModel,
@@ -226,6 +264,7 @@ class HybridDispatchBuilderSolver:
             else:
                 # Solve dispatch model
                 self.glpk_solve()       # TODO: need to condition for other non-convex model
+                self.cbc_solve()        # TODO: Get cbc solver working
 
             if i < n_initial_sims:
                 sim_start_time = None
