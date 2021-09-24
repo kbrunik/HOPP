@@ -189,6 +189,7 @@ def test_tower_dispatch(site):
     dispatch_n_look_ahead = 48
 
     tower = TowerPlant(site, technologies['tower'])
+    tower.generate_field()
 
     model = pyomo.ConcreteModel(name='tower_only')
     model.forecast_horizon = pyomo.Set(initialize=range(dispatch_n_look_ahead))

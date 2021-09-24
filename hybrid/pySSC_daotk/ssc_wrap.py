@@ -273,7 +273,6 @@ def ssc_sim(ssc, data_ssc, tech_model_name, financial_model_name):
 
     return out_dict
 
-
 def ssc_cmod(ssc, dat, name):
     # ssc = PySSC()
 
@@ -417,6 +416,8 @@ def ssc_table_to_dict(ssc, cmod, dat):
                 ssc_out[ssc_output_data_name] = ssc.data_get_table(dat, ssc_output_data_name.encode("ascii"))
         i = i + 1
 
+    ssc.data_free(dat)
+    ssc.module_free(cmod)
     return ssc_out
 
 #TODO: verify darwin and linux paths work

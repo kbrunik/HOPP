@@ -91,16 +91,16 @@ class HybridDispatchBuilderSolver:
                         log_name: str = "",
                         print_solver_log: bool = True):
 
-        solver = pyomo.SolverFactory('glpk')  # Ref. on solver options: https://en.wikibooks.org/wiki/GLPK/Using_GLPSOL
-        solver_options = {'cuts': None,
-                          #'mipgap': 0.001,
-                          'tmlim': 30
-                          }
+        with pyomo.SolverFactory('glpk') as solver:
+            # Ref. on solver options: https://en.wikibooks.org/wiki/GLPK/Using_GLPSOL
+            solver_options = {'cuts': None,
+                              #'mipgap': 0.001,
+                              'tmlim': 30
+                              }
+            if print_solver_log:
+                solver_options['log'] = "dispatch_solver.log"
 
-        if print_solver_log:
-            solver_options['log'] = "dispatch_solver.log"
-
-        results = solver.solve(pyomo_model, options=solver_options)
+            results = solver.solve(pyomo_model, options=solver_options)
 
         if log_name != "" and print_solver_log:
             HybridDispatchBuilderSolver.append_solve_to_log(log_name, solver_options['log'])

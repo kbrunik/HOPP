@@ -264,9 +264,9 @@ class HybridSizingProblem():  # OptimizationProblem (unwritten base)
             raise Exception("Unknown site '" + site + "'")
 
         solar_file = Path(__file__).parent.parent / "resource_files" / "solar" / "Beni_Miha" / "659265_32.69_10.90_2019.csv"
-        gird_file = Path(__file__).parent.parent / "resource_files" / "grid" / "pricing-data-2015-IronMtn-002_factors.csv"
+        grid_file = Path(__file__).parent.parent / "resource_files" / "grid" / "pricing-data-2015-IronMtn-002_factors.csv"
 
-        site_info = SiteInfo(site_data, solar_resource_file=solar_file, grid_resource_file=gird_file)
+        site_info = SiteInfo(site_data, solar_resource_file=solar_file, grid_resource_file=grid_file)
 
         # set up hybrid simulation with all the required parameters
         solar_size_mw = 50
