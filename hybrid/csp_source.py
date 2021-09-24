@@ -448,7 +448,12 @@ class CspPlant(PowerSource):
             self._financial_model.Lifetime.system_use_lifetime_output = 0
         self._financial_model.FinancialParameters.analysis_period = project_life
 
+        nameplate_capacity_kw = self.cycle_capacity_kw * self.ssc.get('gross_net_conversion_factor')  # TODO: avoid using ssc data here?
+        self._financial_model.value("system_capacity", nameplate_capacity_kw)
+        self._financial_model.value("cp_system_nameplate", nameplate_capacity_kw/1000)
+        self._financial_model.value("total_installed_cost", self.calculate_total_installed_cost())
         self._financial_model.value("construction_financing_cost", self.get_construction_financing_cost())
+        
         self._financial_model.Revenue.ppa_soln_mode = 1
 
         if len(self.generation_profile) == self.site.n_timesteps:
