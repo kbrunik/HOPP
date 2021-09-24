@@ -1,6 +1,9 @@
 import inspect
 import time
+
 import pickle
+import gzip
+
 import queue
 import traceback
 
@@ -308,7 +311,7 @@ class OptimizationDriver():
             filename = self.options['cache_file']
 
         out = dict()
-        out['cache'] = self.cache
+        out['cache'] = self.cache.copy()
         out['cache_info'] = self.cache_info
         out['driver_options'] = self.options
         out['start_time'] = self.start_time
@@ -318,7 +321,7 @@ class OptimizationDriver():
         out['problem_setup'] = inspect.getsource(self.setup)
         out['sim_setup'] = inspect.getsource(self.problem.init_simulation)
 
-        with open(filename, 'wb') as f:
+        with gzip.open(filename, 'wb') as f:
             pickle.dump(out, f)
 
     def read_cache(self, filename=None) -> None:
@@ -332,7 +335,7 @@ class OptimizationDriver():
             filename = self.options['cache_file']
 
         try:
-            with open(filename, 'rb') as f:
+            with gzip.open(filename, 'rb') as f:
                 out = pickle.load(f)
 
             self.cache.update(out['cache'])
@@ -655,6 +658,7 @@ class OptimizationDriver():
 
         # Update cache from file
         if cache_file is not None:
+            print('parallel execute reading ', cache_file)
             self.read_cache(cache_file)
 
         # Add thread conditions to allow signaling between threads waiting on the same candidate
@@ -669,12 +673,12 @@ class OptimizationDriver():
                 for future in cf.as_completed(threads):
                     name = threads[future]
                     try:
-                        data = future.result()
+                        _ = future.result()
 
                     # On an OptimizerInterrupt cancel all pending futures
                     except OptimizerInterrupt:
-                        for future, name in threads.items():
-                            future.cancel()
+                        for f, name in threads.items():
+                            f.cancel()
                         break
 
                     # Print any others
@@ -721,7 +725,7 @@ class OptimizationDriver():
         callables = [partial(self.wrapped_objective(), name=name)
                      for i,name in enumerate(self.opt_names)]
 
-        evaluations = self.execute(callables, candidates, cache_file)
+        evaluations = self.execute(callables, candidates, cache_file=cache_file)
 
         return evaluations
 
@@ -741,7 +745,7 @@ class OptimizationDriver():
         callables = [partial(self.wrapped_parallel_objective(), name=name, idx=i)
                      for i,name in enumerate(self.opt_names)]
 
-        evaluations = self.parallel_execute(callables, candidates, cache_file)
+        evaluations = self.parallel_execute(callables, candidates, cache_file=cache_file)
 
         return evaluations
 
@@ -770,7 +774,7 @@ class OptimizationDriver():
         for i in range(n_opt):
             inputs[i].__name__ = self.opt_names[i]
 
-        best_candidate, best_result = self.execute(callables, inputs, objective_keys, cache_file)
+        best_candidate, best_result = self.execute(callables, inputs, objective_keys=objective_keys, cache_file=cache_file)
 
         return best_candidate, best_result
 
@@ -799,6 +803,6 @@ class OptimizationDriver():
         for i in range(n_opt):
             inputs[i].__name__ = self.opt_names[i]
 
-        best_candidate, best_result = self.parallel_execute(callables, inputs, objective_keys, cache_file)
+        best_candidate, best_result = self.parallel_execute(callables, inputs, objective_keys=objective_keys, cache_file=cache_file)
 
         return best_candidate, best_result
