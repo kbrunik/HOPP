@@ -31,6 +31,7 @@ class TowerPlant(CspPlant):
         # set-up param file paths
         # TODO: Site should have dispatch factors consistent across all models
         self.param_files = {'tech_model_params_path': 'tech_model_defaults.json',
+                            'cf_params_path': 'construction_financing_defaults.json',
                             'dispatch_factors_ts_path': 'dispatch_factors_ts.csv',
                             'ud_ind_od_path': 'ud_ind_od.csv',
                             'wlim_series_path': 'wlim_series.csv',

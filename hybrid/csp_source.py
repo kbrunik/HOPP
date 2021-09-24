@@ -423,8 +423,14 @@ class CspPlant(PowerSource):
         self._construction_financing_cost_per_kw = construction_financing_cost_per_kw
 
     def get_construction_financing_cost(self) -> float:
-        # TODO: we could use the cost calculator in SAM
-        return self._construction_financing_cost_per_kw * self.system_capacity_kw
+        cf = ssc_wrap('pyssc', 'cb_construction_financing', None)
+        with open(self.param_files['cf_params_path'], 'r') as f:
+            params = rapidjson.load(f)
+        cf.set(params)
+        cf.set({'total_installed_cost': self.calculate_total_installed_cost()})
+        outputs = cf.execute()
+        construction_financing_cost = outputs['construction_financing_cost']
+        return outputs['construction_financing_cost']
 
     def calculate_total_installed_cost(self) -> float:
         raise NotImplementedError
