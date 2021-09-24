@@ -1,6 +1,6 @@
 from typing import Optional, Union, Sequence
 import os
-
+import rapidjson 
 import PySAM.Singleowner as Singleowner
 
 from hybrid.dispatch.power_sources.trough_dispatch import TroughDispatch
@@ -28,6 +28,7 @@ class TroughPlant(CspPlant):
         # TODO: Site should have dispatch factors consistent across all models
         self.param_files = {'tech_model_params_path': 'tech_model_defaults.json',
                             'cf_params_path': 'construction_financing_defaults.json',
+                            'cost_params_path': 'cost_defaults.json',
                             'dispatch_factors_ts_path': 'dispatch_factors_ts.csv',
                             'ud_ind_od_path': 'ud_ind_od.csv',
                             'wlim_series_path': 'wlim_series.csv'}
@@ -48,27 +49,9 @@ class TroughPlant(CspPlant):
         return tech_outputs['total_aperture'], tech_outputs['total_land_area']
 
     def calculate_total_installed_cost(self) -> float:
-        # Default trough cost inputs as of 9/2021 -> Names correspond to variable names used in the SAM UI
-        # TODO: Better place to store or import default cost parameters?  Unlike the tower, these aren't inputs to the trough cmod 
-        trough_cost_inputs = {'csp.dtr.cost.site_improvements.cost_per_m2': 25.0,  # Site improvement cost ($/m2)
-                              'csp.dtr.cost.solar_field.cost_per_m2': 150.0,       # Solar field cost ($/m2)
-                              'csp.dtr.cost.htf_system.cost_per_m2': 60.0,         # HTF system cost ($/m2)
-                              'csp.dtr.cost.storage.cost_per_kwht' : 62.0,         # Storage cost ($/kWht)
-                              'csp.dtr.cost.fossil_backup.cost_per_kwe': 0.0,      # Fossil backup cost ($/kWe gross)
-                              'csp.dtr.cost.power_plant.cost_per_kwe' : 910.0,     # Power plant cost ($/kWe gross)
-                              'csp.dtr.cost.bop_per_kwe': 90.0,                    # Balance of plant cost ($/kWe gross)
-                              'csp.dtr.cost.contingency_percent': 7,               # Contingency %
-                              'csp.dtr.cost.epc.per_acre': 0.0,                    # EPC cost per acre ($/acre)
-                              'csp.dtr.cost.epc.percent': 11,                      # EPC % of direct cost (%)
-                              'csp.dtr.cost.epc.per_watt': 0.0,                    # EPC cost per watt (nameplate) ($/W)
-                              'csp.dtr.cost.epc.fixed': 0.0,                       # EPC fixed cost
-                              'csp.dtr.cost.plm.per_acre': 10000.0,                # Land cost per acre ($/acre)
-                              'csp.dtr.cost.plm.percent': 0.0,                     # Land % of direct cost (%)
-                              'csp.dtr.cost.plm.per_watt': 0.0,                    # EPC cost per watt (nameplate) ($/W)
-                              'csp.dtr.cost.plm.fixed': 0.0,                       # EPC fixed cost
-                              'csp.dtr.cost.sales_tax.percent': 80,                # Sales tax basis (%)
-                              'sales_tax_rate': 5                                  # Sales tax rate (%) (sales_tax_rate from financial parameters)
-                             }
+        # Note cost names in cost_defaults.json correspond to variable names used in the SAM UI
+        with open(self.param_files['cost_params_path'], 'r') as f:
+            trough_cost_inputs = rapidjson.load(f)
 
         total_aperture, total_land_area = self.calculate_aperture_and_land_area()
 
