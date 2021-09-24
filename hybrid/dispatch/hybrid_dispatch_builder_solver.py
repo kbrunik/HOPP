@@ -102,7 +102,7 @@ class HybridDispatchBuilderSolver:
 
         results = solver.solve(pyomo_model, options=solver_options)
 
-        if log_name is not "" and print_solver_log:
+        if log_name != "" and print_solver_log:
             HybridDispatchBuilderSolver.append_solve_to_log(log_name, solver_options['log'])
 
         if results.solver.termination_condition == TerminationCondition.infeasible:
