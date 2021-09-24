@@ -7,7 +7,11 @@ from pathlib import Path
 from hybrid.sites import make_circular_site, make_irregular_site, SiteInfo, locations
 
 SIMULATION_ATTRIBUTES = ['annual_energies', 'generation_profile', 'internal_rate_of_returns',
-                         'lcoe_nom', 'lcoe_real', 'net_present_values']
+                         'lcoe_nom', 'lcoe_real', 'net_present_values', 'cost_installed',
+                         'total_revenues', 'capacity_payments', 'energy_purchases_values',
+                         'energy_sales_values', 'energy_values', 'benefit_cost_ratios']
+
+TOWER_ATTRIBUTES = ['dispatch', 'ssc_annual', 'ssc_time_series']
 
 class HybridSizingProblem():  # OptimizationProblem (unwritten base)
     """
@@ -264,28 +268,28 @@ class HybridSizingProblem():  # OptimizationProblem (unwritten base)
             raise Exception("Unknown site '" + site + "'")
 
         solar_file = Path(__file__).parent.parent / "resource_files" / "solar" / "Beni_Miha" / "659265_32.69_10.90_2019.csv"
-        gird_file = Path(__file__).parent.parent / "resource_files" / "grid" / "pricing-data-2015-IronMtn-002_factors.csv"
+        grid_file = Path(__file__).parent.parent / "resource_files" / "grid" / "tunisia_est_grid_prices.csv"
 
-        site_info = SiteInfo(site_data, solar_resource_file=solar_file, grid_resource_file=gird_file)
+        site_info = SiteInfo(site_data, solar_resource_file=solar_file, grid_resource_file=grid_file)
 
         # set up hybrid simulation with all the required parameters
         solar_size_mw = 50
         # battery_capacity_mwh = 1
-        interconnection_size_mw = 150
+        interconnection_size_mw = 400
 
         technologies = {'tower': {'cycle_capacity_kw': 50 * 1000,
                                    'solar_multiple': 2.0,
-                                   'tes_hours': 12.0
+                                   'tes_hours': 12.0,
                                    'optimize_field_before_sim': True},
                         'pv': {'system_capacity_kw': solar_size_mw * 1000},
                         # 'battery': {'system_capacity_kwh': battery_capacity_mwh * 1000,
                         #             'system_capacity_kw': battery_capacity_mwh * 1000 / 10},
-                        'grid': interconnection_size_mw}
+                        'grid': interconnection_size_mw * 1000}
 
         # Create model
         # TODO: turn these off to run full year simulation
-        dispatch_options = {'is_test_start_year': True,
-                            'is_test_end_year': True}
+        dispatch_options = {'is_test_start_year': False,
+                            'is_test_end_year': False}
 
         # TODO: turn-on receiver and field optimization before... initial simulation
         hybrid_plant = HybridSimulation(technologies,
@@ -311,8 +315,10 @@ class HybridSizingProblem():  # OptimizationProblem (unwritten base)
         :return:
         """
         result = dict()
-        if self.simulation is None:
-            self.init_simulation()
+        if self.simulation is not None:
+            del self.simulation
+
+        self.init_CSP_PV_simulation()
 
         try:
             logging.info(f"Evaluating objective: {candidate}")
@@ -327,14 +333,36 @@ class HybridSizingProblem():  # OptimizationProblem (unwritten base)
             _ = tech_list.pop(tech_list.index('grid'))
 
             for sim_output in SIMULATION_ATTRIBUTES:
-                for key in tech_list:
-                    value = getattr(getattr(self.simulation, sim_output), key)
+                try:
+                    for key in tech_list:
+                        value = getattr(getattr(self.simulation, sim_output), key)
 
-                    if not callable(value):
-                        result[sim_output] = {key: value}
+                        if not callable(value):
+                            temp = {key: value}
 
-                    else:
-                        result[sim_output] = {key: value()}
+                        else:
+                            temp = {key: value()}
+
+                        if sim_output in result.keys():
+                            result[sim_output].update(temp)
+
+                        else:
+                            result[sim_output] = temp
+
+                except Exception:
+                    err_str = traceback.format_exc()
+                    result['exception'] = err_str
+
+            result['tower_outputs'] = dict()
+            for tower_output in TOWER_ATTRIBUTES:
+                try:
+                    value = getattr(self.simulation.tower.outputs, tower_output)
+
+                    result['tower_outputs'][tower_output] = value
+
+                except Exception:
+                    err_str = traceback.format_exc()
+                    result['tower_output_exception'] = err_str
 
             result['dispatch_factors'] = self.simulation.dispatch_factors
 

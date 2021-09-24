@@ -90,7 +90,7 @@ class PysscWrap(SscWrap):
 
         # Inputs
         for key, value in self.params.items():
-            if key is 'tech_model' or key is 'financial_model':
+            if key == 'tech_model' or key == 'financial_model':
                 continue
             elif any([type(value) is scalar_type for scalar_type in [int, float, str]]):
                 file.write("var( '" + key + "', " + str(value) + " );\n")
