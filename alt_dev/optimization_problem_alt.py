@@ -280,7 +280,7 @@ class HybridSizingProblem():  # OptimizationProblem (unwritten base)
         technologies = {'tower': {'cycle_capacity_kw': 50 * 1000,
                                    'solar_multiple': 2.0,
                                    'tes_hours': 12.0,
-                                   'optimize_field_before_sim': False},
+                                   'optimize_field_before_sim': True},
                         'pv': {'system_capacity_kw': solar_size_mw * 1000},
                         # 'battery': {'system_capacity_kwh': battery_capacity_mwh * 1000,
                         #             'system_capacity_kw': battery_capacity_mwh * 1000 / 10},
@@ -288,7 +288,7 @@ class HybridSizingProblem():  # OptimizationProblem (unwritten base)
 
         # Create model
         # TODO: turn these off to run full year simulation
-        dispatch_options = {'is_test_start_year': True,
+        dispatch_options = {'is_test_start_year': False,
                             'is_test_end_year': False}
 
         # TODO: turn-on receiver and field optimization before... initial simulation

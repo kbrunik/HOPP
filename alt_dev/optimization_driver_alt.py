@@ -241,13 +241,13 @@ class OptimizationDriver():
             logging.info("Driver exiting, KeyBoardInterrupt")
             raise OptimizerInterrupt
 
-        if (self.eval_count % self.options['cache_interval']) == 0 and (self.eval_count > 0):
-            if not self.write_pending:
-                self.write_pending = True
-                start = time.time()
-                self.write_cache()
-                print(f"writing cache at {self.eval_count} evaluations, {(time.time()-start):.2f}")
-                self.write_pending = False
+        # if (self.eval_count % self.options['cache_interval']) == 0 and (self.eval_count > 0):
+        #     if not self.write_pending:
+        #         self.write_pending = True
+        #         start = time.time()
+        #         self.write_cache()
+        #         print(f"writing cache at {self.eval_count} evaluations, {(time.time()-start):.2f}")
+        #         self.write_pending = False
 
         elapsed = time.time() - self.start_time
         if elapsed > self.options['time_limit']:
@@ -320,6 +320,8 @@ class OptimizationDriver():
         if filename is None:
             filename = self.options['cache_file']
 
+        print(f"writing {len(self.cache)} results to file {filename}...")
+
         meta = dict()
         meta['cache_info'] = self.cache_info.copy()
         meta['driver_options'] = self.options
@@ -373,7 +375,10 @@ class OptimizationDriver():
         df = pd.DataFrame(data_list)
         df.attrs = meta
 
-        df.to_pickle(self.options['cache_file'])
+        df.to_pickle(filename)
+        del df
+        del data_list
+        del meta
 
     def read_cache(self, filename=None) -> None:
         """
@@ -385,7 +390,7 @@ class OptimizationDriver():
         if len(self.cache) > 0:
             try:
                 self.cache_info = self.cache['meta']['cache_info']
-            except:
+            except KeyError:
                 pass
 
         return
@@ -440,6 +445,7 @@ class OptimizationDriver():
                 # Check if result in cache, throws KeyError if not
                 self.lock.acquire()
                 result = self.cache[candidate]
+                print(f"cache hit {self.cache_info['hits']}")
                 self.lock.release()
                 self.cache_info['hits'] += 1
                 logging.info(f"Cache hit on candidate {candidate}")
