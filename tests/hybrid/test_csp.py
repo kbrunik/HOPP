@@ -292,3 +292,51 @@ def test_tower_field_optimize_before_sim(site):
         assert old_values[k] != new_values[k]
 
 
+
+def test_trough_annual_financial(site):
+    """Testing trough annual performance and financial models with heuristic dispatch """
+    trough_config = {'cycle_capacity_kw': 80 * 1000,
+                     'solar_multiple': 1.5,
+                     'tes_hours': 5.0}  
+
+    # Expected values from SAM UI (develop) built 9/24/2021 (default parameters except those in trough_config, weather file, and ppa_soln_mode = 1)
+    # Note results should be close, but won't match exactly because daotk-develop ssc branch is used for performance simulations
+    expected_energy = 180199776 
+    expected_lcoe_nom = 18.5732
+    expected_ppa_nom = 19.1482
+
+    csp = TroughPlant(site, trough_config)
+    csp.ssc.set({'time_start': 0.0, 'time_stop': 8760*3600})
+    tech_outputs = csp.ssc.execute()
+    csp.outputs.update_from_ssc_output(tech_outputs)
+    csp.simulate_financials(25)
+
+    assert csp.outputs.ssc_annual['annual_energy'] == pytest.approx(expected_energy, 1e-4)
+    assert csp._financial_model.value('lcoe_nom') == pytest.approx(expected_lcoe_nom, 1e-4)
+    assert csp._financial_model.value('lppa_nom') == pytest.approx(expected_ppa_nom, 1e-4)
+
+
+def test_tower_annual_financial(site):
+    """Testing tower annual performance and financial models with heuristic dispatch """
+    tower_config = {'cycle_capacity_kw': 100 * 1000,
+                     'solar_multiple': 2.0,
+                     'tes_hours': 8.0}  
+
+    # Expected values from SAM UI (develop) built 9/24/2021 (default parameters except those in tower_config, weather file, field_model_type = 1, ppa_soln_mode = 1)  
+    # Note results should be close, but won't match exactly because daotk-develop ssc branch is used for performance simulations
+    expected_Nhel = 6172
+    expected_energy = 371737920
+    expected_lcoe_nom = 14.1721
+    expected_ppa_nom = 15.8016
+
+    csp = TowerPlant(site, tower_config)
+    csp.generate_field()
+    csp.ssc.set({'time_start': 0.0, 'time_stop': 8760*3600})
+    tech_outputs = csp.ssc.execute()
+    csp.outputs.update_from_ssc_output(tech_outputs)
+    csp.simulate_financials(25)
+
+    assert csp.ssc.get('N_hel') == pytest.approx(expected_Nhel, 1e-3)
+    assert csp.outputs.ssc_annual['annual_energy'] == pytest.approx(expected_energy, 2e-3)
+    assert csp._financial_model.value('lcoe_nom') == pytest.approx(expected_lcoe_nom, 2e-3)
+    assert csp._financial_model.value('lppa_nom') == pytest.approx(expected_ppa_nom, 2e-3)
