@@ -1,6 +1,7 @@
 import pytest
 import pandas as pd
 import datetime
+from pathlib import Path
 
 
 from hybrid.sites import SiteInfo, flatirons_site
@@ -292,7 +293,6 @@ def test_tower_field_optimize_before_sim(site):
         assert old_values[k] != new_values[k]
 
 
-
 def test_trough_annual_financial(site):
     """Testing trough annual performance and financial models with heuristic dispatch """
     trough_config = {'cycle_capacity_kw': 80 * 1000,
@@ -340,3 +340,4 @@ def test_tower_annual_financial(site):
     assert csp.outputs.ssc_annual['annual_energy'] == pytest.approx(expected_energy, 2e-3)
     assert csp._financial_model.value('lcoe_nom') == pytest.approx(expected_lcoe_nom, 2e-3)
     assert csp._financial_model.value('lppa_nom') == pytest.approx(expected_ppa_nom, 2e-3)
+
