@@ -44,7 +44,7 @@ class TowerPlant(CspPlant):
         # Set full annual weather data before field layout
         self.set_weather(self.year_weather_df)  
 
-        self.optimize_field_before_sim = False
+        self.optimize_field_before_sim = True
         if 'optimize_field_before_sim' in tower_config:
             self.optimize_field_before_sim = tower_config['optimize_field_before_sim']
 
