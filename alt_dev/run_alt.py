@@ -66,11 +66,11 @@ if __name__ == '__main__':
     logging.info("Main Startup")
 
     # Driver config
-    cache_file = 'fullfact_csp_pv.pkl.gz'
-    driver_config = dict(n_proc=2, cache_file=cache_file, cache_interval=4)
+    cache_file = 'fullfact_csp_pv.df.gz'
+    driver_config = dict(n_proc=16, cache_file=cache_file, cache_interval=4)
     n_dim = 5
 
-    driver = None
+    # driver = None
 
     # Get experiment candidates, and evaluate objective in parallel
     # candidates = pyDOE.lhs(n_dim, criterion='center', samples=4)
@@ -79,20 +79,16 @@ if __name__ == '__main__':
     levels[0] = 2
     design_scaled = design / (levels - 1)
 
-    chunk_size = 2
+    driver = OptimizationDriver(problem_setup, **driver_config)
+
+    chunk_size = 16
     for chunk in chunks(design_scaled, chunk_size):
-        # Driver init
-        if driver is not None:
-            del driver
 
-        driver = OptimizationDriver(problem_setup, **driver_config)
+        num_evals = driver.parallel_sample(chunk, design_name='16665FF', cache_file=cache_file)
+        # num_evals = driver.sample(candidates, design_name='16665FF', cache_file=cache_file)
 
-        # num_evals = driver.parallel_sample(chunk, design_name='16665FF', cache_file=cache_file)
-        num_evals = driver.sample(chunk, design_name='16665FF', cache_file=cache_file)
-        driver.write_cache()
-
-    # Check on the driver cache
-    print(driver.cache_info)
+        # Check on the driver cache
+        print(driver.cache_info)
 
     # candidates = list(driver.cache.keys())
     # results = list(driver.cache.values())
