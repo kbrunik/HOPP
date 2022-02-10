@@ -194,7 +194,7 @@ class HybridSizingProblem():  # OptimizationProblem (unwritten base)
             else:
                 tech_model.value(key, value)
             
-            # force consistent hybrid sizing
+            # force consistent hybrid sizing # TODO: Remove
             if tech_key == 'tower' and key == 'cycle_capacity_kw':
             
                 if 'battery' in self.simulation.power_sources.keys():

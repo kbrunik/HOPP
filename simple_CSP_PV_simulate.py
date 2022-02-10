@@ -114,7 +114,7 @@ def init_hybrid_plant():
                                     dispatch_options={
                                         'is_test_start_year': is_test,
                                         'is_test_end_year': is_test,
-                                        'solver': 'cbc',
+                                        'solver': 'xpress',
                                         'grid_charging': False,
                                         'pv_charging_only': True
                                         },
@@ -166,7 +166,7 @@ def init_problem():
                    #'tilt':                {'bounds': (15,      60)}
                    },
         battery =  {'system_capacity_kwh': {'bounds': (50.0*1e3, 5*50.0*1e3)},
-                    'system_capacity_kw':  {'bounds': (1*1e3,  50.0*1e3)},
+                    # 'system_capacity_kw':  {'bounds': (1*1e3,  50.0*1e3)},
                    }
     )
 
@@ -198,17 +198,17 @@ def max_hybrid_npv(result):
 
 if __name__ == '__main__':
 
-    test_init_hybrid_plant = False
+    test_init_hybrid_plant = True
     sample_design = False
-    save_lhs = True
+    save_lhs = False
     read_lhs = False
     reconnect_cache = False
-    set_battery_power_based_on_cycle = True
+    set_battery_power_based_on_cycle = False
 
     if sample_design:
-        case_str = 'lhs_cm_pvBat_2030Ctargets_carbonCost_upWF_350'
+        case_str = 'Test_test'
         # Driver config
-        driver_config = dict(n_proc=12, eval_limit=1000, cache_dir=case_str+'_cp_cs', reconnect_cache = reconnect_cache)
+        driver_config = dict(n_proc=2, eval_limit=1000, cache_dir=case_str, reconnect_cache = reconnect_cache)
         driver = OptimizationDriver(init_problem, **driver_config)
 
         ### Sampling Example
@@ -220,8 +220,8 @@ if __name__ == '__main__':
         # ff_scaled = design / (levels - 1)
         #
         ## Latin Hypercube
-        n_dim = 7-1   # without battery power
-        lhs_scaled = pyDOE.lhs(n_dim, criterion='cm', samples=200)
+        n_dim = 6   # without battery power
+        lhs_scaled = pyDOE.lhs(n_dim, criterion='cm', samples=2)
         if set_battery_power_based_on_cycle:
             # adding battery power assuming that cycle is first and battery power is last
             lhs_scaled = np.insert(lhs_scaled, lhs_scaled.shape[1], list(1 - lhs_scaled[:, 0]), axis=1)
