@@ -542,30 +542,84 @@ for i, scenario in scenarios_df.iterrows():
                 #cf_h2_annuals = H2A_Results['expenses_annual_cashflow'] # This is unreliable.
                 pass  
             elif h2_model == 'Simple':
-                #https://www.hydrogen.energy.gov/pdfs/19009_h2_production_cost_pem_electrolysis_2019.pdf
-                stack_capital_cost = 342   #$/kW
-                mechanical_bop_cost = 36  #$/kW
-                electrical_bop_cost = 82  #$/kW
-                installation_factor = 12/100  #%
-                stack_replacment_cost = 15/100  #% of installed capital cost
-                plant_lifetime = 40    #years
-                fixed_OM = 0.24     #$/kg H2
-                
-                inflation_2016to2022 = 1 + (23.46/100) # 2016$ to 2022$
+                #Apply PEM Cost Estimates based on year based on GPRA pathway (H2New)
+                if atb_year == 2022:
+                    electrolyzer_capex_kw = 1100     #[$/kW capacity] stack capital cost
+                    time_between_replacement = 40000    #[hrs] 
+                elif atb_year == 2025:
+                    electrolyzer_capex_kw = 300
+                    #time_between_replacement = 80000    #[hrs]
+                elif atb_year == 2030:
+                    electrolyzer_capex_kw = 150
+                    #time_between_replacement = 80000    #[hrs]
+                elif atb_year == 2035:
+                    electrolyzer_capex_kw = 100
+                    #time_between_replacement = 80000    #[hrs]
 
-                electrolyzer_installed_capex_kw = electrolyzer_cost_kw * installation_factor * inflation_2016to2022
-                electrolyzer_total_installed_capex = electrolyzer_installed_capex_kw*electrolyzer_size_mw*1000
-                
+                # Hydrogen Production Cost From PEM Electrolysis - 2019 (HFTO Program Record)
+                # https://www.hydrogen.energy.gov/pdfs/19009_h2_production_cost_pem_electrolysis_2019.pdf
+
+                # Capital costs provide by Hydrogen Production Cost From PEM Electrolysis - 2019 (HFTO Program Record)
+                stack_capital_cost = 342   #[$/kW]
+                mechanical_bop_cost = 36  #[$/kW] for a compressor
+                electrical_bop_cost = 82  #[$/kW] for a rectifier
+
+                # Installed capital cost
+                stack_installation_factor = 12/100  #[%] for stack cost 
+                elec_installation_factor = 12/100   #[%] and electrical BOP 
+                #mechanical BOP install cost = 0%
+
+                # Indirect capital cost as a percentage of installed capital cost
+                site_prep = 2/100   #[%]
+                engineering_design = 10/100 #[%]
+                project_contingency = 15/100 #[%]
+                permitting = 15/100     #[%]
+                land = 250000   #[$]
+
+                stack_replacment_cost = 15/100  #[% of installed capital cost]
+                plant_lifetime = 40    #[years]
+                fixed_OM = 0.24     #[$/kg H2]
+
+                program_record = False
+
+                # Chose to use numbers provided by GPRA pathways
+                if program_record:
+                    total_direct_electrolyzer_cost_kw = (stack_capital_cost*stack_installation_factor) \
+                        + mechanical_bop_cost + (electrical_bop_cost*elec_installation_factor)
+                else:
+                    total_direct_electrolyzer_cost_kw = (electrolyzer_capex_kw * stack_installation_factor) \
+                        + mechanical_bop_cost + (electrical_bop_cost*elec_installation_factor)
+
+                # Assign CapEx for electrolyzer from capacity based installed CapEx
+                electrolyzer_total_installed_capex = total_direct_electrolyzer_cost_kw* electrolyzer_size_mw *1000
+
+                # Add indirect capital costs
+                electrolyzer_total_capital_cost = ((site_prep+engineering_design+project_contingency+permitting)\
+                    *electrolyzer_total_installed_capex) + land
+
+                # O&M costs
+                # https://www.sciencedirect.com/science/article/pii/S2542435121003068
+                fixed_OM = 12.8 #[$/kWh-y]
+                property_tax_insurance = 1.5    #[% of Cap/y]
+                variable_OM = 1.30  #[$/MWh]
+
+                # Amortized refurbishment expense [$/MWh]
+                amortized_refurbish_cost = 0    # add refurbish costs later
+
+                # Total O&M costs [% of installed cap/year]
+                total_OM_costs = (((fixed_OM+property_tax_insurance*electrolyzer_total_installed_capex)/electrolyzer_total_installed_capex)\
+                    +(variable_OM+amortized_refurbish_cost)/1000*8760*(hybrid_degradation.cap_factor/electrolyzer_total_installed_capex))/100
+                print("amortized refurb: ", amortized_refurbish_cost)
+                print("electrolyzer total OM cost: ", total_OM_costs)
                 capacity_based_OM = True
                 if capacity_based_OM:
-                    electrolyzer_fixed_opex = electrolyzer_total_installed_capex * 0.05     #Capacity based
+                    electrolyzer_OM_cost = electrolyzer_total_installed_capex * total_OM_costs     #Capacity based
                 else:   
-                    electrolyzer_fixed_opex = (fixed_OM * inflation_2016to2022) * avg_annual_degraded_hydrogen_production #Production based
+                    electrolyzer_OM_cost = fixed_OM  * avg_annual_degraded_hydrogen_production #Production based - likely not very accurate
 
-                cf_h2_annuals = - simple_cash_annuals(useful_life, useful_life, electrolyzer_total_installed_capex,\
-                     electrolyzer_fixed_opex, 0.03)
-            #print("CF H2 Annuals",cf_h2_annuals)
-            
+                cf_h2_annuals = - simple_cash_annuals(useful_life, useful_life, electrolyzer_total_capital_cost,\
+                     electrolyzer_OM_cost, 0.03)
+
             # Set replacment costs
             inverter_replace_cost = 0.25 * 250              # $0.25/kW for string inverters ($0.14/kW for central inverters); largest string inverters are 250kW and 350kW https://www.nrel.gov/docs/fy22osti/80694.pdf
             wind_replace_cost = 300000                      # Table from HOMP
@@ -708,30 +762,84 @@ for i, scenario in scenarios_df.iterrows():
                 #cf_h2_annuals = H2A_Results['expenses_annual_cashflow'] # This is unreliable.
                 pass  
             elif h2_model == 'Simple':
-                #https://www.hydrogen.energy.gov/pdfs/19009_h2_production_cost_pem_electrolysis_2019.pdf
-                stack_capital_cost = 342   #$/kW
-                mechanical_bop_cost = 36  #$/kW
-                electrical_bop_cost = 82  #$/kW
-                installation_factor = 12/100  #%
-                stack_replacment_cost = 15/100  #% of installed capital cost
-                plant_lifetime = 40    #years
-                fixed_OM = 0.24     #$/kg H2
-                
-                inflation_2016to2022 = 1 + (23.46/100) # 2016$ to 2022$
+                #Apply PEM Cost Estimates based on year based on GPRA pathway (H2New)
+                if atb_year == 2022:
+                    electrolyzer_capex_kw = 1100     #[$/kW capacity] stack capital cost
+                    time_between_replacement = 40000    #[hrs] 
+                elif atb_year == 2025:
+                    electrolyzer_capex_kw = 300
+                    #time_between_replacement = 80000    #[hrs]
+                elif atb_year == 2030:
+                    electrolyzer_capex_kw = 150
+                    #time_between_replacement = 80000    #[hrs]
+                elif atb_year == 2035:
+                    electrolyzer_capex_kw = 100
+                    #time_between_replacement = 80000    #[hrs]
 
-                electrolyzer_installed_capex_kw = electrolyzer_cost_kw * installation_factor * inflation_2016to2022
-                electrolyzer_total_installed_capex = electrolyzer_installed_capex_kw*electrolyzer_size_mw*1000
-                
+                # Hydrogen Production Cost From PEM Electrolysis - 2019 (HFTO Program Record)
+                # https://www.hydrogen.energy.gov/pdfs/19009_h2_production_cost_pem_electrolysis_2019.pdf
+
+                # Capital costs provide by Hydrogen Production Cost From PEM Electrolysis - 2019 (HFTO Program Record)
+                stack_capital_cost = 342   #[$/kW]
+                mechanical_bop_cost = 36  #[$/kW] for a compressor
+                electrical_bop_cost = 82  #[$/kW] for a rectifier
+
+                # Installed capital cost
+                stack_installation_factor = 12/100  #[%] for stack cost 
+                elec_installation_factor = 12/100   #[%] and electrical BOP 
+                #mechanical BOP install cost = 0%
+
+                # Indirect capital cost as a percentage of installed capital cost
+                site_prep = 2/100   #[%]
+                engineering_design = 10/100 #[%]
+                project_contingency = 15/100 #[%]
+                permitting = 15/100     #[%]
+                land = 250000   #[$]
+
+                stack_replacment_cost = 15/100  #[% of installed capital cost]
+                plant_lifetime = 40    #[years]
+                fixed_OM = 0.24     #[$/kg H2]
+
+                program_record = False
+
+                # Chose to use numbers provided by GPRA pathways
+                if program_record:
+                    total_direct_electrolyzer_cost_kw = (stack_capital_cost*stack_installation_factor) \
+                        + mechanical_bop_cost + (electrical_bop_cost*elec_installation_factor)
+                else:
+                    total_direct_electrolyzer_cost_kw = (electrolyzer_capex_kw * stack_installation_factor) \
+                        + mechanical_bop_cost + (electrical_bop_cost*elec_installation_factor)
+
+                # Assign CapEx for electrolyzer from capacity based installed CapEx
+                electrolyzer_total_installed_capex = total_direct_electrolyzer_cost_kw* electrolyzer_size_mw *1000
+
+                # Add indirect capital costs
+                electrolyzer_total_capital_cost = ((site_prep+engineering_design+project_contingency+permitting)\
+                    *electrolyzer_total_installed_capex) + land
+
+                # O&M costs
+                # https://www.sciencedirect.com/science/article/pii/S2542435121003068
+                fixed_OM = 12.8 #[$/kWh-y]
+                property_tax_insurance = 1.5    #[% of Cap/y]
+                variable_OM = 1.30  #[$/MWh]
+
+                # Amortized refurbishment expense [$/MWh]
+                amortized_refurbish_cost = (electrolyzer_total_installed_capex*stack_replacment_cost)\
+                        *max(((useful_life*8760*cap_factor)/time_between_replacement-1),0)/useful_life/8760/(cap_factor*1000)
+
+                # Total O&M costs [% of installed cap/year]
+                total_OM_costs = (((fixed_OM+property_tax_insurance*electrolyzer_total_installed_capex)/electrolyzer_total_installed_capex)\
+                    +(variable_OM+amortized_refurbish_cost)/1000*8760*(cap_factor/electrolyzer_total_installed_capex))/100
+                print("amortized refurb HOPP: ", amortized_refurbish_cost)
+                print("electrolyzer total OM cost HOPP: ", total_OM_costs)
                 capacity_based_OM = True
                 if capacity_based_OM:
-                    electrolyzer_fixed_opex = electrolyzer_total_installed_capex * 0.05     #Capacity based
+                    electrolyzer_OM_cost = electrolyzer_total_installed_capex * total_OM_costs     #Capacity based
                 else:   
-                    electrolyzer_fixed_opex = (fixed_OM * inflation_2016to2022) * avg_annual_hydrogen_production #Production based
+                    electrolyzer_OM_cost = fixed_OM  * avg_annual_degraded_hydrogen_production #Production based - likely not very accurate
 
-                electrolyzer_replacement_costs = [0]*useful_life
-                cf_h2_annuals = - np.add(simple_cash_annuals(useful_life, useful_life, electrolyzer_total_installed_capex,\
-                     electrolyzer_fixed_opex, 0.03),electrolyzer_replacement_costs)
-            #print("CF H2 Annuals",cf_h2_annuals)
+                cf_h2_annuals = - simple_cash_annuals(useful_life, useful_life, electrolyzer_total_capital_cost,\
+                     electrolyzer_OM_cost, 0.03)
 
             # Cashflow Financial Calculation
             cf_wind_annuals = hybrid_plant.wind._financial_model.Outputs.cf_annual_costs
