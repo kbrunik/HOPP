@@ -556,7 +556,12 @@ for i, scenario in scenarios_df.iterrows():
                 electrolyzer_installed_capex_kw = electrolyzer_cost_kw * installation_factor * inflation_2016to2022
                 electrolyzer_total_installed_capex = electrolyzer_installed_capex_kw*electrolyzer_size_mw*1000
                 
-                electrolyzer_fixed_opex = electrolyzer_fixed_om_kg * avg_annual_degraded_hydrogen_production
+                capacity_based_OM = True
+                if capacity_based_OM:
+                    electrolyzer_fixed_opex = electrolyzer_total_installed_capex * 0.05     #Capacity based
+                else:   
+                    electrolyzer_fixed_opex = (fixed_OM * inflation_2016to2022) * avg_annual_degraded_hydrogen_production #Production based
+
                 cf_h2_annuals = - simple_cash_annuals(useful_life, useful_life, electrolyzer_total_installed_capex,\
                      electrolyzer_fixed_opex, 0.03)
             #print("CF H2 Annuals",cf_h2_annuals)
@@ -571,7 +576,6 @@ for i, scenario in scenarios_df.iterrows():
             cf_wind_annuals = hybrid_plant.wind._financial_model.Outputs.cf_annual_costs
             if solar_size_mw > 0:
                 cf_solar_annuals = hybrid_plant.pv._financial_model.Outputs.cf_annual_costs
-                print(cf_solar_annuals)
             else:
                 cf_solar_annuals = np.zeros(useful_life)
             if bss_size_mw > 0:
@@ -580,14 +584,13 @@ for i, scenario in scenarios_df.iterrows():
                 cf_battery_annuals = np.zeros(useful_life)
 
             ## Add replacement cashflows
-            pv_cf = np.add((hybrid_failure.pv_repair * inverter_replace_cost), cf_solar_annuals)
-            wind_cf = np.add((hybrid_failure.wind_repair * wind_replace_cost), cf_wind_annuals)
+            pv_cf = np.add(-(hybrid_failure.pv_repair * inverter_replace_cost), cf_solar_annuals)
+            wind_cf = np.add(-(hybrid_failure.wind_repair * wind_replace_cost), cf_wind_annuals)
             if bss_size_mw > 0:
-                battery_cf = np.add(np.append((hybrid_degradation.battery_repair * battery_replace_cost),[0]), cf_battery_annuals)
+                battery_cf = np.add(np.append(-(hybrid_degradation.battery_repair * battery_replace_cost),[0]), cf_battery_annuals)
             else:
                 battery_cf = np.zeros(useful_life)
-            electrolyzer_cf = np.add((hybrid_degradation.electrolyzer_repair * electro_replace_cost), cf_h2_annuals)
-
+            electrolyzer_cf = np.add(-(hybrid_degradation.electrolyzer_repair * electro_replace_cost), cf_h2_annuals)
 
             # cf_df = pd.DataFrame([cf_wind_annuals, cf_solar_annuals, cf_h2_annuals[:len(cf_wind_annuals)]],['Wind', 'Solar', 'H2'])
 
@@ -609,20 +612,23 @@ for i, scenario in scenarios_df.iterrows():
             LCOE_HOMP = -total_npv_elec / ((np.sum(hybrid_failure.pv_failed_generation) \
                 + np.sum(hybrid_failure.wind_failed_generation))*useful_life * 8760)       # $/kWh
             
-            LCOH_cf_method_wind = -npv_wind_costs / total_degraded_hydrogen_production
-            LCOH_cf_method_solar = -npv_solar_costs / total_degraded_hydrogen_production
-            LCOH_cf_method_h2_costs = -npv_h2_costs / total_degraded_hydrogen_production
-            LCOH_cf_method_desal_costs = -npv_desal_costs / total_degraded_hydrogen_production
+            LCOH_cf_method_wind_HOMP = -npv_wind_costs / total_degraded_hydrogen_production
+            LCOH_cf_method_solar_HOMP = -npv_solar_costs / total_degraded_hydrogen_production
+            LCOH_cf_method_bss_HOMP = -npv_bss_costs / total_degraded_hydrogen_production
+            LCOH_cf_method_h2_costs_HOMP = -npv_h2_costs / total_degraded_hydrogen_production
+            LCOH_cf_method_desal_costs_HOMP = -npv_desal_costs / total_degraded_hydrogen_production
 
             LCOH_cf_method_HOMP = -total_npv_h2 / total_degraded_hydrogen_production
             financial_summary_df = pd.DataFrame([useful_life, wind_cost_kw, solar_cost_kw, bss_cost_kw, bss_cost_kwh, electrolyzer_cost_kw,
                                                     debt_equity_split, atb_year, ptc_avail, itc_avail,
                                                     discount_rate, npv_wind_costs, npv_solar_costs, npv_bss_costs, npv_h2_costs,
-                                                    npv_desal_costs, LCOE_HOMP, LCOH_cf_method_HOMP],
+                                                    npv_desal_costs, LCOH_cf_method_wind_HOMP, LCOH_cf_method_solar_HOMP, LCOH_cf_method_bss_HOMP,
+                                                    LCOH_cf_method_desal_costs_HOMP, LCOH_cf_method_h2_costs_HOMP, LCOE_HOMP, LCOH_cf_method_HOMP],
                                                 ['Useful Life', 'Wind Cost KW', 'Solar Cost KW', 'BSS Cost KW', 'BSS Cost KWh',
                                                     'Electrolyzer Cost KW', 'Debt Equity','ATB Year', 'PTC available', 'ITC available',
                                                     'Discount Rate', 'NPV Wind Expenses','NPV Solar Expenses', 'NPV BSS Expenses', 
-                                                    'NPV H2 Expenses','NPV Desal Expenses', 'LCOE $/kWh','LCOH cf method'])
+                                                    'NPV H2 Expenses','NPV Desal Expenses', 'LCOH Wind','LCOH Solar','LCOH BSS',
+                                                    'LCOH Desal','LCOH Electrolyzer', 'LCOE $/kWh','LCOH cf method'])
             financial_summary_df.to_csv(os.path.join(results_dir, 'Financial Summary_{}_{}.csv'.format(scenario_choice,HOMP_options)))
 
             print("LCOE HOMP: ", LCOE_HOMP, "$/kWh")
@@ -673,6 +679,12 @@ for i, scenario in scenarios_df.iterrows():
             el.h2_production_rate()
             el.water_supply()
 
+            # Capacity factor
+            avg_generation = np.mean(electrical_generation_timeseries)  # Avg Generation
+            # print("avg_generation: ", avg_generation)
+            cap_factor = avg_generation / kw_continuous
+            print("HOPP cap_factor",cap_factor)
+
             hydrogen_hourly_production = out_dict['h2_produced_kg_hr_system']
             water_hourly_usage = out_dict['water_used_kg_hr']
 
@@ -710,7 +722,12 @@ for i, scenario in scenarios_df.iterrows():
                 electrolyzer_installed_capex_kw = electrolyzer_cost_kw * installation_factor * inflation_2016to2022
                 electrolyzer_total_installed_capex = electrolyzer_installed_capex_kw*electrolyzer_size_mw*1000
                 
-                electrolyzer_fixed_opex = electrolyzer_fixed_om_kg * avg_annual_hydrogen_production
+                capacity_based_OM = True
+                if capacity_based_OM:
+                    electrolyzer_fixed_opex = electrolyzer_total_installed_capex * 0.05     #Capacity based
+                else:   
+                    electrolyzer_fixed_opex = (fixed_OM * inflation_2016to2022) * avg_annual_hydrogen_production #Production based
+
                 electrolyzer_replacement_costs = [0]*useful_life
                 cf_h2_annuals = - np.add(simple_cash_annuals(useful_life, useful_life, electrolyzer_total_installed_capex,\
                      electrolyzer_fixed_opex, 0.03),electrolyzer_replacement_costs)
@@ -750,6 +767,7 @@ for i, scenario in scenarios_df.iterrows():
             
             LCOH_cf_method_wind = -npv_wind_costs / total_hydrogen_production
             LCOH_cf_method_solar = -npv_solar_costs / total_hydrogen_production
+            LCOH_cf_method_bss = -npv_bss_costs / total_hydrogen_production
             LCOH_cf_method_h2_costs = -npv_h2_costs / total_hydrogen_production
             LCOH_cf_method_desal_costs = -npv_desal_costs / total_hydrogen_production
 
@@ -757,11 +775,14 @@ for i, scenario in scenarios_df.iterrows():
             financial_summary_df = pd.DataFrame([useful_life, wind_cost_kw, solar_cost_kw, bss_cost_kw, bss_cost_kwh, electrolyzer_cost_kw,
                                                     debt_equity_split, atb_year, ptc_avail, itc_avail,
                                                     discount_rate, npv_wind_costs, npv_solar_costs, npv_bss_costs, npv_h2_costs,
-                                                    npv_desal_costs, LCOE, LCOH_cf_method],
+                                                    npv_desal_costs,
+                                                    LCOH_cf_method_wind, LCOH_cf_method_solar, LCOH_cf_method_bss, LCOH_cf_method_desal_costs,
+                                                    LCOH_cf_method_h2_costs, LCOE, LCOH_cf_method],
                                                 ['Useful Life', 'Wind Cost KW', 'Solar Cost KW', 'BSS Cost KW', 'BSS Cost KWh',
                                                     'Electrolyzer Cost KW', 'Debt Equity','ATB Year', 'PTC available', 'ITC available',
                                                     'Discount Rate', 'NPV Wind Expenses','NPV Solar Expenses', 'NPV BSS Expenses', 
-                                                    'NPV H2 Expenses','NPV Desal Expenses', 'LCOE $/kWh','LCOH cf method'])
+                                                    'NPV H2 Expenses','NPV Desal Expenses', 'LCOH Wind','LCOH Solar','LCOH BSS',
+                                                    'LCOH Desal','LCOH Electrolyzer', 'LCOE $/kWh','LCOH cf method'])
             financial_summary_df.to_csv(os.path.join(results_dir, 'Financial Summary_{}_{}.csv'.format(scenario_choice,HOMP_options)))
 
             print("LCOE: ", LCOE, "$/kWh")
@@ -787,7 +808,24 @@ for i, scenario in scenarios_df.iterrows():
 
     hybrid_installed_cost = hybrid_plant.grid.total_installed_cost
 
+    import matplotlib.pyplot as plt
+    import numpy as np
+    
+    # create data
+    x = ['HOPP', 'HOMP (Degradation and Failure)']
+    
+    # plot bars in stack manner
+    plt.bar(x, [LCOH_cf_method_wind,LCOH_cf_method_wind_HOMP], color='blue')
+    plt.bar(x, [LCOH_cf_method_solar,LCOH_cf_method_solar_HOMP], bottom=[LCOH_cf_method_wind,LCOH_cf_method_wind_HOMP], color='orange')
+    plt.bar(x, [LCOH_cf_method_h2_costs,LCOH_cf_method_h2_costs_HOMP], bottom =[(LCOH_cf_method_wind + LCOH_cf_method_solar), (LCOH_cf_method_wind_HOMP + LCOH_cf_method_solar_HOMP)], color='g')
+    plt.bar(x, [LCOH_cf_method_bss,LCOH_cf_method_bss_HOMP], bottom=[(LCOH_cf_method_wind + LCOH_cf_method_solar + LCOH_cf_method_h2_costs),(LCOH_cf_method_wind_HOMP + LCOH_cf_method_solar_HOMP + LCOH_cf_method_h2_costs_HOMP)], color='y')
+    plt.bar(x, [LCOH_cf_method_desal_costs,LCOH_cf_method_desal_costs_HOMP], bottom=[(LCOH_cf_method_wind + LCOH_cf_method_solar + LCOH_cf_method_h2_costs + LCOH_cf_method_desal_costs),(LCOH_cf_method_wind_HOMP + LCOH_cf_method_solar_HOMP + LCOH_cf_method_h2_costs_HOMP + LCOH_cf_method_desal_costs_HOMP)], color='k')
 
+    plt.ylabel("LCOH [$/kg-H2]")
+    plt.legend(["Wind", "Solar", "Electrolyzer", "BSS", "Desal"])
+    plt.title("Levelized Cost of hydrogen - Cost Contributors\n {}\n".format(scenario_choice))
+    plt.savefig(os.path.join(results_dir,'LCOH Barchart_{}.jpg'.format(scenario_choice)),bbox_inches='tight')
+    plt.show()
 
     # plt.figure(figsize=(10,5))
     # plt.subplot(1,2,1)

@@ -161,6 +161,12 @@ class Degradation:
             ideal_stack_input_voltage_DC = 250
             current_stack_input_voltage_DC = ideal_stack_input_voltage_DC
 
+            # Capacity factor
+            avg_generation = np.mean(electrical_generation_timeseries)  # Avg Generation
+            # print("avg_generation: ", avg_generation)
+            self.cap_factor = avg_generation / kw_continuous
+            print("Degraded cap_factor",self.cap_factor)
+            
             for years in range(0,self.project_life):
                 end_year = start_year + 8760
                 in_dict['P_input_external_kW'] = electrical_generation_timeseries[start_year:end_year]
