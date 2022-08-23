@@ -584,11 +584,11 @@ for i, scenario in scenarios_df.iterrows():
 
                 # Chose to use numbers provided by GPRA pathways
                 if program_record:
-                    total_direct_electrolyzer_cost_kw = (stack_capital_cost*stack_installation_factor) \
-                        + mechanical_bop_cost + (electrical_bop_cost*elec_installation_factor)
+                    total_direct_electrolyzer_cost_kw = (stack_capital_cost*(1+stack_installation_factor)) \
+                        + mechanical_bop_cost + (electrical_bop_cost*(1+elec_installation_factor))
                 else:
-                    total_direct_electrolyzer_cost_kw = (electrolyzer_capex_kw * stack_installation_factor) \
-                        + mechanical_bop_cost + (electrical_bop_cost*elec_installation_factor)
+                    total_direct_electrolyzer_cost_kw = (electrolyzer_capex_kw * (1+stack_installation_factor)) \
+                        + mechanical_bop_cost + (electrical_bop_cost*(1+elec_installation_factor))
 
                 # Assign CapEx for electrolyzer from capacity based installed CapEx
                 electrolyzer_total_installed_capex = total_direct_electrolyzer_cost_kw* electrolyzer_size_mw *1000
@@ -600,15 +600,17 @@ for i, scenario in scenarios_df.iterrows():
                 # O&M costs
                 # https://www.sciencedirect.com/science/article/pii/S2542435121003068
                 fixed_OM = 12.8 #[$/kWh-y]
-                property_tax_insurance = 1.5    #[% of Cap/y]
+                property_tax_insurance = 1.5/100    #[% of Cap/y]
                 variable_OM = 1.30  #[$/MWh]
 
                 # Amortized refurbishment expense [$/MWh]
                 amortized_refurbish_cost = 0    # add refurbish costs later
 
                 # Total O&M costs [% of installed cap/year]
-                total_OM_costs = (((fixed_OM+property_tax_insurance*electrolyzer_total_installed_capex)/electrolyzer_total_installed_capex)\
-                    +(variable_OM+amortized_refurbish_cost)/1000*8760*(hybrid_degradation.cap_factor/electrolyzer_total_installed_capex))/100
+                 # Total O&M costs [% of installed cap/year]
+                total_OM_costs = ((fixed_OM+(property_tax_insurance*total_direct_electrolyzer_cost_kw))/total_direct_electrolyzer_cost_kw\
+                    +((variable_OM+amortized_refurbish_cost)/1000*8760*(hybrid_degradation.cap_factor/total_direct_electrolyzer_cost_kw)))
+
                 print("amortized refurb: ", amortized_refurbish_cost)
                 print("electrolyzer total OM cost: ", total_OM_costs)
                 capacity_based_OM = True
@@ -804,11 +806,11 @@ for i, scenario in scenarios_df.iterrows():
 
                 # Chose to use numbers provided by GPRA pathways
                 if program_record:
-                    total_direct_electrolyzer_cost_kw = (stack_capital_cost*stack_installation_factor) \
-                        + mechanical_bop_cost + (electrical_bop_cost*elec_installation_factor)
+                    total_direct_electrolyzer_cost_kw = (stack_capital_cost*(1+stack_installation_factor)) \
+                        + mechanical_bop_cost + (electrical_bop_cost*(1+elec_installation_factor))
                 else:
-                    total_direct_electrolyzer_cost_kw = (electrolyzer_capex_kw * stack_installation_factor) \
-                        + mechanical_bop_cost + (electrical_bop_cost*elec_installation_factor)
+                    total_direct_electrolyzer_cost_kw = (electrolyzer_capex_kw * (1+stack_installation_factor)) \
+                        + mechanical_bop_cost + (electrical_bop_cost*(1+elec_installation_factor))
 
                 # Assign CapEx for electrolyzer from capacity based installed CapEx
                 electrolyzer_total_installed_capex = total_direct_electrolyzer_cost_kw* electrolyzer_size_mw *1000
@@ -820,16 +822,16 @@ for i, scenario in scenarios_df.iterrows():
                 # O&M costs
                 # https://www.sciencedirect.com/science/article/pii/S2542435121003068
                 fixed_OM = 12.8 #[$/kWh-y]
-                property_tax_insurance = 1.5    #[% of Cap/y]
+                property_tax_insurance = 1.5/100    #[% of Cap/y]
                 variable_OM = 1.30  #[$/MWh]
-
+                print("electro total installed capex: ", total_direct_electrolyzer_cost_kw)
                 # Amortized refurbishment expense [$/MWh]
-                amortized_refurbish_cost = (electrolyzer_total_installed_capex*stack_replacment_cost)\
-                        *max(((useful_life*8760*cap_factor)/time_between_replacement-1),0)/useful_life/8760/(cap_factor*1000)
+                amortized_refurbish_cost = (total_direct_electrolyzer_cost_kw*stack_replacment_cost)\
+                        *max(((useful_life*8760*cap_factor)/time_between_replacement-1),0)/useful_life/8760/cap_factor*1000
 
-                # Total O&M costs [% of installed cap/year]
-                total_OM_costs = (((fixed_OM+property_tax_insurance*electrolyzer_total_installed_capex)/electrolyzer_total_installed_capex)\
-                    +(variable_OM+amortized_refurbish_cost)/1000*8760*(cap_factor/electrolyzer_total_installed_capex))/100
+                 # Total O&M costs [% of installed cap/year]
+                total_OM_costs = ((fixed_OM+(property_tax_insurance*total_direct_electrolyzer_cost_kw))/total_direct_electrolyzer_cost_kw\
+                    +((variable_OM+amortized_refurbish_cost)/1000*8760*(cap_factor/total_direct_electrolyzer_cost_kw)))
                 print("amortized refurb HOPP: ", amortized_refurbish_cost)
                 print("electrolyzer total OM cost HOPP: ", total_OM_costs)
                 capacity_based_OM = True
