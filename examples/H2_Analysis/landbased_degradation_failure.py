@@ -497,7 +497,7 @@ for i, scenario in scenarios_df.iterrows():
                 hybrid_degradation.simulate_battery_degradation()
 
                 battery_deg = [x for x in hybrid_degradation.battery_used]
-
+ 
                 # Simulates battery failure
                 # hybrid_failure.battery_used = battery_deg
 
@@ -510,7 +510,26 @@ for i, scenario in scenarios_df.iterrows():
                 hybrid_degradation.battery_repair = [0]
 
             hybrid_degradation.combined_pv_wind_storage_power_production = np.add(np.add(pv_deg_fail, wind_deg_fail), battery_deg)
+               
+            if sell_price:
+                profit_from_selling_to_grid = np.sum(hybrid_degradation.excess_energy)*sell_price
+            else:
+                profit_from_selling_to_grid = 0.0
 
+            # buy_price = False # if you want to force no buy from grid
+            if buy_price:
+                cost_to_buy_from_grid_HOMP = buy_price
+
+                for i in range(len(hybrid_degradation.combined_pv_wind_storage_power_production)):
+                    if hybrid_degradation.combined_pv_wind_storage_power_production[i] < static_load:
+                        cost_to_buy_from_grid_HOMP += (static_load-hybrid_degradation.combined_pv_wind_storage_power_production[i])*buy_price
+                        hybrid_degradation.combined_pv_wind_storage_power_production[i] = static_load
+            else:
+                cost_to_buy_from_grid_HOMP = 0.0
+
+            energy_to_electrolyzer = [x if x < static_load else static_load for x in hybrid_degradation.combined_pv_wind_storage_power_production]
+
+            hybrid_degradation.combined_pv_wind_storage_power_production = energy_to_electrolyzer
             # Simulate electrolyzer degradation
             hybrid_degradation.simulate_electrolyzer_degradation()
 
@@ -623,8 +642,8 @@ for i, scenario in scenarios_df.iterrows():
                      electrolyzer_OM_cost, 0.03)
 
             # Set replacment costs
-            inverter_replace_cost = 0.25 * 250              # $0.25/kW for string inverters ($0.14/kW for central inverters); largest string inverters are 250kW and 350kW https://www.nrel.gov/docs/fy22osti/80694.pdf
-            wind_replace_cost = 300000                      # Table from HOMP
+            inverter_replace_cost = 0.25 * 250             # $0.25/kW for string inverters ($0.14/kW for central inverters); largest string inverters are 250kW and 350kW https://www.nrel.gov/docs/fy22osti/80694.pdf
+            wind_replace_cost = 300000                     # Table from HOMP
             battery_replace_cost = 8000                     # Battery replacement cost can be $5k-$11k Table from HOMP
             electro_replace_cost = 0.15 * electrolyzer_total_installed_capex     # 15% of installed CapEx. Table from HOMP
 
@@ -685,7 +704,7 @@ for i, scenario in scenarios_df.iterrows():
                                                     'Discount Rate', 'NPV Wind Expenses','NPV Solar Expenses', 'NPV BSS Expenses', 
                                                     'NPV H2 Expenses','NPV Desal Expenses', 'LCOH Wind','LCOH Solar','LCOH BSS',
                                                     'LCOH Desal','LCOH Electrolyzer', 'LCOE $/kWh','LCOH cf method'])
-            financial_summary_df.to_csv(os.path.join(results_dir, 'Financial Summary_{}_{}.csv'.format(scenario_choice,HOMP_options)))
+            financial_summary_df.to_csv(os.path.join(results_dir, 'Financial Summary_{}_HOMP{}.csv'.format(scenario_choice,HOMP_options)))
 
             print("LCOE HOMP: ", LCOE_HOMP, "$/kWh")
             print("LCOH HOMP:", LCOH_cf_method_HOMP, "$/kg")
@@ -718,9 +737,27 @@ for i, scenario in scenarios_df.iterrows():
                 battery_used = [0] * useful_life * 8760
 
             combined_pv_wind_storage_power_production = np.add(hybrid_generation, battery_used)
-            
+                           
+            if sell_price:
+                profit_from_selling_to_grid = np.sum(excess_energy)*sell_price
+            else:
+                profit_from_selling_to_grid = 0.0
+
+            # buy_price = False # if you want to force no buy from grid
+            if buy_price:
+                cost_to_buy_from_grid = buy_price
+
+                for i in range(len(combined_pv_wind_storage_power_production)):
+                    if combined_pv_wind_storage_power_production[i] < static_load:
+                        cost_to_buy_from_grid += (static_load-combined_pv_wind_storage_power_production[i])*buy_price
+                        combined_pv_wind_storage_power_production[i] = static_load
+            else:
+                cost_to_buy_from_grid = 0.0
+
+            energy_to_electrolyzer = [x if x < static_load else static_load for x in combined_pv_wind_storage_power_production]
+
             kw_continuous = electrolyzer_size_mw * 1000
-            energy_to_electrolyzer = [x if x < kw_continuous else kw_continuous for x in combined_pv_wind_storage_power_production]
+
             electrical_generation_timeseries = np.zeros_like(energy_to_electrolyzer)
             electrical_generation_timeseries[:] = energy_to_electrolyzer[:]
 
@@ -893,7 +930,7 @@ for i, scenario in scenarios_df.iterrows():
                                                     'Discount Rate', 'NPV Wind Expenses','NPV Solar Expenses', 'NPV BSS Expenses', 
                                                     'NPV H2 Expenses','NPV Desal Expenses', 'LCOH Wind','LCOH Solar','LCOH BSS',
                                                     'LCOH Desal','LCOH Electrolyzer', 'LCOE $/kWh','LCOH cf method'])
-            financial_summary_df.to_csv(os.path.join(results_dir, 'Financial Summary_{}_{}.csv'.format(scenario_choice,HOMP_options)))
+            financial_summary_df.to_csv(os.path.join(results_dir, 'Financial Summary_{}_HOMP{}.csv'.format(scenario_choice,HOMP_options)))
 
             print("LCOE: ", LCOE, "$/kWh")
             print("LCOH:", LCOH_cf_method, "$/kg")
@@ -921,22 +958,41 @@ for i, scenario in scenarios_df.iterrows():
     import matplotlib.pyplot as plt
     import numpy as np
     
-    # create data
-    x = ['HOPP', 'HOMP (Degradation and Failure)']
-    
-    # plot bars in stack manner
-    plt.bar(x, [LCOH_cf_method_wind,LCOH_cf_method_wind_HOMP], color='blue')
-    plt.bar(x, [LCOH_cf_method_solar,LCOH_cf_method_solar_HOMP], bottom=[LCOH_cf_method_wind,LCOH_cf_method_wind_HOMP], color='orange')
-    plt.bar(x, [LCOH_cf_method_h2_costs,LCOH_cf_method_h2_costs_HOMP], bottom =[(LCOH_cf_method_wind + LCOH_cf_method_solar), (LCOH_cf_method_wind_HOMP + LCOH_cf_method_solar_HOMP)], color='g')
-    plt.bar(x, [LCOH_cf_method_bss,LCOH_cf_method_bss_HOMP], bottom=[(LCOH_cf_method_wind + LCOH_cf_method_solar + LCOH_cf_method_h2_costs),(LCOH_cf_method_wind_HOMP + LCOH_cf_method_solar_HOMP + LCOH_cf_method_h2_costs_HOMP)], color='y')
-    plt.bar(x, [LCOH_cf_method_desal_costs,LCOH_cf_method_desal_costs_HOMP], bottom=[(LCOH_cf_method_wind + LCOH_cf_method_solar + LCOH_cf_method_h2_costs + LCOH_cf_method_desal_costs),(LCOH_cf_method_wind_HOMP + LCOH_cf_method_solar_HOMP + LCOH_cf_method_h2_costs_HOMP + LCOH_cf_method_desal_costs_HOMP)], color='k')
+    # if buy_price == False:
+    #     # create data
+    #     x = ['HOPP', 'HOMP (Degradation and Failure)']
+        
+    #     # plot bars in stack manner
+    #     plt.bar(x, [LCOH_cf_method_wind,LCOH_cf_method_wind_HOMP], color='blue')
+    #     plt.bar(x, [LCOH_cf_method_solar,LCOH_cf_method_solar_HOMP], bottom=[LCOH_cf_method_wind,LCOH_cf_method_wind_HOMP], color='orange')
+    #     plt.bar(x, [LCOH_cf_method_h2_costs,LCOH_cf_method_h2_costs_HOMP], bottom =[(LCOH_cf_method_wind + LCOH_cf_method_solar), (LCOH_cf_method_wind_HOMP + LCOH_cf_method_solar_HOMP)], color='g')
+    #     plt.bar(x, [LCOH_cf_method_bss,LCOH_cf_method_bss_HOMP], bottom=[(LCOH_cf_method_wind + LCOH_cf_method_solar + LCOH_cf_method_h2_costs),(LCOH_cf_method_wind_HOMP + LCOH_cf_method_solar_HOMP + LCOH_cf_method_h2_costs_HOMP)], color='y')
+    #     plt.bar(x, [LCOH_cf_method_desal_costs,LCOH_cf_method_desal_costs_HOMP], bottom=[(LCOH_cf_method_wind + LCOH_cf_method_solar + LCOH_cf_method_h2_costs + LCOH_cf_method_desal_costs),(LCOH_cf_method_wind_HOMP + LCOH_cf_method_solar_HOMP + LCOH_cf_method_h2_costs_HOMP + LCOH_cf_method_desal_costs_HOMP)], color='k')
+        
+    #     plt.ylabel("LCOH [$/kg-H2]")
+    #     plt.legend(["Wind", "Solar", "Electrolyzer", "BSS", "Desal"])
+    #     plt.title("Levelized Cost of hydrogen - Cost Contributors\n {}\n".format(scenario_choice))
+    #     plt.savefig(os.path.join(results_dir,'LCOH Barchart_{}.jpg'.format(scenario_choice)),bbox_inches='tight')
+    #     plt.show()
 
-    plt.ylabel("LCOH [$/kg-H2]")
-    plt.legend(["Wind", "Solar", "Electrolyzer", "BSS", "Desal"])
-    plt.title("Levelized Cost of hydrogen - Cost Contributors\n {}\n".format(scenario_choice))
-    plt.savefig(os.path.join(results_dir,'LCOH Barchart_{}.jpg'.format(scenario_choice)),bbox_inches='tight')
-    plt.show()
+    # if buy_price:
+    #     # create data
+    #     x = ['HOPP', 'HOMP (Degradation and Failure)']
 
+    #     # plot bars in stack manner
+    #     plt.bar(x, [LCOH_cf_method_wind,LCOH_cf_method_wind_HOMP], color='blue')
+    #     plt.bar(x, [LCOH_cf_method_solar,LCOH_cf_method_solar_HOMP], bottom=[LCOH_cf_method_wind,LCOH_cf_method_wind_HOMP], color='orange')
+    #     plt.bar(x, [LCOH_cf_method_h2_costs,LCOH_cf_method_h2_costs_HOMP], bottom =[(LCOH_cf_method_wind + LCOH_cf_method_solar), (LCOH_cf_method_wind_HOMP + LCOH_cf_method_solar_HOMP)], color='g')
+    #     plt.bar(x, [LCOH_cf_method_bss,LCOH_cf_method_bss_HOMP], bottom=[(LCOH_cf_method_wind + LCOH_cf_method_solar + LCOH_cf_method_h2_costs),(LCOH_cf_method_wind_HOMP + LCOH_cf_method_solar_HOMP + LCOH_cf_method_h2_costs_HOMP)], color='y')
+    #     plt.bar(x, [LCOH_cf_method_desal_costs,LCOH_cf_method_desal_costs_HOMP], bottom=[(LCOH_cf_method_wind + LCOH_cf_method_solar + LCOH_cf_method_h2_costs + LCOH_cf_method_desal_costs),(LCOH_cf_method_wind_HOMP + LCOH_cf_method_solar_HOMP + LCOH_cf_method_h2_costs_HOMP + LCOH_cf_method_desal_costs_HOMP)], color='k')
+    #     plt.bar(x, [LCOH_cf_method_elec_purchase,LCOH_cf_method_elec_purchase_HOMP], bottom=[(LCOH_cf_method_wind + LCOH_cf_method_solar + LCOH_cf_method_h2_costs + LCOH_cf_method_desal_costs),(LCOH_cf_method_wind_HOMP + LCOH_cf_method_solar_HOMP + LCOH_cf_method_h2_costs_HOMP + LCOH_cf_method_desal_costs_HOMP)], color='m'))
+
+    #     plt.ylabel("LCOH [$/kg-H2]")
+    #     plt.legend(["Wind", "Solar", "Electrolyzer", "BSS", "Desal", "Purchased Electricity"])
+    #     plt.title("Levelized Cost of hydrogen - Cost Contributors\n {}\n".format(scenario_choice))
+    #     plt.savefig(os.path.join(results_dir,'LCOH Barchart_{}.jpg'.format(scenario_choice)),bbox_inches='tight')
+    #     plt.show()
+       
     # plt.figure(figsize=(10,5))
     # plt.subplot(1,2,1)
     # plt.plot(fresh_water_flowrate[200:300],"--",label="Freshwater flowrate from desal")
