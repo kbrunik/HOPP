@@ -30,10 +30,10 @@ for i in range(len(datesTS)):
     datesSTRs.append(str(datetime.strptime(str(datesTS[i]), '%Y-%m-%d %H:%M:%S%z')))
 # print(datesSTRs)
 
-year = np.empty(len(Te))
-for i in range(len(year)):
-    year[i] = float(datesSTRs[i][:4])
-print(year)
+yr = np.empty(len(Te))
+for i in range(len(yr)):
+    yr[i] = float(datesSTRs[i][:4])
+print(yr)
 
 month = np.empty(len(Te))
 for i in range(len(month)):
@@ -59,7 +59,7 @@ fields = ["Year", "Month", "Day", "Hour", "Minute", "Significant Wave Height","E
 
 resultsMat = np.empty((len(Hs),7))
 for i in range(len(Hs)):
-    resultsMat[i,0] = year[i]
+    resultsMat[i,0] = yr[i]
 
 for i in range(len(Hs)):
     resultsMat[i,1] = month[i]

@@ -3,6 +3,10 @@ import PySAM.WaveFileReader as wavefile
 
 from hopp.log import hybrid_logger as logger
 from hopp.resource.resource import *
+import mhkit
+import numpy as np
+from datetime import datetime
+import csv
 
 
 class WaveResource(Resource):
@@ -24,36 +28,117 @@ class WaveResource(Resource):
         if os.path.isdir(path_resource):
             self.path_resource = path_resource
 
+        self.wave_attributes = ['energy_period', 'significant_wave_height']
+
         self.path_resource = os.path.join(self.path_resource, 'wave')
 
+        # Force override any internal definitions if passed in
         self.__dict__.update(kwargs)
 
         # resource_files files
         if filepath == "":
-            self.filename = ""
+            self.filename = "" # adapted from wind resource
         else:
             self.filename = filepath
 
-        if not os.path.isfile(self.filename):
-            # self.download_resource()
-            raise ValueError("Wave resource file must be loaded.") # Remove ValueError once resource can be downloaded.
-            
+        self.check_download_dir()
 
+        if not os.path.isfile(self.filename):
+            self.download_resource()
+            # raise ValueError("Wave resource file must be loaded.") # Remove ValueError once resource can be downloaded.
+            
         self.format_data()
 
-        logger.info("WaveResource: {}".format(self.filename))
+        # logger.info("WaveResource: {}".format(self.filename))
 
     def download_resource(self):
-        #TODO: Add ability to use MHKit for resource downloads
-        # https://mhkit-software.github.io/MHKiT/
-        pass
+        # NOTE THE USER MUST RUN hsconfigure AND FOLLOW INSTRUCTIONS IN https://github.com/NREL/hsds-examples 
+        
+        data_type = '3-hour' # can be '1-hour' or '3-hour'
+        parameter = self.wave_attributes
+        lat_lon = [self.latitude, self.longitude]
+        years = self.year
+        waveData = mhkit.wave.io.hindcast.hindcast.request_wpto_point_data(data_type, parameter, lat_lon, years, tree=None, unscale=True, str_decode=True, hsds=True)
+        TeAndHs = waveData[0]
+        Te = TeAndHs['energy_period_0']
+        Hs = TeAndHs['significant_wave_height_0']
+        
+        # Access time stamps
+        datesTS = Te.index.tolist()
+        datesSTRs = []
+        for i in range(len(datesTS)):
+            datesSTRs.append(str(datetime.strptime(str(datesTS[i]), '%Y-%m-%d %H:%M:%S%z')))
+        
+        yr = np.empty(len(Te))
+        for i in range(len(yr)):
+            yr[i] = float(datesSTRs[i][:4])
+        
+        month = np.empty(len(Te))
+        for i in range(len(month)):
+            month[i] = float(datesSTRs[i][5:7])
+        
+        day = np.empty(len(Te))
+        for i in range(len(day)):
+            day[i] = float(datesSTRs[i][8:10])
+        
+        hour = np.empty(len(Te))
+        for i in range(len(hour)):
+            hour[i] = float(datesSTRs[i][11:13])
+
+        minute = np.empty(len(Te))
+        for i in range(len(minute)):
+            minute[i] = float(datesSTRs[i][14:16])
+        
+        fields = ["Year", "Month", "Day", "Hour", "Minute", "Significant Wave Height","Energy Period"]
+
+        resultsMat = np.empty((len(Hs),7))
+        for i in range(len(Hs)):
+            resultsMat[i,0] = yr[i]
+
+        for i in range(len(Hs)):
+            resultsMat[i,1] = month[i]
+
+        for i in range(len(Hs)):
+            resultsMat[i,2] = day[i]
+
+        for i in range(len(Hs)):
+            resultsMat[i,3] = hour[i]
+
+        for i in range(len(Hs)):
+            resultsMat[i,4] = minute[i]
+
+        for i in range(len(Hs)):
+            resultsMat[i,5] = Hs[i]
+
+        for j in range(len(Hs)):
+            resultsMat[j,6] = Te[j]
+        
+        locData = waveData[1]
+        depth = locData['water_depth'][0]
+        latit = locData['latitude'][0]
+        longit = locData['longitude'][0]
+        dist = locData['distance_to_shore'][0]
+        tz = locData['timezone'][0]
+        jur = locData['jurisdiction'][0]
+
+        mainHeader = ["Source", "Station ID", "Jurisdiction", "Latitude", "Longitude", "Time Zone", "Local Time", "Distance to Shore", "Directionality Coefficient", "Energy Period", "Maximum Energy Direction", "Mean Absolute Period", "Mean Wave Direction", "Mean Zero-Crossing Period", "Omni-Directional Wave Power", "Peak Period", "Significant Wave Height", "Spectral Width", "Water Depth", "Version"]
+        subHeader = ["WPTO Hindcast Data", float(0), jur, latit, longit, float(0), tz, dist, "-", "s", "deg", "s", "deg", "s", "W/m", "s", "m", "-", depth, "v1.0.0"]
+        with open(self.filename, 'w', newline='') as file: 
+            writer = csv.writer(file)
+
+            writer.writerow(mainHeader)
+            writer.writerow(subHeader)
+            writer.writerow(fields)
+            writer.writerows(resultsMat) 
+
+        return
 
     def format_data(self):
         """
         Format as 'wave_resource_data' dictionary for use in PySAM.
         """
         if not os.path.isfile(self.filename):
-            raise FileNotFoundError(self.filename + " does not exist.")
+            raise FileNotFoundError(self.filename + " does not exist. Try `download_resource` first.")
 
         self.data = self.filename
 
