@@ -352,7 +352,7 @@ def test_wave_dispatch():
 		"tz": -7,
 	}
 	
-    wave_resource_file = Path(__file__).absolute().parent.parent.parent / "resource_files" / "wave" / "Wave_resource_timeseries.csv"
+    wave_resource_file = ROOT_DIR / "resource_files" / "wave" / "Wave_resource_timeseries.csv"
     site = SiteInfo(data, solar=False, wind=False, wave=True, wave_resource_file=wave_resource_file)
   
     mhk_yaml_path = ROOT_DIR.parent / "tests" / "hopp" / "inputs" / "wave" / "wave_device.yaml"
