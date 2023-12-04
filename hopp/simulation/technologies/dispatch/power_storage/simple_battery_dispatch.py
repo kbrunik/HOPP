@@ -32,8 +32,8 @@ class SimpleBatteryDispatch(PowerStorageDispatch):
         if self.include_lifecycle_count:
             self.lifecycle_cost = self.lifecycle_cost_per_kWh_cycle * self._system_model.value('nominal_energy')
 
-        self.cost_per_charge = 0.75  # [$/MWh]
-        self.cost_per_discharge = 0.75  # [$/MWh]
+        self.cost_per_charge = 0.0 #0.75  # [$/MWh]
+        self.cost_per_discharge = 0.0 #0.75  # [$/MWh]
         self.minimum_power = 0.0
         # FIXME: Change C_rate call to user set system_capacity_kw
         # self.maximum_power = self._system_model.value('nominal_energy') * self._system_model.value('C_rate') / 1e3
