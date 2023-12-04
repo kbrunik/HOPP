@@ -279,6 +279,10 @@ def visualize_plant(
         h2_storage_area = h2_storage_results["tank_footprint_m2"]
         h2_storage_side = np.sqrt(h2_storage_area)
 
+    else:
+        h2_storage_side = 0.0
+        h2_storage_area = 0.0
+
     electrolyzer_area = electrolyzer_physics_results["equipment_footprint_m2"]
     if design_scenario["electrolyzer_location"] == "turbine":
         electrolyzer_area /= orbit_project.config["plant"]["num_turbines"]
@@ -845,7 +849,7 @@ def visualize_plant(
         if not os.path.exists(savepath):
             os.mkdir(savepath)
         plt.savefig(
-            savepath + "plant_layout_%i.png" % (plant_design_number), transparent=True
+            savepath + "plant_layout_%i_%s.png" % (plant_design_number,plant_config['turbine']), transparent=True
         )
     if show_plots:
         plt.show()
@@ -871,6 +875,7 @@ def post_process_simulation(
     plant_design_number,
     incentive_option,
     solver_results=[],
+    verbose=False,
     show_plots=False,
     save_plots=False,
 ):  # , lcoe, lcoh, lcoh_with_grid, lcoh_grid_only):
@@ -967,7 +972,7 @@ def post_process_simulation(
         }
 
     ######################### save detailed ORBIT cost information
-    _, orbit_capex_breakdown, wind_capex_multiplier = adjust_orbit_costs(orbit_project=orbit_project, plant_config=plant_config)
+    _, orbit_capex_breakdown, wind_capex_multiplier = adjust_orbit_costs(orbit_project=orbit_project, plant_config=plant_config, verbose=verbose)
     
     # orbit_capex_breakdown["Onshore Substation"] = orbit_project.phases["ElectricalDesign"].onshore_cost
     # discount ORBIT cost information
@@ -990,7 +995,7 @@ def post_process_simulation(
 
     ###################### Save export system breakdown from ORBIT ###################
     
-    _, orbit_capex_breakdown, wind_capex_multiplier = adjust_orbit_costs(orbit_project=orbit_project, plant_config=plant_config)
+    _, orbit_capex_breakdown, wind_capex_multiplier = adjust_orbit_costs(orbit_project=orbit_project, plant_config=plant_config, verbose=verbose)
     
     onshore_substation_costs = orbit_project.phases["ElectricalDesign"].onshore_cost*wind_capex_multiplier
     
@@ -1012,8 +1017,8 @@ def post_process_simulation(
     savedir = "data/orbit_costs/"
     if not os.path.exists(savedir):
         os.makedirs(savedir)
-    ob_df.to_csv(savedir+"orbit_cost_breakdown_with_onshore_substation_lcoh_design%i_incentive%i_%sstorage.csv"
-        % (plant_design_number, incentive_option, plant_config["h2_storage"]["type"]))
+    ob_df.to_csv(savedir+"orbit_cost_breakdown_with_onshore_substation_site_%s_turbine_%s_lcoh_design%i_incentive%i_%sstorage.csv"
+        % (plant_config['site']['name'],plant_config['turbine'], plant_design_number, incentive_option, plant_config["h2_storage"]["type"]))
 
     ##################################################################################
 

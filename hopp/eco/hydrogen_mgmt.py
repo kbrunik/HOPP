@@ -26,6 +26,11 @@ from hopp.simulation.technologies.offshore.fixed_platform import (
     FixedPlatformInstallation,
     calc_platform_opex
 )
+from hopp.simulation.technologies.offshore.floating_platform import (
+    FloatingPlatformDesign,
+    FloatingPlatformInstallation,
+    calc_platform_opex
+)
 
 def run_h2_pipe_array(
     plant_config, orbit_project, electrolyzer_physics_results, design_scenario, verbose
@@ -331,13 +336,13 @@ def run_h2_storage(
         storage_input["model"] = 'papadias'
 
         # run pipe storage model
-        h2_storage = Underground_Pipe_Storage(storage_input, h2_storage_results)
+        h2_storage = Underground_Pipe_Storage(storage_input)
 
         h2_storage.pipe_storage_capex()
         h2_storage.pipe_storage_opex()
 
-        h2_storage_results["storage_capex"] = h2_storage_results["pipe_storage_capex"]
-        h2_storage_results["storage_opex"] = h2_storage_results["pipe_storage_opex"]
+        h2_storage_results["storage_capex"] = h2_storage.output_dict["pipe_storage_capex"]
+        h2_storage_results["storage_opex"] = h2_storage.output_dict["pipe_storage_opex"]
         h2_storage_results["storage_energy"] = 0.0
 
     elif plant_config["h2_storage"]["type"] == "pressure_vessel":
@@ -389,13 +394,13 @@ def run_h2_storage(
         storage_input["model"] = 'papadias'
 
         # run salt cavern storage model
-        h2_storage = Salt_Cavern_Storage(storage_input, h2_storage_results)
+        h2_storage = Salt_Cavern_Storage(storage_input)
 
         h2_storage.salt_cavern_capex()
         h2_storage.salt_cavern_opex()
 
-        h2_storage_results["storage_capex"] = h2_storage_results["salt_cavern_storage_capex"]
-        h2_storage_results["storage_opex"] = h2_storage_results["salt_cavern_storage_opex"]
+        h2_storage_results["storage_capex"] = h2_storage.output_dict["salt_cavern_storage_capex"]
+        h2_storage_results["storage_opex"] = h2_storage.output_dict["salt_cavern_storage_opex"]
         h2_storage_results["storage_energy"] = 0.0
         # TODO replace this rough estimate with real numbers
         # h2_storage = None
@@ -418,13 +423,13 @@ def run_h2_storage(
         storage_input["model"] = 'papadias'
 
         # run salt cavern storage model
-        h2_storage = Lined_Rock_Cavern_Storage(storage_input, h2_storage_results)
+        h2_storage = Lined_Rock_Cavern_Storage(storage_input)
 
         h2_storage.lined_rock_cavern_capex()
         h2_storage.lined_rock_cavern_opex()
 
-        h2_storage_results["storage_capex"] = h2_storage_results["lined_rock_cavern_storage_capex"]
-        h2_storage_results["storage_opex"] = h2_storage_results["lined_rock_cavern_storage_opex"]
+        h2_storage_results["storage_capex"] = h2_storage.output_dict["lined_rock_cavern_storage_capex"]
+        h2_storage_results["storage_opex"] = h2_storage.output_dict["lined_rock_cavern_storage_opex"]
         h2_storage_results["storage_energy"] = 0.0
     else:
         raise (
@@ -484,10 +489,17 @@ def run_equipment_platform(
             toparea += h2_storage_results["tank_footprint_m2"]
 
         #### initialize
-        if not ProjectManager.find_key_match("FixedPlatformDesign"):
-            ProjectManager.register_design_phase(FixedPlatformDesign)
-        if not ProjectManager.find_key_match("FixedPlatformInstallation"):
-            ProjectManager.register_install_phase(FixedPlatformInstallation)
+        if plant_config['platform']['type'] == "Fixed":
+            if not ProjectManager.find_key_match("FixedPlatformDesign"):
+                ProjectManager.register_design_phase(FixedPlatformDesign)
+            if not ProjectManager.find_key_match("FixedPlatformInstallation"):
+                ProjectManager.register_install_phase(FixedPlatformInstallation)
+        if plant_config['platform']['type'] == "Floating":
+            print("Floating")
+            if not ProjectManager.find_key_match("FloatingPlatformDesign"):
+                ProjectManager.register_design_phase(FloatingPlatformDesign)
+            if not ProjectManager.find_key_match("FloatingPlatformInstallation"):
+                ProjectManager.register_install_phase(FloatingPlatformInstallation)
 
         platform_config = plant_config["platform"]
 

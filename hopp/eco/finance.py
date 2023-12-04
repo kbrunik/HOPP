@@ -2,18 +2,30 @@ import os.path
 
 import numpy as np
 import numpy_financial as npf
+import pandas as pd
 
 import ProFAST  # system financial model
 from ORBIT import ProjectManager
+from ORBIT.phases import install
 
 
 # Function to run orbit from provided inputs - this is just for wind costs
-def run_orbit(plant_config, verbose=False, weather=None):
-    # set up ORBIT
-    project = ProjectManager(plant_config, weather=weather)
+def run_orbit(plant_config, weather=None, verbose=False):
 
-    # run ORBIT
-    project.run(availability=plant_config["installation_availability"])
+    if plant_config['weather_file'] !=None:
+        custom_weather = plant_config['weather_file']
+        weather = pd.read_csv("../../input/weather/"+custom_weather).set_index("datetime")  # Project installation begins at start of weather file unless other wise specified in install_phase in input config
+    
+        # set up ORBIT
+        project = ProjectManager(plant_config, weather=weather)
+
+        # run ORBIT
+        project.run()
+
+    else:  
+    # set up ORBIT
+        project = ProjectManager(plant_config, weather=weather)
+        project.run(availability=plant_config["installation_availability"])
 
     # print results if desired
     if verbose:
@@ -38,19 +50,140 @@ def run_orbit(plant_config, verbose=False, weather=None):
 
     return project
 
+def con_fin_params(bos, turbine_capex, orbit_install_capex, plant_cap, orbit_project, per_kW=True,verbose=False):
+    """ 
+    Returns construction finance parameters based on ORCA's equations.
 
-def adjust_orbit_costs(orbit_project, plant_config):
+    Can specify if want in $, not $/kW.
+
+    Inputs:
+    -------
+    bos : float ($)
+    turbine_capex : float ($)
+    orbit_install_capex : float ($)
+    plant_cap : float (kW)
+    (Optional) per_kW : bool, default = True
+
+    Outputs:
+    --------
+    dictionary of the following:
+        soft_capex
+        construction_insurance_capex
+        decomissioning_costs
+        construction_financing
+        procurement_contingency_costs
+        install_contingency_costs
+        project_completion_capex
+
+    """
+     ## Construction Finance Parameters
+    ## LCOE Factors (from ORCA)
+    development_factor = 0.04
+    proj_mgmt_factor = 0.02
+    construction_insurance = 0.01*1.15
+    project_completion = 0.01*1.15
+    decom_rate = 0.15*1.15
+    procurement_contingency = 0.05*1.15
+    install_contingency = 0.30*1.15
+    interest_during_construction = 0.044
+    tax_rate = 0.26
+    spend_schedule = {0: 0.4,
+                    1: 0.4,
+                    2: 0.2,
+                    3: 0.0,
+                    4: 0.0,
+                    5: 0.0
+    }
+
+    ### construction_finance_factor
+    _check = 0
+    construction_finance_factor = 0
+
+    for key, val in spend_schedule.items():
+        _check += val
+        if _check > 1.:
+            raise Exception("Values in spend_schedule must sum to 1.0")
+
+        construction_finance_factor += val *\
+            (1 + (1 - tax_rate) * ((1 + interest_during_construction) ** (key + 0.5) - 1))
+
+
+    ### construction_insurance_capex
+    construction_insurance_capex = construction_insurance * (bos + turbine_capex)
+
+    ###project_completion_capex
+    project_completion_capex = project_completion * (bos + turbine_capex)
+
+    ### decomissioning_costs
+    decomissioning_costs = decom_rate * orbit_install_capex
+
+    ### Procurement contingency capex
+    procurement_contingency_costs = procurement_contingency * (bos - orbit_install_capex + turbine_capex)
+
+    ### install_contingency_costs
+    install_contingency_costs = install_contingency * orbit_install_capex
+
+
+    ### Construction Financing
+    tmp1 = construction_insurance_capex +\
+        decomissioning_costs +\
+        project_completion_capex +\
+        procurement_contingency_costs +\
+        install_contingency_costs +\
+        bos + turbine_capex
+    construction_financing = (construction_finance_factor - 1) * tmp1
+
+
+    ### Soft Capex
+    tmp = construction_insurance_capex +\
+        decomissioning_costs +\
+        project_completion_capex +\
+        procurement_contingency_costs +\
+        install_contingency_costs
+    soft_capex = construction_financing + tmp
+
+    if per_kW:
+        soft_capex /= plant_cap
+        construction_insurance_capex /= plant_cap
+        decomissioning_costs /= plant_cap
+        construction_financing /= plant_cap
+        procurement_contingency_costs /= plant_cap
+        install_contingency_costs /= plant_cap
+        project_completion_capex /= plant_cap
+
+    d = {}
+    d["soft_capex"] = soft_capex
+    d["construction_insurance_capex"] = construction_insurance_capex
+    d["decomissioning_costs"] = decomissioning_costs
+    d["construction_financing"] = construction_financing
+    d["procurement_contingency_costs"] = procurement_contingency_costs
+    d["install_contingency_costs"] = install_contingency_costs
+    d["project_completion_capex"] = project_completion_capex
+
+    if verbose:
+        print("Soft CAPEX")
+        print("original ", orbit_project.soft_capex/1E6, "M")
+        print("new soft capex: ",d['soft_capex']/1E6, "M")
+        print('\n')
+    return d
+
+
+
+def adjust_orbit_costs(orbit_project, plant_config,verbose):
 
     if ("expected_plant_cost" in plant_config["wind"]) and (plant_config["wind"]["expected_plant_cost"] != 'none'):
         wind_capex_multiplier = (plant_config["wind"]["expected_plant_cost"]*1E9)/orbit_project.total_capex
     else:
         wind_capex_multiplier = 1.0
 
-    wind_total_capex = orbit_project.total_capex*wind_capex_multiplier
+    soft_cost = con_fin_params(orbit_project.system_capex,orbit_project.turbine_capex,orbit_project.installation_capex, \
+        plant_config['plant']['capacity'], orbit_project, per_kW=False,verbose=verbose)
+    wind_soft_cost = soft_cost['soft_capex']
+    wind_total_capex = (orbit_project.total_capex - orbit_project.soft_capex + wind_soft_cost)*wind_capex_multiplier
     wind_capex_breakdown = orbit_project.capex_breakdown
     for key in wind_capex_breakdown.keys():
         wind_capex_breakdown[key] *= wind_capex_multiplier
-
+    wind_capex_breakdown['Soft'] = wind_soft_cost
     return wind_total_capex, wind_capex_breakdown, wind_capex_multiplier
 
 def run_capex(
@@ -69,7 +202,7 @@ def run_capex(
 ):
     # adjust wind capex to meet expectations
 
-    wind_total_capex, wind_capex_breakdown, wind_capex_multiplier = adjust_orbit_costs(orbit_project=orbit_project, plant_config=plant_config)
+    wind_total_capex, wind_capex_breakdown, wind_capex_multiplier = adjust_orbit_costs(orbit_project=orbit_project, plant_config=plant_config,verbose=verbose)
 
     # onshore substation cost is not included in ORBIT costs by default, so we have to add it separately
     total_wind_installed_costs_with_export = wind_total_capex
@@ -232,7 +365,17 @@ def run_capex(
             0.0,
             capex_breakdown[key],
         )
-
+    # if (design_scenario["electrolyzer_location"] == "platform"): 
+    #     total_wind_cost_no_export = plant_config['plant']['capex']*plant_config['plant']['capacity']*1000
+    #     print("Total wind cost", total_wind_cost_no_export)
+    #     hvdc_export_cost = plant_config['plant']['cable_cost']*plant_config['site']['distance_to_landfall']*2
+    #     capex_breakdown['wind'] = total_wind_cost_no_export - hvdc_export_cost
+    #     capex_breakdown['electrical_export_system'] = 0.0 
+    # else:
+    #     total_wind_cost_no_export = plant_config['plant']['capex']*plant_config['plant']['capacity']*1000
+    #     hvdc_export_cost = plant_config['plant']['cable_cost']*plant_config['site']['distance_to_landfall']*2
+    #     capex_breakdown['wind'] = total_wind_cost_no_export - hvdc_export_cost
+    #     capex_breakdown['electrical_export_system'] = hvdc_export_cost
     total_system_installed_cost = sum(
         capex_breakdown[key] for key in capex_breakdown.keys()
     )
@@ -429,7 +572,6 @@ def run_profast_lcoe(
         "debt equity ratio of initial financing",
         (
             plant_config["finance_parameters"]["debt_equity_split"]
-            / (100 - plant_config["finance_parameters"]["debt_equity_split"])
         ),
     )
     pf.set_params("debt type", plant_config["finance_parameters"]["debt_type"])
@@ -612,7 +754,6 @@ def run_profast_grid_only(
         "debt equity ratio of initial financing",
         (
             plant_config["finance_parameters"]["debt_equity_split"]
-            / (100 - plant_config["finance_parameters"]["debt_equity_split"])
         ),
     )
     pf.set_params("debt type", plant_config["finance_parameters"]["debt_type"])
@@ -856,7 +997,6 @@ def run_profast_full_plant_model(
         "debt equity ratio of initial financing",
         (
             plant_config["finance_parameters"]["debt_equity_split"]
-            / (100 - plant_config["finance_parameters"]["debt_equity_split"])
         ),
     )  # TODO this may not be put in right
     pf.set_params("debt type", plant_config["finance_parameters"]["debt_type"])

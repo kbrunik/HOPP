@@ -97,6 +97,7 @@ def run_electrolyzer_physics(
         "equipment_mass_kg": mass_kg,
         "equipment_footprint_m2": footprint_m2,
         "energy_to_electrolyzer_kw": energy_to_electrolyzer_kw,
+        "energy_per_kg": energy_available * 1e3 / H2_Results["hydrogen_annual_output"]
     }
 
     if verbose:

@@ -12,6 +12,7 @@ def setup_hopp(
     wind_resource,
     orbit_project,
     floris_config,
+    #wind_soft_cost,
     show_plots=False,
     save_plots=False,
 ):
@@ -131,7 +132,8 @@ def setup_hopp(
     total_export_cable_system_cost = (
         export_cable_equipment_cost + export_cable_installation_cost
     )
-    # wind_cost_kw = (orbit_project.total_capex - total_export_cable_system_cost)/(wind_size_mw*1E3) # should be full plant installation and equipment costs etc minus the export costs
+    #wind_cost_kw = (orbit_project.total_capex - total_export_cable_system_cost)/(wind_size_mw*1E3) # should be full plant installation and equipment costs etc minus the export costs
+   # wind_cost_kw = (orbit_project.total_capex - orbit_project.soft_capex + wind_soft_cost) / (wind_size_mw*1e3)
     wind_cost_kw = (orbit_project.total_capex) / (
         wind_size_mw * 1e3
     )  # should be full plant installation and equipment costs etc minus the export costs
