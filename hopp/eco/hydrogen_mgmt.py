@@ -81,7 +81,7 @@ def run_h2_transport_compressor(
             electrolyzer_physics_results["H2_Results"]["hydrogen_hourly_production"]
         )  # kg/hr
         number_of_compressors = 2  # a third will be added as backup in the code
-        p_inlet = 20  # bar
+        p_inlet = 1.01325 #20  # bar
         p_outlet = plant_config["h2_transport_compressor"]["outlet_pressure"]  # bar
         flow_rate_kg_d = flow_rate_kg_per_hr * 24.0
 

@@ -14,8 +14,8 @@ from hopp.simulation.technologies.hydrogen.electrolysis.pem_mass_and_footprint i
 )
 from hopp.simulation.technologies.hydrogen.electrolysis.H2_cost_model import basic_H2_cost_model
 from hopp.simulation.technologies.hydrogen.electrolysis.PEM_costs_Singlitico_model import PEMCostsSingliticoModel
-from hopp.simulation.technologies.hydrogen.electrolysis.run_h2_PEM import run_h2_PEM_IVcurve as run_h2_PEM
-
+#from hopp.simulation.technologies.hydrogen.electrolysis.run_h2_PEM import run_h2_PEM_IVcurve as run_h2_PEM
+from hopp.simulation.technologies.hydrogen.electrolysis.run_h2_PEM import run_h2_PEM
 
 def run_electrolyzer_physics(
     hopp_results,
@@ -44,27 +44,53 @@ def run_electrolyzer_physics(
     scenario = hopp_scenario
     wind_size_mw = hopp_h2_args["wind_size_mw"]
     solar_size_mw = hopp_h2_args["solar_size_mw"]
-    electrolyzer_size_mw = hopp_h2_args["electrolyzer_size"]
+    #electrolyzer_size_mw = hopp_h2_args["electrolyzer_size"]
     kw_continuous = hopp_h2_args["kw_continuous"]
     electrolyzer_capex_kw = plant_config["electrolyzer"]["electrolyzer_capex"]
     lcoe = hopp_results["lcoe"]
     useful_life = scenario['Useful Life']
+
+    electrolyzer_size_mw = hopp_h2_args["electrolyzer_size"]
+    simulation_length = 8760 #1 year
+    use_degradation_penalty=True
+    number_electrolyzer_stacks = plant_config['electrolyzer']['num_stacks']
+    grid_connection_scenario = 'off-grid'
+    EOL_eff_drop = 10
+    pem_control_type = 'basic'
+    user_defined_pem_param_dictionary = {
+    "Modify BOL Eff": False,
+    "BOL Eff [kWh/kg-H2]": [],
+    "Modify EOL Degradation Value": True,
+    "EOL Rated Efficiency Drop": EOL_eff_drop,
+                    }
 ###############
 
     adjusted_installed_cost = hybrid_plant.grid._financial_model.Outputs.adjusted_installed_cost
     #NB: adjusted_installed_cost does NOT include the electrolyzer cost
     # system_rating = electrolyzer_size
-    system_rating = wind_size_mw + solar_size_mw
-    H2_Results, H2A_Results = run_h2_PEM(
-        energy_to_electrolyzer_kw,
-        electrolyzer_size_mw,
-        kw_continuous,
-        electrolyzer_capex_kw,
-        lcoe,
-        adjusted_installed_cost,
-        useful_life,
-        net_capital_costs=0
-    )
+    # system_rating = wind_size_mw + solar_size_mw
+    # H2_Results, H2A_Results = run_h2_PEM(
+    #     energy_to_electrolyzer_kw,
+    #     electrolyzer_size_mw,
+    #     kw_continuous,
+    #     electrolyzer_capex_kw,
+    #     lcoe,
+    #     adjusted_installed_cost,
+    #     useful_life,
+    #     net_capital_costs=0
+    # )
+    H2_Results, H2_Timeseries, H2_Summary,energy_input_to_electrolyzer =\
+            run_h2_PEM(energy_to_electrolyzer_kw,
+                        electrolyzer_size_mw,
+                        useful_life,
+                        number_electrolyzer_stacks,
+                        [],
+                        pem_control_type,
+                        100,
+                        user_defined_pem_param_dictionary,
+                        use_degradation_penalty,
+                        grid_connection_scenario,
+                        [])
 
 #############
     # # run electrolyzer model

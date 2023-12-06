@@ -695,10 +695,12 @@ def run_profast_grid_only(
             "escalation": gen_inflation,
         },
     )
-    pf.set_params(
-        "capacity",
-        electrolyzer_physics_results["H2_Results"]["hydrogen_annual_output"] / 365.0,
-    )  # kg/day
+    electrolysis_plant_capacity_kgperday = 24*electrolyzer_physics_results['H2_Results']['new_H2_Results']['Rated BOL: H2 Production [kg/hr]']
+    pf.set_params("capacity", electrolysis_plant_capacity_kgperday) #kg/day
+    # pf.set_params(
+    #     "capacity",
+    #     electrolyzer_physics_results["H2_Results"]["hydrogen_annual_output"] / 365.0,
+    # )  # kg/day
     pf.set_params("maintenance", {"value": 0, "escalation": gen_inflation})
     pf.set_params("analysis start year", plant_config["atb_year"] + 1)
     pf.set_params(
@@ -721,7 +723,15 @@ def run_profast_grid_only(
         * (1 + gen_inflation) ** plant_config["project_parameters"]["project_lifetime"],
     )
     pf.set_params("demand rampup", 0)
-    pf.set_params("long term utilization", 1)
+
+    operation_start = plant_config['atb_year'] + (orbit_project.installation_time/(365*24))*(12.0/1.0)/12
+    operational_years = np.arange(operation_start,operation_start+plant_config["project_parameters"]["project_lifetime"],1)
+    year_keys = ['{}'.format(y) for y in operational_years]
+    cf_per_year_vals = electrolyzer_physics_results['H2_Results']['Performance Schedules']['Capacity Factor [-]'].values #new 09/05
+    elec_cf_per_year_PF = dict(zip(year_keys,cf_per_year_vals))
+
+    pf.set_params('long term utilization',electrolyzer_physics_results['H2_Results']["new_H2_Results"]["Life: Capacity Factor"])
+    #pf.set_params("long term utilization", 1)
     pf.set_params("credit card fees", 0)
     pf.set_params("sales tax", plant_config["finance_parameters"]["sales_tax_rate"])
     pf.set_params("license and permit", {"value": 00, "escalation": gen_inflation})
@@ -934,10 +944,12 @@ def run_profast_full_plant_model(
             "escalation": gen_inflation,
         },
     )
-    pf.set_params(
-        "capacity",
-        electrolyzer_physics_results["H2_Results"]["hydrogen_annual_output"] / 365.0,
-    )  # kg/day
+    electrolysis_plant_capacity_kgperday = 24*electrolyzer_physics_results['H2_Results']['new_H2_Results']['Rated BOL: H2 Production [kg/hr]']
+    pf.set_params("capacity", electrolysis_plant_capacity_kgperday) #kg/day
+    # pf.set_params(
+    #     "capacity",
+    #     electrolyzer_physics_results["H2_Results"]["hydrogen_annual_output"] / 365.0,
+    # )  # kg/day
     pf.set_params("maintenance", {"value": 0, "escalation": gen_inflation})
     pf.set_params("analysis start year", plant_config["atb_year"] + 1)
     pf.set_params(
@@ -963,7 +975,16 @@ def run_profast_full_plant_model(
         * (1 + gen_inflation) ** plant_config["project_parameters"]["project_lifetime"],
     )
     pf.set_params("demand rampup", 0)
-    pf.set_params("long term utilization", 1)  # TODO should use utilization
+
+    operation_start = plant_config['atb_year'] + (orbit_project.installation_time/(365*24))*(12.0/1.0)/12
+    operational_years = np.arange(operation_start,operation_start+plant_config["project_parameters"]["project_lifetime"],1)
+    year_keys = ['{}'.format(y) for y in operational_years]
+    cf_per_year_vals = electrolyzer_physics_results['H2_Results']['Performance Schedules']['Capacity Factor [-]'].values #new 09/05
+    elec_cf_per_year_PF = dict(zip(year_keys,cf_per_year_vals))
+    
+    pf.set_params('long term utilization',electrolyzer_physics_results['H2_Results']["new_H2_Results"]["Life: Capacity Factor"])
+    #pf.set_params("long term utilization", 1)
+    #pf.set_params("long term utilization", 1)  # TODO should use utilization
     pf.set_params("credit card fees", 0)
     pf.set_params("sales tax", plant_config["finance_parameters"]["sales_tax_rate"])
     pf.set_params("license and permit", {"value": 00, "escalation": gen_inflation})
