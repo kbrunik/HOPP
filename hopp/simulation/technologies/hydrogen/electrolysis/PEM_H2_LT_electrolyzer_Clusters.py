@@ -98,7 +98,7 @@ class PEM_H2_Clusters:
         self.membrane_thickness=0.018 #cm
         self.cell_max_current_density = 2 #[A/cm^2]
         self.max_cell_current=self.cell_max_current_density*self.cell_active_area #PEM electrolyzers have a max current density of approx 2 A/cm^2 so max current is 2*cell_area
-        self.stack_input_current_lower_bound = 0.1*self.max_cell_current
+        self.stack_input_current_lower_bound = 0.15*self.max_cell_current
         
 
         # Constants:
@@ -296,7 +296,7 @@ class PEM_H2_Clusters:
         warmup_mult = np.where(cluster_cycling > 0, 5/6, 1)
         
         power_binwidth_kW = 10
-        power_bin_edges = np.arange(0.1*self.stack_rating_kW,self.stack_rating_kW+power_binwidth_kW,power_binwidth_kW)
+        power_bin_edges = np.arange(0.15*self.stack_rating_kW,self.stack_rating_kW+power_binwidth_kW,power_binwidth_kW)
         power_kW_bins = power_bin_edges[:-1] + (power_binwidth_kW/2)
         # power_kW_bins = np.linspace(0.1,1,50)*self.stack_rating_kW #center point
         # bin_offset_power = (power_kW_bins[1]-power_kW_bins[0])/2
@@ -420,7 +420,7 @@ class PEM_H2_Clusters:
 
     def set_max_current_limit(self,h2_kg_max_cluster,stack_current_unlim,Vdeg,input_power_kW):
         #self.stack_input_current_lower_bound
-        I_min_for_operation=calc_current((0.1*self.stack_rating_kW,self.T_C),*self.curve_coeff)
+        I_min_for_operation=calc_current((0.15*self.stack_rating_kW,self.T_C),*self.curve_coeff)
         # I_max_for_operation=calc_current((self.stack_rating_kW,self.T_C),*self.curve_coeff)
         # max_cluster_h2=self.h2_production_rate(I_max_for_operation,self.max_stacks)
         min_cluster_h2=self.h2_production_rate(I_min_for_operation,self.max_stacks)
@@ -629,7 +629,7 @@ class PEM_H2_Clusters:
         stack_operational_hrs = np.sum(self.cluster_status*self.dt)/3600
         sim_length_hrs = len(V_cell)*self.dt/3600
 
-        power_in_signal=np.linspace(0.1,1,50)*self.stack_rating_kW
+        power_in_signal=np.linspace(0.15,1,50)*self.stack_rating_kW
         stack_I = calc_current((power_in_signal,self.T_C),*self.curve_coeff)
         stack_V = self.cell_design(self.T_C,stack_I)
         bin_offset = (stack_V[1]-stack_V[0])/2
@@ -1075,7 +1075,7 @@ class PEM_H2_Clusters:
         series, parallel, or a combination of both.
         """
         # cluster_min_power = 0.1*self.max_stacks
-        cluster_min_power = 0.1*cluster_size_mw
+        cluster_min_power = 0.15*cluster_size_mw
         cluster_status=np.where(input_power_kw<cluster_min_power,0,1)
         # stack_min_power_kw=0.1*self.stack_rating_kW 
         # num_stacks_on_per_hr=np.floor(input_power_kw/cluster_min_power)

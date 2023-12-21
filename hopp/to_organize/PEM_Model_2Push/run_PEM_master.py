@@ -82,7 +82,7 @@ class run_PEM_clusters:
         # these represent the hard-coded and unmodifiable
         # PEM model basecode
         self.stack_rating_kw = 1000  # single stack rating - DO NOT CHANGE
-        self.stack_min_power_kw = 0.1 * self.stack_rating_kw
+        self.stack_min_power_kw = 0.15 * self.stack_rating_kw
         self.input_power_kw = electrical_power_signal
         self.cluster_min_power = self.stack_min_power_kw * self.cluster_cap_mw
         self.cluster_max_power = self.stack_rating_kw * self.cluster_cap_mw
@@ -294,7 +294,7 @@ if __name__ == "__main__":
     num_clusters = 20
     cluster_cap_mw = system_size_mw / num_clusters
     stack_rating_kw = 1000
-    cluster_min_power_kw = 0.1 * stack_rating_kw * cluster_cap_mw
+    cluster_min_power_kw = 0.15 * stack_rating_kw * cluster_cap_mw
     num_steps = 200
     power_rampup = np.arange(
         cluster_min_power_kw, system_size_mw * stack_rating_kw, cluster_min_power_kw
