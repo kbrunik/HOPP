@@ -29,7 +29,14 @@ floris_dir = os.path.join(project_path, "floris_input_files")
 orbit_path = os.path.join(project_path, "H2_Analysis", "OSW_H2_sites_turbines_and_costs.xlsx")
 renewable_cost_path = os.path.join(project_path, "H2_Analysis", "green_steel_site_renewable_costs_ATB_aug2023.xlsx")
 
-for directory_name in [results_dir, fin_sum_dir, energy_profile_dir, energy_profile_dir, price_breakdown_dir]:
+for directory_name in [results_dir, 
+                       fin_sum_dir, 
+                       energy_profile_dir, 
+                       energy_profile_dir, 
+                       price_breakdown_dir, 
+                       "Results_sensitivity/Fin_sum/", 
+                       "Results_sensitivity/Profiles",
+                       "Results_sensitivity/ProFAST"]:
     if not os.path.exists(directory_name):
         os.mkdir(directory_name)
 floris = False
@@ -89,10 +96,10 @@ if __name__ == '__main__':
 
 
     site_selection = [
-                    #'Site 1',
-                    #'Site 2',
-                    #'Site 3',
-                    #'Site 4',
+                    # 'Site 1', # not working
+                    # 'Site 2',
+                    # 'Site 3',
+                    # 'Site 4',
                     'Site 5'
                     ]
 
@@ -102,21 +109,21 @@ if __name__ == '__main__':
                           ]
 
     electrolyzer_cost_cases = [
-                                #'Low',
+                                # 'Low',
                                 'Mid',
-                                #'High'
+                                # 'High'
                                 ]
 
     grid_connection_cases = [
                             'off-grid',
-                            # 'grid-only',
-                            # 'hybrid-grid'
+                            # 'grid-only', # not working 
+                            # 'hybrid-grid' # not working
                             ]
 
     storage_capacity_cases = [
                             1.0,
-                            #1.25,
-                            #1.5
+                            # 1.25,
+                            # 1.5
                             ]
 
     num_pem_stacks= 6 # Doesn't actually do anything
