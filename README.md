@@ -6,6 +6,9 @@ As part of NREL's [Hybrid Energy Systems Research](https://www.nrel.gov/wind/hyb
 software assesses optimal designs for the deployment of utility-scale hybrid energy plants, particularly considering wind,
 solar and storage.
 
+## Note on ProFAST 
+The ProFAST model is distributed with HOPP but operates under a separate license agreement. Users must agree to the license terms of ProFAST located at `ProFAST/InternalUseTermsForDownloadableSoftware-ProFAST.docx`.
+
 ## Software requirements
 - Python version 3.5+ 64-bit
 
