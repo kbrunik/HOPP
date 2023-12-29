@@ -52,6 +52,11 @@ def setup_hopp(
                 orbit_project.phases["ArraySystemDesign"].turbines_y.flatten() * 1e3
             )  # ORBIT gives coordinates in km
 
+            # import pandas as pd
+            # data = {"layout_x":floris_config['farm']['layout_x'],"layout_y":floris_config['farm']['layout_y']}
+            # d2 = pd.DataFrame(data)
+            # print(d2.head())
+            # d2.to_csv("floris_layout_%s.csv" %plant_config['turbine'])
             # remove things from turbine_config file that can't be used in FLORIS and set the turbine info in the floris config file
             floris_config["farm"]["turbine_type"] = [
                 {
