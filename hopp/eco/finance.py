@@ -306,6 +306,7 @@ def run_capex(
     # h2 transport
     h2_transport_compressor_capex = h2_transport_compressor_results["compressor_capex"]
     h2_transport_pipe_capex = h2_transport_pipe_results["total capital cost [$]"][0]
+    h2_transport_pipe_capex = h2_transport_pipe_capex * plant_config['plant']['pipe_adjust']
 
     ## h2 storage
     if plant_config["h2_storage"]["type"] == "none":
@@ -1051,6 +1052,22 @@ def run_profast_full_plant_model(
         cost=opex_breakdown["wind_and_electrical"],
         escalation=gen_inflation,
     )
+
+    if "platform" in capex_breakdown.keys() and capex_breakdown["platform"] > 0:
+        pf.add_capital_item(
+            name="Equipment Platform",
+            cost=capex_breakdown["platform"],
+            depr_type=plant_config["finance_parameters"]["depreciation_method"],
+            depr_period=plant_config["finance_parameters"]["depreciation_period"],
+            refurb=[0],
+        )
+        pf.add_fixed_cost(
+            name="Equipment Platform O&M Cost",
+            usage=1.0,
+            unit="$/year",
+            cost=opex_breakdown["platform"],
+            escalation=gen_inflation,
+        )
 
     if not (
         design_scenario["electrolyzer_location"] == "turbine"

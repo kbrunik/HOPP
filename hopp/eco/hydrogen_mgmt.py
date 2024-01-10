@@ -533,7 +533,7 @@ def run_equipment_platform(
         total_opex = 0.0
 
     platform_results = {
-        "topmass_kg": topmass,
+        "topmass_tonnes": topmass,
         "toparea_m2": platform_area,
         "platform_mass_tonnes": platform_mass,
         "capex": total_capex,
