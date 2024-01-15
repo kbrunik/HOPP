@@ -111,9 +111,9 @@ def setup_hopp(
         "project_lifetime"
     ]
     hopp_scenario["Debt Equity"] = plant_config["finance_parameters"][
-        "debt_equity_split"
+        "debt_equity_split_renewables"
     ]
-    hopp_scenario["Discount Rate"] = plant_config["finance_parameters"]["discount_rate"]
+    hopp_scenario["Discount Rate"] = plant_config["finance_parameters"]["discount_rate_renewables"]
     hopp_scenario["Tower Height"] = turbine_config["hub_height"]
     hopp_scenario["Powercurve File"] = turbine_config["turbine_type"] + ".csv"
 

@@ -172,18 +172,16 @@ def con_fin_params(bos, turbine_capex, orbit_install_capex, plant_cap, orbit_pro
 def adjust_orbit_costs(orbit_project, plant_config,verbose):
 
     if ("expected_plant_cost" in plant_config["wind"]) and (plant_config["wind"]["expected_plant_cost"] != 'none'):
-        wind_capex_multiplier = (plant_config["wind"]["expected_plant_cost"]*1E9)/orbit_project.total_capex
+        plant_cost = plant_config["wind"]["expected_plant_cost"]*plant_config['plant']['capacity']*1E3
+        wind_capex_multiplier = (plant_cost)/orbit_project.total_capex
     else:
         wind_capex_multiplier = 1.0
 
-    soft_cost = con_fin_params(orbit_project.system_capex,orbit_project.turbine_capex,orbit_project.installation_capex, \
-        plant_config['plant']['capacity'], orbit_project, per_kW=False,verbose=verbose)
-    wind_soft_cost = soft_cost['soft_capex']
-    wind_total_capex = (orbit_project.total_capex - orbit_project.soft_capex + wind_soft_cost)*wind_capex_multiplier
+    wind_total_capex = orbit_project.total_capex*wind_capex_multiplier
     wind_capex_breakdown = orbit_project.capex_breakdown
     for key in wind_capex_breakdown.keys():
         wind_capex_breakdown[key] *= wind_capex_multiplier
-    wind_capex_breakdown['Soft'] = wind_soft_cost
+
     return wind_total_capex, wind_capex_breakdown, wind_capex_multiplier
 
 def run_capex(
@@ -205,28 +203,28 @@ def run_capex(
     wind_total_capex, wind_capex_breakdown, wind_capex_multiplier = adjust_orbit_costs(orbit_project=orbit_project, plant_config=plant_config,verbose=verbose)
 
     # onshore substation cost is not included in ORBIT costs by default, so we have to add it separately
-    #total_wind_installed_costs_with_export = wind_total_capex
-    total_wind_installed_costs_with_export = plant_config['plant']['capex']*plant_config['plant']['capacity']*1000
+    total_wind_installed_costs_with_export = wind_total_capex
+    # total_wind_installed_costs_with_export = plant_config['plant']['capex']*plant_config['plant']['capacity']*1000
 
     # breakout export system costs
     array_cable_equipment_cost = wind_capex_breakdown["Array System"]
     array_cable_installation_cost = wind_capex_breakdown[
         "Array System Installation"
     ]
-    total_array_cable_system_capex = 0 
-    # total_array_cable_system_capex =(
-        # array_cable_equipment_cost + array_cable_installation_cost
-    # )
+    # total_array_cable_system_capex = 0 
+    total_array_cable_system_capex =(
+        array_cable_equipment_cost + array_cable_installation_cost
+    )
 
     export_cable_equipment_cost = wind_capex_breakdown["Export System"] # this should include the onshore substation
     export_cable_installation_cost = wind_capex_breakdown[
         "Export System Installation"
     ]
-    # total_export_cable_system_capex = (
-    #     export_cable_equipment_cost + export_cable_installation_cost
-    # )
-    total_export_cable_system_capex = (plant_config['plant']['export_cable_capex']*plant_config['plant']['capacity']*1000
+    total_export_cable_system_capex = (
+        export_cable_equipment_cost + export_cable_installation_cost
     )
+    # total_export_cable_system_capex = (plant_config['plant']['export_cable_capex']*plant_config['plant']['capacity']*1000
+    # )
 
     substation_equipment_cost = wind_capex_breakdown["Offshore Substation"]
     substation_installation_cost = wind_capex_breakdown[
@@ -306,7 +304,7 @@ def run_capex(
     # h2 transport
     h2_transport_compressor_capex = h2_transport_compressor_results["compressor_capex"]
     h2_transport_pipe_capex = h2_transport_pipe_results["total capital cost [$]"][0]
-    h2_transport_pipe_capex = h2_transport_pipe_capex * plant_config['plant']['pipe_adjust']
+    # h2_transport_pipe_capex = h2_transport_pipe_capex * plant_config['plant']['pipe_adjust']
 
     ## h2 storage
     if plant_config["h2_storage"]["type"] == "none":
@@ -385,6 +383,12 @@ def run_capex(
     total_system_installed_cost = sum(
         capex_breakdown[key] for key in capex_breakdown.keys()
     )
+
+    vre_capex = capex_breakdown["wind"]+capex_breakdown["electrical_export_system"]
+    h2_capex = capex_breakdown["electrolyzer"]+capex_breakdown["desal"]+capex_breakdown["platform"]+\
+        capex_breakdown["h2_pipe_array"]+capex_breakdown["h2_storage"]+\
+            capex_breakdown["h2_transport_compressor"]+capex_breakdown["h2_transport_pipeline"]
+    capex_breakdown['vre_capex_percent'] = vre_capex/(vre_capex+h2_capex)
 
     if verbose:
         print("\nCAPEX Breakdown")
@@ -497,7 +501,7 @@ def run_profast_lcoe(
     show_plots=False,
     save_plots=False,
 ):
-    gen_inflation = plant_config["finance_parameters"]["general_inflation"]
+    gen_inflation = plant_config["finance_parameters"]["general_inflation_profast"]
 
     if (
         design_scenario["h2_storage_location"] == "onshore"
@@ -521,7 +525,7 @@ def run_profast_lcoe(
         "capacity", hopp_results["annual_energies"]["wind"] / 365.0
     )  # kWh/day
     pf.set_params("maintenance", {"value": 0, "escalation": gen_inflation})
-    pf.set_params("analysis start year", plant_config["atb_year"] + 1)
+    pf.set_params("analysis start year", plant_config["atb_year"] + 2)
     pf.set_params(
         "operating life", plant_config["project_parameters"]["project_lifetime"]
     )
@@ -570,14 +574,15 @@ def run_profast_lcoe(
     pf.set_params("sell undepreciated cap", True)
     pf.set_params("tax losses monetized", True)
     pf.set_params("general inflation rate", gen_inflation)
+
     pf.set_params(
         "leverage after tax nominal discount rate",
-        plant_config["finance_parameters"]["discount_rate"],
+        plant_config["finance_parameters"]["discount_rate_renewables"],
     )
     pf.set_params(
         "debt equity ratio of initial financing",
         (
-            plant_config["finance_parameters"]["debt_equity_split"]
+            plant_config["finance_parameters"]["debt_equity_split_renewables"]
         ),
     )
     pf.set_params("debt type", plant_config["finance_parameters"]["debt_type"])
@@ -585,7 +590,7 @@ def run_profast_lcoe(
         "loan period if used", plant_config["finance_parameters"]["loan_period"]
     )
     pf.set_params(
-        "debt interest rate", plant_config["finance_parameters"]["debt_interest_rate"]
+        "debt interest rate", plant_config["finance_parameters"]["debt_interest_rate_renewables"]
     )
     pf.set_params(
         "cash onhand", plant_config["finance_parameters"]["cash_onhand_months"]
@@ -708,7 +713,7 @@ def run_profast_grid_only(
     #     electrolyzer_physics_results["H2_Results"]["hydrogen_annual_output"] / 365.0,
     # )  # kg/day
     pf.set_params("maintenance", {"value": 0, "escalation": gen_inflation})
-    pf.set_params("analysis start year", plant_config["atb_year"] + 1)
+    pf.set_params("analysis start year", plant_config["atb_year"] + 2)
     pf.set_params(
         "operating life", plant_config["project_parameters"]["project_lifetime"]
     )
@@ -957,7 +962,7 @@ def run_profast_full_plant_model(
     #     electrolyzer_physics_results["H2_Results"]["hydrogen_annual_output"] / 365.0,
     # )  # kg/day
     pf.set_params("maintenance", {"value": 0, "escalation": gen_inflation})
-    pf.set_params("analysis start year", plant_config["atb_year"] + 1)
+    pf.set_params("analysis start year", plant_config["atb_year"] + 2)
     pf.set_params(
         "operating life", plant_config["project_parameters"]["project_lifetime"]
     )
@@ -1016,22 +1021,31 @@ def run_profast_full_plant_model(
     pf.set_params("sell undepreciated cap", True)
     pf.set_params("tax losses monetized", True)
     pf.set_params("general inflation rate", gen_inflation)
+
+    discount_rate = plant_config["finance_parameters"]["discount_rate_renewables"]*capex_breakdown['vre_capex_percent']+\
+        plant_config["finance_parameters"]["discount_rate_hydrogen"]*(1-capex_breakdown['vre_capex_percent'])
     pf.set_params(
         "leverage after tax nominal discount rate",
-        plant_config["finance_parameters"]["discount_rate"],
+        discount_rate,
     )
+
+    debt_equity_ratio = plant_config["finance_parameters"]["debt_equity_split_renewables"]*capex_breakdown['vre_capex_percent']+\
+        plant_config["finance_parameters"]["debt_equity_split_hydrogen"]*(1-capex_breakdown['vre_capex_percent'])
     pf.set_params(
         "debt equity ratio of initial financing",
         (
-            plant_config["finance_parameters"]["debt_equity_split"]
+            debt_equity_ratio
         ),
     )  # TODO this may not be put in right
     pf.set_params("debt type", plant_config["finance_parameters"]["debt_type"])
     pf.set_params(
         "loan period if used", plant_config["finance_parameters"]["loan_period"]
     )
+
+    debt_interest_rate = plant_config["finance_parameters"]["debt_interest_rate_renewables"]*capex_breakdown['vre_capex_percent']+\
+        plant_config["finance_parameters"]["debt_interest_rate_hydrogen"]*(1-capex_breakdown['vre_capex_percent'])
     pf.set_params(
-        "debt interest rate", plant_config["finance_parameters"]["debt_interest_rate"]
+        "debt interest rate", debt_interest_rate
     )
     pf.set_params(
         "cash onhand", plant_config["finance_parameters"]["cash_onhand_months"]
@@ -1311,11 +1325,14 @@ def run_profast_full_plant_model(
         print("ProFAST LCO: ", "%.2f" % (sol["lco"]), "$/kg")
         print("ProFAST Profit Index: ", "%.2f" % (sol["profit index"]))
         print("ProFAST payback period: ", sol["investor payback period"])
+        print("Discount rate", discount_rate)
+        print("Debt interest rate", debt_interest_rate)
+        print("Debt ratio", debt_equity_ratio)
 
         MIRR = npf.mirr(
             df["Investor cash flow"],
-            plant_config["finance_parameters"]["debt_interest_rate"],
-            plant_config["finance_parameters"]["discount_rate"],
+            debt_interest_rate,
+            discount_rate,
         )  # TODO probably ignore MIRR
         NPV = npf.npv(
             plant_config["finance_parameters"]["general_inflation"],
