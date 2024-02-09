@@ -38,7 +38,7 @@ for directory_name in [results_dir,
                        "Results_sensitivity/Profiles",
                        "Results_sensitivity/ProFAST"]:
     if not os.path.exists(directory_name):
-        os.mkdir(directory_name)
+        os.makedirs(directory_name)
 floris = False
 
 # Turn to False to run ProFAST for hydrogen LCOH
