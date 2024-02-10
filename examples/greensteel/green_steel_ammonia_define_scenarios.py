@@ -21,65 +21,67 @@ from green_steel_ammonia_run_scenarios import batch_generator_kernel
 project_path = os.path.abspath('')
 hopp_path = os.path.dirname(os.path.abspath(hopp.__file__))
 
-results_dir = os.path.join(project_path, "H2_Analysis", "results")
-fin_sum_dir = os.path.join(project_path, "Results", "Fin_sum")
-energy_profile_dir = os.path.join(project_path, "Results", "Profiles")
-price_breakdown_dir = os.path.join(project_path, "Results", "ProFAST")
-floris_dir = os.path.join(project_path, "floris_input_files")
-orbit_path = os.path.join(project_path, "H2_Analysis", "OSW_H2_sites_turbines_and_costs.xlsx")
-renewable_cost_path = os.path.join(project_path, "H2_Analysis", "green_steel_site_renewable_costs_ATB_aug2023.xlsx")
+def get_setup():
+    results_dir = os.path.join(project_path, "H2_Analysis", "results")
+    fin_sum_dir = os.path.join(project_path, "Results", "Fin_sum")
+    energy_profile_dir = os.path.join(project_path, "Results", "Profiles")
+    price_breakdown_dir = os.path.join(project_path, "Results", "ProFAST")
+    floris_dir = os.path.join(project_path, "floris_input_files")
+    orbit_path = os.path.join(project_path, "H2_Analysis", "OSW_H2_sites_turbines_and_costs.xlsx")
+    renewable_cost_path = os.path.join(project_path, "H2_Analysis", "green_steel_site_renewable_costs_ATB_aug2023.xlsx")
 
-for directory_name in [results_dir, 
-                       fin_sum_dir, 
-                       energy_profile_dir, 
-                       energy_profile_dir, 
-                       price_breakdown_dir, 
-                       "Results_sensitivity/Fin_sum/", 
-                       "Results_sensitivity/Profiles",
-                       "Results_sensitivity/ProFAST"]:
-    if not os.path.exists(directory_name):
-        os.makedirs(directory_name)
-floris = False
+    for directory_name in [results_dir, 
+                        fin_sum_dir, 
+                        energy_profile_dir, 
+                        energy_profile_dir, 
+                        price_breakdown_dir, 
+                        "Results_sensitivity/Fin_sum/", 
+                        "Results_sensitivity/Profiles",
+                        "Results_sensitivity/ProFAST"]:
+        if not os.path.exists(directory_name):
+            os.makedirs(directory_name)
+    floris = False
 
-# Turn to False to run ProFAST for hydrogen LCOH
-run_RODeO_selector = False
+    # Turn to False to run ProFAST for hydrogen LCOH
+    run_RODeO_selector = False
 
-# Grid price scenario ['wholesale','retail-peaks','retail-flat','retail-hourly']
-grid_price_scenario = 'retail-hourly'
+    # Grid price scenario ['wholesale','retail-peaks','retail-flat','retail-hourly']
+    grid_price_scenario = 'retail-hourly'
 
-# RODeO requires output directory in this format, os.path does the format for windows&mac
-rodeo_output_dir = os.path.join("examples", "H2_Analysis", "RODeO_files", "Output_test")
+    # RODeO requires output directory in this format, os.path does the format for windows&mac
+    rodeo_output_dir = os.path.join("examples", "H2_Analysis", "RODeO_files", "Output_test")
 
-# Distributed scale power electronics direct coupling information
-direct_coupling = True
+    # Distributed scale power electronics direct coupling information
+    direct_coupling = True
 
-# Electrolzyer cost case ('Mid', 'High', or 'Low')
-#electrolyzer_cost_case = 'Mid'
+    # Electrolzyer cost case ('Mid', 'High', or 'Low')
+    #electrolyzer_cost_case = 'Mid'
 
-# Degradation penalties for capital costs to estimate cost of plant oversizing
-electrolyzer_degradation_power_increase = 0.13
-wind_plant_degradation_power_decrease = 0.08
+    # Degradation penalties for capital costs to estimate cost of plant oversizing
+    electrolyzer_degradation_power_increase = 0.13
+    wind_plant_degradation_power_decrease = 0.08
 
-# Determine if run with electrolyzer degradation or not
-electrolyzer_degradation_penalty = True
+    # Determine if run with electrolyzer degradation or not
+    electrolyzer_degradation_penalty = True
 
-# Determine if using solar PTC or ITC
-solar_ITC = True
+    # Determine if using solar PTC or ITC
+    solar_ITC = True
 
-# Determine if PEM stack operation is optimized or not
-pem_control_type = 'basic' #use 'optimize' for Sanjana's controller; 'basic' to not optimize
+    # Determine if PEM stack operation is optimized or not
+    pem_control_type = 'basic' #use 'optimize' for Sanjana's controller; 'basic' to not optimize
 
-save_hybrid_plant_yaml = True # hybrid_plant requires special processing of the SAM objects
-save_model_input_yaml = True # saves the inputs for each model/major function
-save_model_output_yaml = True # saves the outputs for each model/major function
+    save_hybrid_plant_yaml = True # hybrid_plant requires special processing of the SAM objects
+    save_model_input_yaml = True # saves the inputs for each model/major function
+    save_model_output_yaml = True # saves the outputs for each model/major function
 
-# Target steel production rate. Note that this is the production after taking into account
-# steel plant capacity factor. E.g., if CF is 0.9, divide the number below by 0.9 to get
-# the total steel plant capacity used for economic calculations
-steel_annual_production_rate_target_tpy = 1000000
+    # Target steel production rate. Note that this is the production after taking into account
+    # steel plant capacity factor. E.g., if CF is 0.9, divide the number below by 0.9 to get
+    # the total steel plant capacity used for economic calculations
+    steel_annual_production_rate_target_tpy = 1000000
 
-if __name__ == '__main__':
-#-------------------- Define scenarios to run----------------------------------
+    return results_dir, fin_sum_dir, energy_profile_dir, price_breakdown_dir, floris_dir, orbit_path, renewable_cost_path, floris, run_RODeO_selector, grid_price_scenario, rodeo_output_dir, direct_coupling, electrolyzer_degradation_power_increase, wind_plant_degradation_power_decrease, electrolyzer_degradation_penalty, solar_ITC, pem_control_type, save_hybrid_plant_yaml, save_model_input_yaml, save_model_output_yaml, steel_annual_production_rate_target_tpy
+
+def get_run_settings():
 
     atb_years = [
                 #2020,
@@ -128,7 +130,22 @@ if __name__ == '__main__':
 
     num_pem_stacks= 6 # Doesn't actually do anything
     run_solar_param_sweep=False
-#---- Create list of arguments to pass to batch generator kernel --------------
+
+    return atb_years, policy, site_selection, electrolysis_cases, electrolyzer_cost_cases, grid_connection_cases, storage_capacity_cases, num_pem_stacks, run_solar_param_sweep
+
+def set_up_scenarios(atb_years, policy, site_selection, electrolysis_cases, electrolyzer_cost_cases, grid_connection_cases, \
+        storage_capacity_cases, num_pem_stacks, run_solar_param_sweep):
+
+    results_dir, fin_sum_dir, energy_profile_dir, price_breakdown_dir, floris_dir, \
+    orbit_path, renewable_cost_path, floris, run_RODeO_selector, grid_price_scenario, \
+    rodeo_output_dir, direct_coupling, electrolyzer_degradation_power_increase, \
+    wind_plant_degradation_power_decrease, electrolyzer_degradation_penalty, solar_ITC, \
+    pem_control_type, save_hybrid_plant_yaml, save_model_input_yaml, save_model_output_yaml, \
+    steel_annual_production_rate_target_tpy = get_setup()
+
+    #-------------------- Define scenarios to run----------------------------------
+
+    #---- Create list of arguments to pass to batch generator kernel --------------
     arg_list = []
     for i in policy:
         for atb_year in atb_years:
@@ -160,9 +177,28 @@ if __name__ == '__main__':
                                                     steel_annual_production_rate_target_tpy,project_path,results_dir,fin_sum_dir,energy_profile_dir,price_breakdown_dir,rodeo_output_dir,floris_dir,renewable_cost_path,\
                                                 save_hybrid_plant_yaml,save_model_input_yaml,save_model_output_yaml,num_pem_stacks,run_solar_param_sweep,electrolyzer_degradation_penalty,\
                                                     pem_control_type,storage_capacity_multiplier,solar_ITC,grid_price_filename])
+    
+    return arg_list
+    
+def run_scenarios(arg_list):
+    scenario = {}
     for runs in range(len(arg_list)):
-        batch_generator_kernel(arg_list[runs])
-    []
-# ------------------ Run HOPP-RODeO/PyFAST Framework to get LCOH ---------------
-    # with Pool(processes=4,maxtasksperchild=1) as pool:
-    #         pool.map(batch_generator_kernel, arg_list)
+        policy_option,turbine_model,scenario['Useful Life'], wind_cost_kw, solar_cost_kw,\
+        scenario['Debt Equity'], atb_year, scenario['H2 PTC'],scenario['Wind ITC'],\
+        discount_rate, tlcc_wind_costs, tlcc_solar_costs, tlcc_hvdc_costs, tlcc_total_costs,run_RODeO_selector,lcoh,\
+        wind_itc_total, total_itc_hvdc, hopp_dict = batch_generator_kernel(arg_list[runs])
+        []
+    # ------------------ Run HOPP-RODeO/PyFAST Framework to get LCOH ---------------
+        # with Pool(processes=4,maxtasksperchild=1) as pool:
+        #         pool.map(batch_generator_kernel, arg_list)
+    return policy_option,turbine_model, scenario['Useful Life'], wind_cost_kw, solar_cost_kw,\
+    scenario['Debt Equity'], atb_year, scenario['H2 PTC'], scenario['Wind ITC'],\
+    discount_rate, tlcc_wind_costs, tlcc_solar_costs, tlcc_hvdc_costs, tlcc_total_costs, run_RODeO_selector, lcoh,\
+    wind_itc_total, total_itc_hvdc, hopp_dict
+
+if __name__ == '__main__':
+    atb_years, policy, site_selection, electrolysis_cases, electrolyzer_cost_cases, grid_connection_cases, \
+        storage_capacity_cases, num_pem_stacks, run_solar_param_sweep = get_run_settings()
+    arg_list = set_up_scenarios(atb_years, policy, site_selection, electrolysis_cases, electrolyzer_cost_cases, grid_connection_cases, \
+        storage_capacity_cases, num_pem_stacks, run_solar_param_sweep)
+    run_scenarios(arg_list)

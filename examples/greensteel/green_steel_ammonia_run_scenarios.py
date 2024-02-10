@@ -980,7 +980,7 @@ def batch_generator_kernel(arg_list):
     #                                                       electrolyzer_energy_kWh_per_kg,solar_size_mw,storage_size_mw,hopp_dict)
 
     h2_solution,h2_summary,profast_h2_price_breakdown,lcoh_breakdown,electrolyzer_installed_cost_kw,elec_cf,ren_frac,electrolysis_total_EI_policy_grid,electrolysis_total_EI_policy_offgrid,H2_PTC,Ren_PTC,h2_production_capex,\
-        hydrogen_storage_cost_USDprkg,hydrogen_storage_duration_hr,hydrogen_storage_capacity_kg,electrolyzer_size_mw = run_profast_for_hydrogen. run_profast_for_hydrogen(hopp_dict,electrolyzer_size_mw,H2_Results,\
+        hydrogen_storage_cost_USDprkg,hydrogen_storage_duration_hr,hydrogen_storage_capacity_kg,electrolyzer_size_mw = run_profast_for_hydrogen.run_profast_for_hydrogen(hopp_dict,electrolyzer_size_mw,H2_Results,\
                                     electrolyzer_capex_kw,time_between_replacement,electrolyzer_energy_kWh_per_kg,hydrogen_storage_capacity_kg,hydrogen_storage_cost_USDprkg,storage_compressor_total_capacity_kW,storage_compressor_total_installed_cost_USD,hydrogen_storage_duration_hr,\
                                     desal_capex,desal_opex,useful_life,water_cost,wind_size_mw,solar_size_mw,storage_size_mw,renewable_plant_cost,wind_om_cost_kw,grid_connected_hopp,\
                                     grid_connection_scenario,atb_year, site_name, policy_option, policy[i],electrical_generation_timeseries, combined_pv_wind_storage_power_production_hopp,combined_pv_wind_curtailment_hopp,\
@@ -1006,6 +1006,7 @@ def batch_generator_kernel(arg_list):
     max_hydrogen_delivery_rate_kg_hr,electrolyzer_capacity_factor,atb_year,site_name,grid_price_filename)
 
     lcoh = lcoh + h2_transmission_price
+    print(f"LCOH including h2_transmission: {lcoh}")
     #print(grid_connection_scenario, ' LCOH without policy:', lcoh)
     # Policy impacts on LCOH
 
@@ -1183,3 +1184,8 @@ def batch_generator_kernel(arg_list):
                         profast_steel_price_breakdown,
                         profast_ammonia_price_breakdown,
                         hopp_dict)
+    
+    return policy_option,turbine_model,scenario['Useful Life'], wind_cost_kw, solar_cost_kw,\
+    scenario['Debt Equity'], atb_year, scenario['H2 PTC'],scenario['Wind ITC'],\
+    discount_rate, tlcc_wind_costs, tlcc_solar_costs, tlcc_hvdc_costs, tlcc_total_costs,run_RODeO_selector,lcoh,\
+    wind_itc_total, total_itc_hvdc, hopp_dict
