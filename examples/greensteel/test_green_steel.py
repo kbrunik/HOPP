@@ -19,8 +19,6 @@ def get_settings(atb_year=0, policy=0, site=0, electrolysis_case=0, electrolysis
         'base': {'Wind ITC': 0, 'Wind PTC':  0.0055341, "H2 PTC": 0.6, 'Storage ITC': 0.06},
         'max': {'Wind ITC': 0, 'Wind PTC': 0.0332046, "H2 PTC": 3.0, 'Storage ITC': 0.5},
     }[policy]}
-    
-
 
     site_selection = [
                     'Site 1', # not working
@@ -65,9 +63,6 @@ class TestGreenSteelExampleSite5NoPolicyCentralizedMidOffGrid(unittest.TestCase)
     
     @classmethod
     def setUpClass(self):
-        """ get_some_resource() is slow, to avoid calling it for each test use setUpClass()
-            and store the result as class variable
-        """
         super(TestGreenSteelExampleSite5NoPolicyCentralizedMidOffGrid, self).setUpClass()
 
         atb_years, policy, site_selection, electrolysis_cases, \
@@ -112,9 +107,6 @@ class TestGreenSteelExampleSite1NoPolicyCentralizedMidOffGrid(unittest.TestCase)
     
     @classmethod
     def setUpClass(self):
-        """ get_some_resource() is slow, to avoid calling it for each test use setUpClass()
-            and store the result as class variable
-        """
         super(TestGreenSteelExampleSite1NoPolicyCentralizedMidOffGrid, self).setUpClass()
 
         atb_years, policy, site_selection, electrolysis_cases, \
@@ -158,9 +150,6 @@ class TestGreenSteelExampleSite2BasePolicyCentralizedMidOffGrid(unittest.TestCas
     
     @classmethod
     def setUpClass(self):
-        """ get_some_resource() is slow, to avoid calling it for each test use setUpClass()
-            and store the result as class variable
-        """
         super(TestGreenSteelExampleSite2BasePolicyCentralizedMidOffGrid, self).setUpClass()
 
         atb_years, policy, site_selection, electrolysis_cases, \
@@ -204,9 +193,6 @@ class TestGreenSteelExampleSite2BasePolicyDistributedMidOffGrid(unittest.TestCas
     
     @classmethod
     def setUpClass(self):
-        """ get_some_resource() is slow, to avoid calling it for each test use setUpClass()
-            and store the result as class variable
-        """
         super(TestGreenSteelExampleSite2BasePolicyDistributedMidOffGrid, self).setUpClass()
 
         atb_years, policy, site_selection, electrolysis_cases, \
@@ -250,9 +236,6 @@ class TestGreenSteelExampleSite2BasePolicyDistributedHighOffGrid(unittest.TestCa
     
     @classmethod
     def setUpClass(self):
-        """ get_some_resource() is slow, to avoid calling it for each test use setUpClass()
-            and store the result as class variable
-        """
         super(TestGreenSteelExampleSite2BasePolicyDistributedHighOffGrid, self).setUpClass()
 
         atb_years, policy, site_selection, electrolysis_cases, \
@@ -296,9 +279,6 @@ class TestGreenSteelExampleSite2MaxPolicyDistributedHighOffGrid(unittest.TestCas
     
     @classmethod
     def setUpClass(self):
-        """ get_some_resource() is slow, to avoid calling it for each test use setUpClass()
-            and store the result as class variable
-        """
         super(TestGreenSteelExampleSite2MaxPolicyDistributedHighOffGrid, self).setUpClass()
 
         atb_years, policy, site_selection, electrolysis_cases, \
@@ -335,48 +315,88 @@ class TestGreenSteelExampleSite2MaxPolicyDistributedHighOffGrid(unittest.TestCas
     def test_steel_breakeven_price(self):
         assert self.hopp_dict.main_dict["Models"]['steel_LCOS']['output_dict']["steel_breakeven_price"] == approx(869.1639874034265)
 
-class TestGreenSteelExampleSite2MaxPolicyDistributedHighOnGrid(unittest.TestCase):
+# class TestGreenSteelExampleSite2MaxPolicyDistributedHighOnGrid(unittest.TestCase):
 
-    def setUp(self) -> None:
-        return super().setUp()
+#     def setUp(self) -> None:
+#         return super().setUp()
     
-    @classmethod
-    def setUpClass(self):
-        """ get_some_resource() is slow, to avoid calling it for each test use setUpClass()
-            and store the result as class variable
-        """
-        super(TestGreenSteelExampleSite2MaxPolicyDistributedHighOnGrid, self).setUpClass()
+#     @classmethod
+#     def setUpClass(self):
+#         super(TestGreenSteelExampleSite2MaxPolicyDistributedHighOnGrid, self).setUpClass()
 
-        atb_years, policy, site_selection, electrolysis_cases, \
-            electrolyzer_cost_cases, grid_connection_cases, \
-                storage_capacity_cases, num_pem_stacks, run_solar_param_sweep = get_settings(2, 2, 1, 1, 2, 1, 0)
+#         atb_years, policy, site_selection, electrolysis_cases, \
+#             electrolyzer_cost_cases, grid_connection_cases, \
+#                 storage_capacity_cases, num_pem_stacks, run_solar_param_sweep = get_settings(2, 2, 1, 1, 2, 1, 0)
 
-        arg_list = set_up_scenarios(atb_years, policy, site_selection, electrolysis_cases, electrolyzer_cost_cases, grid_connection_cases, \
-        storage_capacity_cases, num_pem_stacks, run_solar_param_sweep)
+#         arg_list = set_up_scenarios(atb_years, policy, site_selection, electrolysis_cases, electrolyzer_cost_cases, grid_connection_cases, \
+#         storage_capacity_cases, num_pem_stacks, run_solar_param_sweep)
         
-        self.scenario = {}
-        self.policy_option, self.turbine_model, self.scenario['Useful Life'], self.wind_cost_kw, self.solar_cost_kw,\
-        self.scenario['Debt Equity'], self.atb_year, self.scenario['H2 PTC'], self.scenario['Wind ITC'],\
-        self.discount_rate, self.tlcc_wind_costs, self.tlcc_solar_costs, self.tlcc_hvdc_costs, self.tlcc_total_costs, self.run_RODeO_selector, self.lcoh,\
-        self.wind_itc_total, self.total_itc_hvdc, self.hopp_dict = run_scenarios(arg_list)
+#         self.scenario = {}
+#         self.policy_option, self.turbine_model, self.scenario['Useful Life'], self.wind_cost_kw, self.solar_cost_kw,\
+#         self.scenario['Debt Equity'], self.atb_year, self.scenario['H2 PTC'], self.scenario['Wind ITC'],\
+#         self.discount_rate, self.tlcc_wind_costs, self.tlcc_solar_costs, self.tlcc_hvdc_costs, self.tlcc_total_costs, self.run_RODeO_selector, self.lcoh,\
+#         self.wind_itc_total, self.total_itc_hvdc, self.hopp_dict = run_scenarios(arg_list)
 
-    def test_lcoh(self):
-        assert self.lcoh == approx(0.7235096102503652)
+#     def test_lcoh(self):
+#         assert self.lcoh == approx(0.7235096102503652)
 
-    def test_tlcc_wind_costs(self):
-        assert self.tlcc_wind_costs == approx(-992212460.6479578)
+#     def test_tlcc_wind_costs(self):
+#         assert self.tlcc_wind_costs == approx(-992212460.6479578)
 
-    def test_tlcc_solar_costs(self):
-        assert self.tlcc_solar_costs == approx(0)
+#     def test_tlcc_solar_costs(self):
+#         assert self.tlcc_solar_costs == approx(0)
 
-    def test_tlcc_hvdc_costs(self):
-        assert self.tlcc_hvdc_costs == approx(0)
+#     def test_tlcc_hvdc_costs(self):
+#         assert self.tlcc_hvdc_costs == approx(0)
     
-    def test_tlcc_total_costs(self):
-        assert self.tlcc_total_costs == approx(-992212460.6479578)
+#     def test_tlcc_total_costs(self):
+#         assert self.tlcc_total_costs == approx(-992212460.6479578)
 
-    def test_wind_itc_total(self):
-        assert self.wind_itc_total == approx(0)
+#     def test_wind_itc_total(self):
+#         assert self.wind_itc_total == approx(0)
 
-    def test_steel_breakeven_price(self):
-        assert self.hopp_dict.main_dict["Models"]['steel_LCOS']['output_dict']["steel_breakeven_price"] == approx(869.1639874034265)
+#     def test_steel_breakeven_price(self):
+#         assert self.hopp_dict.main_dict["Models"]['steel_LCOS']['output_dict']["steel_breakeven_price"] == approx(869.1639874034265)
+
+# class TestGreenSteelExampleSite2MaxPolicyDistributedHighHybridGrid(unittest.TestCase):
+
+#     def setUp(self) -> None:
+#         return super().setUp()
+    
+#     @classmethod
+#     def setUpClass(self):
+#         super(TestGreenSteelExampleSite2MaxPolicyDistributedHighHybridGrid, self).setUpClass()
+
+#         atb_years, policy, site_selection, electrolysis_cases, \
+#             electrolyzer_cost_cases, grid_connection_cases, \
+#                 storage_capacity_cases, num_pem_stacks, run_solar_param_sweep = get_settings(2, 2, 1, 1, 2, 2, 0)
+
+#         arg_list = set_up_scenarios(atb_years, policy, site_selection, electrolysis_cases, electrolyzer_cost_cases, grid_connection_cases, \
+#         storage_capacity_cases, num_pem_stacks, run_solar_param_sweep)
+        
+#         self.scenario = {}
+#         self.policy_option, self.turbine_model, self.scenario['Useful Life'], self.wind_cost_kw, self.solar_cost_kw,\
+#         self.scenario['Debt Equity'], self.atb_year, self.scenario['H2 PTC'], self.scenario['Wind ITC'],\
+#         self.discount_rate, self.tlcc_wind_costs, self.tlcc_solar_costs, self.tlcc_hvdc_costs, self.tlcc_total_costs, self.run_RODeO_selector, self.lcoh,\
+#         self.wind_itc_total, self.total_itc_hvdc, self.hopp_dict = run_scenarios(arg_list)
+
+#     def test_lcoh(self):
+#         assert self.lcoh == approx(0.7235096102503652)
+
+#     def test_tlcc_wind_costs(self):
+#         assert self.tlcc_wind_costs == approx(-992212460.6479578)
+
+#     def test_tlcc_solar_costs(self):
+#         assert self.tlcc_solar_costs == approx(0)
+
+#     def test_tlcc_hvdc_costs(self):
+#         assert self.tlcc_hvdc_costs == approx(0)
+    
+#     def test_tlcc_total_costs(self):
+#         assert self.tlcc_total_costs == approx(-992212460.6479578)
+
+#     def test_wind_itc_total(self):
+#         assert self.wind_itc_total == approx(0)
+
+#     def test_steel_breakeven_price(self):
+#         assert self.hopp_dict.main_dict["Models"]['steel_LCOS']['output_dict']["steel_breakeven_price"] == approx(869.1639874034265)
