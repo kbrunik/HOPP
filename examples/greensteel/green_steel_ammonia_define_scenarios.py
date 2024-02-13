@@ -135,7 +135,9 @@ def get_run_settings():
 
 def set_up_scenarios(atb_years, policy, site_selection, electrolysis_cases, electrolyzer_cost_cases, grid_connection_cases, \
         storage_capacity_cases, num_pem_stacks, run_solar_param_sweep):
-
+    print(atb_years, policy, site_selection, electrolysis_cases, electrolyzer_cost_cases, grid_connection_cases, \
+        storage_capacity_cases, num_pem_stacks, run_solar_param_sweep)
+    
     results_dir, fin_sum_dir, energy_profile_dir, price_breakdown_dir, floris_dir, \
     orbit_path, renewable_cost_path, floris, run_RODeO_selector, grid_price_scenario, \
     rodeo_output_dir, direct_coupling, electrolyzer_degradation_power_increase, \

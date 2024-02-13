@@ -917,6 +917,8 @@ def batch_generator_kernel(arg_list):
         wind_size_mw = turbine_rating*n_turbines
         # renewable_plant_cost.update({'wind': {'size_mw': wind_size_mw}})
                                     
+        if "wind" not in renewable_plant_cost.keys():
+            renewable_plant_cost["wind"] = {}
         renewable_plant_cost['wind']['size_mw']=wind_size_mw
 
 
