@@ -7,9 +7,9 @@ from dotenv import load_dotenv
 from hopp.simulation.technologies.sites import flatirons_site as sample_site
 from hopp.utilities.keys import set_developer_nrel_gov_key
 
-from hopp.to_organize.H2_Analysis.hopp_for_h2 import hopp_for_h2
-from hopp.to_organize.H2_Analysis.run_h2a import run_h2a as run_h2a
-from hopp.to_organize.H2_Analysis.simple_cash_annuals import simple_cash_annuals
+from greenheart.to_organize.H2_Analysis.hopp_for_h2 import hopp_for_h2
+from greenheart.to_organize.H2_Analysis.run_h2a import run_h2a as run_h2a
+from greenheart.to_organize.H2_Analysis.simple_cash_annuals import simple_cash_annuals
 from lcoe.lcoe import lcoe as lcoe_calc
 import warnings
 from multiprocessing import Pool

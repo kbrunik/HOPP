@@ -1,5 +1,5 @@
-from typing import Iterable, Sequence
-
+from typing import Iterable, Optional, Sequence, Union
+import inspect
 import numpy as np
 import pandas as pd
 import PySAM.Singleowner as Singleowner
@@ -9,9 +9,10 @@ from hopp.utilities.log import hybrid_logger as logger
 from hopp.simulation.technologies.dispatch.power_sources.power_source_dispatch import PowerSourceDispatch
 from hopp.tools.utils import array_not_scalar, equal
 from hopp.utilities.log import hybrid_logger as logger
+from hopp.simulation.base import BaseClass
 
 
-class PowerSource:
+class PowerSource(BaseClass):
     """
     Abstract class for a renewable energy power plant simulation.
     
@@ -48,7 +49,11 @@ class PowerSource:
         if isinstance(self._financial_model, Singleowner.Singleowner):
             self.initialize_financial_values()
         else:
-            self._financial_model.assign(self._system_model.export(), ignore_missing_vals=True)       # copy system parameter values having same name
+            if inspect.ismethod(getattr(self._system_model, 'export', None)):
+                self._financial_model.assign(self._system_model.export(), ignore_missing_vals=True)       # copy system parameter values having same name
+            else:
+                pass
+            # self._financial_model.assign(self._system_model.export(), ignore_missing_vals=True)       # copy system parameter values having same name
             self._financial_model.set_financial_inputs(system_model=self._system_model)               # for custom financial models
 
         self.capacity_factor_mode = "cap_hours"                                    # to calculate via "cap_hours" method or None to use external value
@@ -284,7 +289,10 @@ class PowerSource:
             return
 
         if not isinstance(self._financial_model, Singleowner.Singleowner):
-            self._financial_model.assign(self._system_model.export(), ignore_missing_vals=True)       # copy system parameter values having same name
+            if inspect.ismethod(getattr(self._system_model, 'export', None)):
+                self._financial_model.assign(self._system_model.export(), ignore_missing_vals=True)       # copy system parameter values having same name
+            else:
+                pass
         else:
             self._financial_model.value('ppa_soln_mode', 1)
         self._financial_model.value('system_capacity', self.system_capacity_kw) # [kW] needed for custom financial models
@@ -300,9 +308,10 @@ class PowerSource:
                 raise RuntimeError(f"simulate_financials error: generation profile of len {self.site.n_timesteps} required")
 
         if len(self._financial_model.value('gen')) == self.site.n_timesteps:
+            #TODO is this correct? It seems like gen should not be multiplied by project life
             self._financial_model.value('gen', self._financial_model.value('gen') * project_life)
         self._financial_model.value('system_pre_curtailment_kwac', self._financial_model.value('gen'))
-        self._financial_model.value('annual_energy_pre_curtailment_ac', self._system_model.value("annual_energy"))
+        self._financial_model.value('annual_energy_pre_curtailment_ac', self.value("annual_energy_kwh"))
         # TODO: Should we use the nominal capacity function here?
         self.gen_max_feasible = self.calc_gen_max_feasible_kwh(interconnect_kw)
         self.capacity_credit_percent = self.calc_capacity_credit_percent(interconnect_kw)
@@ -321,9 +330,20 @@ class PowerSource:
         self.setup_performance_model()
         self.simulate_power(project_life, lifetime_sim)
         self.simulate_financials(interconnect_kw, project_life)
-        
         logger.info(f"{self.name} simulation executed with AEP {self.annual_energy_kwh}")
 
+    def set_overnight_capital_cost(self, overnight_capital_cost):
+        """Set overnight capital costs [$/kW]."""
+
+        self._overnight_capital_cost = overnight_capital_cost
+    
+    def calculate_total_installed_cost(self, cost: float) -> float:
+        if isinstance(self._financial_model, Singleowner.Singleowner):
+            return cost * self.system_capacity_kw
+        else:
+            self.set_overnight_capital_cost(cost)
+            total_installed_cost = self.system_capacity_kw * self._overnight_capital_cost
+            return self._financial_model.value("total_installed_cost", total_installed_cost)
     #
     # Inputs
     #
@@ -357,7 +377,7 @@ class PowerSource:
             return self._financial_model.value("ppa_price_input")
 
     @ppa_price.setter
-    def ppa_price(self, ppa_price):
+    def ppa_price(self, ppa_price: Union[Iterable, float]):
         """PPA price [$/kWh] used in the financial model.
 
         :param ppa_price: float or list, PPA price [$/kWh] If a float is provided, then it is applied to
@@ -376,7 +396,7 @@ class PowerSource:
     def capacity_credit_percent(self) -> float:
         """Capacity credit (eligible portion of nameplate) [%]"""
         # TODO: should we remove the indexing to be consistent with other properties
-        return self._financial_model.value("cp_capacity_credit_percent")[0]
+        return self._financial_model.value("cp_capacity_credit_percent")
 
     @capacity_credit_percent.setter
     def capacity_credit_percent(self, cap_credit_percent):
@@ -543,18 +563,18 @@ class PowerSource:
             return 0
 
     @property
-    def energy_sales_value(self) -> tuple:
+    def energy_sales(self) -> tuple:
         """PPA revenue gross [$]"""
         if self.system_capacity_kw > 0 and self._financial_model:
-            return self._financial_model.value("cf_energy_sales_value")
+            return self._financial_model.value("cf_energy_sales")
         else:
             return (0, )
 
     @property
-    def energy_purchases_value(self) -> tuple:
+    def energy_purchases(self) -> tuple:
         """Energy purchases from grid [$]"""
         if self.system_capacity_kw > 0 and self._financial_model:
-            return self._financial_model.value("cf_utility_bill")
+            return self._financial_model.value("cf_energy_purchases")
         else:
             return (0, )
 
@@ -716,7 +736,7 @@ class PowerSource:
     def gen_max_feasible(self) -> list:
         """Maximum feasible generation profile that could have occurred (year 1)"""
         return self._gen_max_feasible
-
+    
     @gen_max_feasible.setter
     def gen_max_feasible(self, gen_max_feas: list):
         self._gen_max_feasible = gen_max_feas

@@ -7,21 +7,21 @@ from scipy.spatial.distance import cdist
 from hopp.utilities.keys import set_developer_nrel_gov_key
 # from plot_reopt_results import plot_reopt_results
 # from run_reopt import run_reopt
-from hopp.to_organize.H2_Analysis.hopp_for_h2 import hopp_for_h2
-from hopp.to_organize.H2_Analysis.run_h2a import run_h2a as run_h2a
-from hopp.to_organize.H2_Analysis.simple_cash_annuals import simple_cash_annuals
+from greenheart.to_organize.H2_Analysis.hopp_for_h2 import hopp_for_h2
+from greenheart.to_organize.H2_Analysis.run_h2a import run_h2a as run_h2a
+from greenheart.to_organize.H2_Analysis.simple_cash_annuals import simple_cash_annuals
 
 import numpy as np
 from lcoe.lcoe import lcoe as lcoe_calc
 import warnings
 warnings.filterwarnings("ignore")
 
-#import hopp.to_organize.hopp_tools_steel as hopp_tools_steel
+#import greenheart.to_organize.hopp_tools_steel as hopp_tools_steel
 import hopp_tools_steel
 import copy
-#import hopp.to_organize.run_profast_for_hydrogen as run_profast_for_hydrogen
+#import greenheart.to_organize.run_profast_for_hydrogen as run_profast_for_hydrogen
 import run_profast_for_hydrogen
-#import hopp.to_organize.distributed_pipe_cost_analysis
+#import greenheart.to_organize.distributed_pipe_cost_analysis
 import distributed_pipe_cost_analysis
 from grid_price_profiles import grid_price_interpolation
 #import hopp_tools_run_wind_solar

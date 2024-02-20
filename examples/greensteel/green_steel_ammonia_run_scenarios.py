@@ -11,25 +11,25 @@ import math
 from hopp.simulation.technologies.sites import SiteInfo
 from hopp.utilities.keys import set_developer_nrel_gov_key
 
-from hopp.to_organize.H2_Analysis.hopp_for_h2 import hopp_for_h2
-from hopp.to_organize.H2_Analysis.run_h2a import run_h2a as run_h2a
-from hopp.to_organize.H2_Analysis.simple_cash_annuals import simple_cash_annuals
+from greenheart.to_organize.H2_Analysis.hopp_for_h2 import hopp_for_h2
+from greenheart.to_organize.H2_Analysis.run_h2a import run_h2a as run_h2a
+from greenheart.to_organize.H2_Analysis.simple_cash_annuals import simple_cash_annuals
 import numpy as np
 from lcoe.lcoe import lcoe as lcoe_calc
 import warnings
 warnings.filterwarnings("ignore")
 
-#import hopp.to_organize.hopp_tools_steel as hopp_tools_steel
+#import greenheart.to_organize.hopp_tools_steel as hopp_tools_steel
 import hopp_tools_steel
-import hopp.to_organize.inputs_py as inputs_py
+import greenheart.to_organize.inputs_py as inputs_py
 import copy
-from hopp.to_organize.hopp_tools_steel import hoppDict
-import hopp.to_organize.run_RODeO as run_RODeO
-#import hopp.to_organize.run_profast_for_hydrogen as run_profast_for_hydrogen
+from greenheart.to_organize.hopp_tools_steel import hoppDict
+import greenheart.to_organize.run_RODeO as run_RODeO
+#import greenheart.to_organize.run_profast_for_hydrogen as run_profast_for_hydrogen
 import run_profast_for_hydrogen
-#import hopp.to_organize.distributed_pipe_cost_analysis as distributed_pipe_cost_analysis
+#import greenheart.to_organize.distributed_pipe_cost_analysis as distributed_pipe_cost_analysis
 import distributed_pipe_cost_analysis
-import hopp.to_organize.H2_Analysis.LCA_single_scenario as LCA_single_scenario
+import greenheart.to_organize.H2_Analysis.LCA_single_scenario as LCA_single_scenario
 from green_steel_ammonia_solar_parametric_sweep import solar_storage_param_sweep
 from grid_price_profiles import grid_price_interpolation
 

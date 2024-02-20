@@ -13,7 +13,7 @@ import pandas as pd
 import ProFAST
 import run_RODeO
 
-from hopp.to_organize.H2_Analysis import LCA_single_scenario_ProFAST
+from greenheart.to_organize.H2_Analysis import LCA_single_scenario_ProFAST
 
 # sys.path.append('../ProFAST/')
 
