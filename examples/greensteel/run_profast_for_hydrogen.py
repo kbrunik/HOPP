@@ -87,9 +87,8 @@ def run_profast_for_hydrogen(hopp_dict,electrolyzer_size_mw,H2_Results,\
 
     H2_PTC_duration = 10 # years the tax credit is active
     Ren_PTC_duration = 10 # years the tax credit is active
-
     electrolysis_total_EI_policy_grid,electrolysis_total_EI_policy_offgrid\
-          = LCA_single_scenario_ProFAST.hydrogen_LCA_singlescenario_ProFAST(grid_connection_scenario,atb_year,site_name,[],[],H2_Results,[],solar_size_mw,storage_size_mw,hopp_dict,H2_PTC_duration)
+          = LCA_single_scenario_ProFAST.hydrogen_LCA_singlescenario_ProFAST(grid_connection_scenario,atb_year,site_name,[],[],H2_Results,[],solar_size_mw,storage_size_mw,hopp_dict)
 
     AEP_renewables = sum(hopp_dict.main_dict['Models']['grid']['ouput_dict']['energy_from_renewables'])#kWh/year
     grid_cost_keys = list(grid_prices_interpolated_USDperkwh.keys())
