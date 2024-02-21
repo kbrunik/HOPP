@@ -11,6 +11,8 @@ import re
 from yamlinclude import YamlIncludeConstructor
 from pathlib import Path
 
+from hopp.utilities.utilities import load_yaml
+
 PATH = Path(__file__).parent
 YamlIncludeConstructor.add_to_loader_class(loader_class=yaml.FullLoader, base_dir=PATH / 'floris_input_files/')
 
@@ -589,6 +591,8 @@ def run_HOPP(
     run_wind_plant
 ):
 
+    hopp_config = load_yaml("gs.yaml")
+
     if hopp_dict.save_model_input_yaml:
         input_dict = {
             'scenario': scenario,
@@ -676,15 +680,19 @@ def run_HOPP(
             #                     }
                             # }
         custom_powercurve=True
+
         hybrid_plant, combined_pv_wind_power_production_hopp, combined_pv_wind_curtailment_hopp, \
            energy_shortfall_hopp,\
            annual_energies, wind_plus_solar_npv, npvs, lcoe, lcoe_nom =  \
-        hopp_for_h2(site, scenario, technologies,
-                    wind_size_mw, solar_size_mw, storage_size_mw, storage_size_mwh, storage_hours,
-                    wind_cost_kw, solar_cost_kw, storage_cost_kw, storage_cost_kwh,
-                    kw_continuous, load,
-                    custom_powercurve,
-                    electrolyzer_size, grid_connected_hopp=True, wind_om_cost_kw=wind_om_cost_kw,solar_om_cost_kw=solar_om_cost_kw)
+        hopp_for_h2(
+            site,
+            hopp_config,
+            scenario, 
+            load,
+            custom_powercurve,
+            wind_om_cost_kw,
+            solar_om_cost_kw
+        )
     if floris == True:
         technologies={}
         if run_wind_plant:

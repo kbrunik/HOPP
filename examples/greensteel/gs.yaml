@@ -1,0 +1,22 @@
+technologies:
+    # pv:
+    #     system_capacity_kw: 0
+    wind:
+        num_turbines: 216.0
+        turbine_rating_kw: 6000.0
+        hub_height: 115
+        rotor_diameter: 170
+    # battery:
+    #     system_capacity_kwh: 0
+    #     system_capacity_kw: 0
+    grid:
+        interconnect_kw: 1160000
+        ppa_price: 0.05
+
+config:
+    cost_info:
+        wind_installed_cost_mw: 1304.424
+        solar_installed_cost_mw: 9999
+        storage_installed_cost_mw: 212.0
+        storage_installed_cost_mwh: 158.0
+

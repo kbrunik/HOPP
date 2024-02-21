@@ -189,7 +189,7 @@ def run_scenarios(arg_list):
         scenario['Debt Equity'], atb_year, scenario['H2 PTC'],scenario['Wind ITC'],\
         discount_rate, tlcc_wind_costs, tlcc_solar_costs, tlcc_hvdc_costs, tlcc_total_costs,run_RODeO_selector,lcoh,\
         wind_itc_total, total_itc_hvdc, hopp_dict = batch_generator_kernel(arg_list[runs])
-        []
+
     # ------------------ Run HOPP-RODeO/PyFAST Framework to get LCOH ---------------
         # with Pool(processes=4,maxtasksperchild=1) as pool:
         #         pool.map(batch_generator_kernel, arg_list)
