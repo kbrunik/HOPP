@@ -365,8 +365,28 @@ def run_electrolyzer_cost(
             electrolyzer_total_capital_cost = electrolyzer_capital_cost_musd*1E6 # convert from M USD to USD
             electrolyzer_OM_cost = electrolyzer_om_cost_musd*1E6 # convert from M USD to USD
 
+        elif electrolyzer_cost_model == 'singlitico2021-blend':
+            pem_offshore = PEMCostsSingliticoModel(elec_location=offshore)
+            
+            capex = (
+                plant_config["electrolyzer"]["electrolyzer_capex"] # [USD/kW]
+                * plant_config["electrolyzer"]["rating"] * 1000 #[kW]
+            )
+            capex_musd = capex / 1E6    # [MUSD]
+
+            if design_scenario["electrolyzer_location"] == "platform":
+                capex_musd = capex_musd*1.33
+
+            opex_musd = pem_offshore.calc_opex(
+                P_elec=(plant_config["electrolyzer"]["rating"]/1E3),
+                capex_elec=capex_musd
+            )
+
+            electrolyzer_total_capital_cost = capex_musd*1E6 # convert from M USD to USD
+            electrolyzer_OM_cost = opex_musd*1E6 # convert from M USD to USD
+
         else:
-            raise(ValueError("Electrolyzer cost model must be one of['basic', 'singlitico2021'] but '%s' was given" % (electrolyzer_cost_model)))
+            raise(ValueError("Electrolyzer cost model must be one of['basic', 'singlitico2021','singlitico2021-blend'] but '%s' was given" % (electrolyzer_cost_model)))
 
     # package outputs for return
     electrolyzer_cost_results = {
