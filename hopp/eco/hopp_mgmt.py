@@ -1,3 +1,4 @@
+import numpy as np
 from hopp.simulation.technologies.sites import SiteInfo
 from hopp.simulation.technologies.sites import flatirons_site as sample_site
 
@@ -48,10 +49,11 @@ def setup_hopp(
             floris_config["farm"]["layout_x"] = (
                 orbit_project.phases["ArraySystemDesign"].turbines_x.flatten() * 1e3
             )  # ORBIT gives coordinates in km
+            floris_config["farm"]["layout_x"] = floris_config["farm"]["layout_x"][~np.isnan(floris_config["farm"]["layout_x"])]
             floris_config["farm"]["layout_y"] = (
                 orbit_project.phases["ArraySystemDesign"].turbines_y.flatten() * 1e3
             )  # ORBIT gives coordinates in km
-
+            floris_config["farm"]["layout_y"] = floris_config["farm"]["layout_y"][~np.isnan(floris_config["farm"]["layout_y"])]
             # import pandas as pd
             # data = {"layout_x":floris_config['farm']['layout_x'],"layout_y":floris_config['farm']['layout_y']}
             # d2 = pd.DataFrame(data)
