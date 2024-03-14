@@ -12,7 +12,7 @@ from ORBIT.phases import install
 # Function to run orbit from provided inputs - this is just for wind costs
 def run_orbit(plant_config, weather=None, verbose=False):
 
-    if plant_config['weather_file'] !=None:
+    if 'weather_file' in plant_config:
         custom_weather = plant_config['weather_file']
         weather = pd.read_csv("../../input/weather/"+custom_weather).set_index("datetime")  # Project installation begins at start of weather file unless other wise specified in install_phase in input config
     
@@ -525,13 +525,13 @@ def run_profast_lcoe(
         "capacity", hopp_results["annual_energies"]["wind"] / 365.0
     )  # kWh/day
     pf.set_params("maintenance", {"value": 0, "escalation": gen_inflation})
-    pf.set_params("analysis start year", plant_config["atb_year"] + 2)
+    pf.set_params("analysis start year", plant_config["atb_year"] + 1)
     pf.set_params(
         "operating life", plant_config["project_parameters"]["project_lifetime"]
     )
     pf.set_params(
         "installation months",
-        (orbit_project.installation_time / (365 * 24)) * (12.0 / 1.0),
+        36,
     )
     pf.set_params(
         "installation cost",
@@ -713,7 +713,7 @@ def run_profast_grid_only(
     #     electrolyzer_physics_results["H2_Results"]["hydrogen_annual_output"] / 365.0,
     # )  # kg/day
     pf.set_params("maintenance", {"value": 0, "escalation": gen_inflation})
-    pf.set_params("analysis start year", plant_config["atb_year"] + 2)
+    pf.set_params("analysis start year", plant_config["atb_year"] + 1)
     pf.set_params(
         "operating life", plant_config["project_parameters"]["project_lifetime"]
     )
@@ -962,13 +962,13 @@ def run_profast_full_plant_model(
     #     electrolyzer_physics_results["H2_Results"]["hydrogen_annual_output"] / 365.0,
     # )  # kg/day
     pf.set_params("maintenance", {"value": 0, "escalation": gen_inflation})
-    pf.set_params("analysis start year", plant_config["atb_year"] + 2)
+    pf.set_params("analysis start year", plant_config["atb_year"] + 1)
     pf.set_params(
         "operating life", plant_config["project_parameters"]["project_lifetime"]
     )
     pf.set_params(
         "installation months",
-        (orbit_project.installation_time / (365 * 24)) * (12.0 / 1.0),
+        36,
     )  # convert from hours to months
     pf.set_params(
         "installation cost",
