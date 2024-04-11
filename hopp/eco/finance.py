@@ -1314,7 +1314,7 @@ def run_profast_full_plant_model(
 
     sol = pf.solve_price()
 
-    df = pf.cash_flow_out_table
+    # df = pf.cash_flow_out_table
 
     lcoh = sol["price"]
 
