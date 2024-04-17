@@ -63,15 +63,15 @@ class TroughDispatch(CspDispatch):
                 "result in persistent receiver start-up."
             )
 
-    def max_gross_profit_objective(self, blocks):
+    def max_gross_profit_objective(self, hybrid_blocks):
         """Trough CSP instance of maximum gross profit objective.
 
         Args:
-            blocks (Pyomo.block): A generalized container for defining hierarchical models by adding modeling components as attributes.
+            hybrid_blocks (Pyomo.block): A generalized container for defining hierarchical models by adding modeling components as attributes.
         """
         self.obj = Expression(
             expr=sum(
-                -(1 / blocks[t].time_weighting_factor)
+                -(1 / hybrid_blocks[t].time_weighting_factor)
                 * (
                     (
                         self.blocks[t].cost_per_field_generation
@@ -100,11 +100,11 @@ class TroughDispatch(CspDispatch):
             )
         )
 
-    def min_operating_cost_objective(self, blocks):
+    def min_operating_cost_objective(self, hybrid_blocks):
         """Trough CSP instance of minimum operating cost objective.
 
         Args:
-            blocks (Pyomo.block): A generalized container for defining hierarchical models by adding modeling components as attributes.
+            hybrid_blocks (Pyomo.block): A generalized container for defining hierarchical models by adding modeling components as attributes.
         """
         self.obj = sum(
             hybrid_blocks[t].time_weighting_factor

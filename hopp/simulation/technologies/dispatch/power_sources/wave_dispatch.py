@@ -55,11 +55,11 @@ class WaveDispatch(PowerSourceDispatch):
             block_set_name=block_set_name,
         )
 
-    def max_gross_profit_objective(self, blocks):
+    def max_gross_profit_objective(self, hybrid_blocks):
         """MHK wave instance of maximum gross profit objective.
 
         Args:
-            blocks (Pyomo.block): A generalized container for defining hierarchical
+            hybrid_blocks (Pyomo.block): A generalized container for defining hierarchical
                 models by adding modeling components as attributes.
         """
         self.obj = Expression(
@@ -67,20 +67,20 @@ class WaveDispatch(PowerSourceDispatch):
                 -(1 / blocks[t].time_weighting_factor)
                 * self.blocks[t].time_duration
                 * self.blocks[t].cost_per_generation
-                * blocks[t].wave_generation
-                for t in blocks.index_set()
+                * hybrid_blocks[t].wave_generation
+                for t in hybrid_blocks.index_set()
             )
         )
 
-    def min_operating_cost_objective(self, blocks):
+    def min_operating_cost_objective(self, hybrid_blocks):
         """MHK wave instance of minimum operating cost objective.
 
         Args:
-            blocks (Pyomo.block): A generalized container for defining hierarchical
+            hybrid_blocks (Pyomo.block): A generalized container for defining hierarchical
                 models by adding modeling components as attributes.
         """
         self.obj = sum(
-            blocks[t].time_weighting_factor
+            hybrid_blocks[t].time_weighting_factor
             * self.blocks[t].time_duration
             * self.blocks[t].cost_per_generation
             * hybrid_blocks[t].wave_generation
