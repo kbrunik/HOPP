@@ -214,19 +214,25 @@ class NonConvexLinearVoltageBatteryDispatch(SimpleBatteryDispatch):
         )
         battery.charge_current_ub_soc = pyomo.Constraint(
             doc="Battery Charging current upper bound state-of-charge dependence",
-            expr=battery.charge_current
-            <= battery.capacity * (1.0 - battery.soc0) / battery.time_duration,
+            expr=(
+                battery.charge_current
+                <= battery.capacity * (1.0 - battery.soc0) / battery.time_duration
+            )
         )
         # Discharge current bounds
         battery.discharge_current_lb = pyomo.Constraint(
             doc="Battery Discharging current lower bound",
-            expr=battery.discharge_current
-            >= battery.minimum_discharge_current * battery.is_discharging,
+            expr=(
+                battery.discharge_current 
+                >= battery.minimum_discharge_current * battery.is_discharging
+            )
         )
         battery.discharge_current_ub = pyomo.Constraint(
             doc="Battery Discharging current upper bound",
-            expr=battery.discharge_current
-            <= battery.maximum_discharge_current * battery.is_discharging,
+            expr=(
+                battery.discharge_current
+                <= battery.maximum_discharge_current * battery.is_discharging
+            )
         )
         battery.discharge_current_ub_soc = pyomo.Constraint(
             doc="Battery Discharging current upper bound state-of-charge dependence",
@@ -243,27 +249,39 @@ class NonConvexLinearVoltageBatteryDispatch(SimpleBatteryDispatch):
         """
         battery.charge_power_equation = pyomo.Constraint(
             doc="Battery charge power equation equal to the product of current and voltage",
-            expr=battery.charge_power
-            == battery.charge_current
-            * (
-                battery.voltage_slope * battery.soc0
-                + (
-                    battery.voltage_intercept
-                    + battery.average_current * battery.internal_resistance
+            expr=(
+                battery.charge_power
+                == (
+                    battery.charge_current
+                    * (
+                        battery.voltage_slope
+                        * battery.soc0
+                        + (
+                            battery.voltage_intercept
+                            + battery.average_current
+                            * battery.internal_resistance
+                        )
+                    )
                 )
-            ),
+            )
         )
         battery.discharge_power_equation = pyomo.Constraint(
             doc="Battery discharge power equation equal to the product of current and voltage",
-            expr=battery.discharge_power
-            == battery.discharge_current
-            * (
-                battery.voltage_slope * battery.soc0
-                + (
-                    battery.voltage_intercept
-                    - battery.average_current * battery.internal_resistance
+            expr=(
+                battery.discharge_power
+                == (
+                    battery.discharge_current
+                    * (
+                        battery.voltage_slope
+                        * battery.soc0
+                        + (
+                            battery.voltage_intercept
+                            - battery.average_current
+                            * battery.internal_resistance
+                        )
+                    )
                 )
-            ),
+            )
         )
 
     def _lifecycle_count_rule(self, m, i):

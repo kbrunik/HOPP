@@ -62,13 +62,15 @@ class OneCycleBatteryDispatchHeuristic(SimpleBatteryDispatchHeuristic):
         Sets battery dispatch using a one cycle per day assumption.
 
         Method:
-            1. Sort input prices
-            2. Determine the duration required to fully discharge and charge the battery
-            3. Set discharge and charge operations based on sorted prices
-            3. Check SOC feasibility
-            4. If infeasible, find infeasibility, shift operation to the next sorted price periods
-            5. Repeat step 4 until SOC feasible
-                NOTE: If operation is tried on half of time periods, then operation defaults to 'do nothing'
+
+        1. Sort input prices
+        2. Determine the duration required to fully discharge and charge the battery
+        3. Set discharge and charge operations based on sorted prices
+        4. Check SOC feasibility
+        5. If infeasible, find infeasibility, shift operation to the next sorted price periods
+        6. Repeat steps 4-5 until SOC feasible
+
+        NOTE: If operation is tried on half of time periods, then operation defaults to 'do nothing'
         """
         if sum(self.prices) == 0.0 and max(self.prices) == 0.0:
             raise ValueError("prices must be set before calling heuristic method.")

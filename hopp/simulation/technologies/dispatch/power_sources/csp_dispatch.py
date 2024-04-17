@@ -371,7 +371,8 @@ class CspDispatch(Dispatch):
             units=u.MWh,
         )
         csp.was_field_generating = pyomo.Var(
-            doc="1 if solar field was generating 'usable' thermal power in the previous time period; 0 Otherwise [-]",
+            doc="1 if solar field was generating 'usable' thermal power in the previous time "
+                "period; 0 Otherwise [-]",
             domain=pyomo.Binary,
             units=u.dimensionless,
         )
@@ -521,7 +522,8 @@ class CspDispatch(Dispatch):
             <= csp.receiver_required_startup_energy * csp.is_field_starting,
         )
         csp.receiver_operation_startup = pyomo.Constraint(
-            doc="Thermal production is allowed only upon completion of start-up or operating in previous time period",
+            doc="Thermal production is allowed only upon completion of start-up or operating in "
+                "previous time period",
             expr=csp.is_field_generating
             <= (csp.receiver_startup_inventory / csp.receiver_required_startup_energy)
             + csp.was_field_generating,
@@ -537,19 +539,25 @@ class CspDispatch(Dispatch):
         )
         csp.receiver_startup_cut = pyomo.Constraint(
             doc="Receiver and/or field trivial resource startup cut",
-            expr=csp.is_field_starting
-            <= csp.available_thermal_generation / csp.minimum_receiver_power,
+            expr=(
+                csp.is_field_starting
+                <= csp.available_thermal_generation / csp.minimum_receiver_power
+            )
         )
         # Supply and demand
         csp.receiver_energy_balance = pyomo.Constraint(
             doc="Receiver generation and startup usage must be below available",
-            expr=csp.available_thermal_generation
-            >= csp.receiver_thermal_power + csp.receiver_startup_consumption,
+            expr=(
+                csp.available_thermal_generation
+                >= csp.receiver_thermal_power + csp.receiver_startup_consumption
+            )
         )
         csp.maximum_field_generation = pyomo.Constraint(
             doc="Receiver maximum generation limit",
-            expr=csp.receiver_thermal_power
-            <= csp.available_thermal_generation * csp.is_field_generating,
+            expr=(
+                csp.receiver_thermal_power
+                <= csp.available_thermal_generation * csp.is_field_generating
+            )
         )
         csp.minimum_field_generation = pyomo.Constraint(
             doc="Receiver minimum generation limit",
@@ -558,8 +566,10 @@ class CspDispatch(Dispatch):
         )
         csp.receiver_generation_cut = pyomo.Constraint(
             doc="Receiver and/or field trivial resource generation cut",
-            expr=csp.is_field_generating
-            <= csp.available_thermal_generation / csp.minimum_receiver_power,
+            expr=(
+                csp.is_field_generating
+                <= csp.available_thermal_generation / csp.minimum_receiver_power
+            )
         )
         # Logic associated with receiver modes
         csp.field_startup = pyomo.Constraint(
@@ -591,14 +601,21 @@ class CspDispatch(Dispatch):
         )
         csp.cycle_startup_inventory_reset = pyomo.Constraint(
             doc="Resets power cycle startup inventory when startup is completed",
-            expr=csp.cycle_startup_inventory
-            <= csp.cycle_required_startup_energy * csp.is_cycle_starting,
-        )
+            expr=(
+                csp.cycle_startup_inventory
+                <= csp.cycle_required_startup_energy * csp.is_cycle_starting
+            )
         csp.cycle_operation_startup = pyomo.Constraint(
-            doc="Electric production is allowed only upon completion of start-up or operating in previous time period",
-            expr=csp.is_cycle_generating
-            <= (csp.cycle_startup_inventory / csp.cycle_required_startup_energy)
-            + csp.was_cycle_generating,
+            doc="Electric production is allowed only upon completion of start-up or operating in "
+                "previous time period",
+            expr=(
+                csp.is_cycle_generating
+                <= (
+                    csp.cycle_startup_inventory
+                    / csp.cycle_required_startup_energy
+                )
+                + csp.was_cycle_generating
+            )
         )
         csp.cycle_startup_delay = pyomo.Constraint(
             doc="If cycle previously was generating, it cannot startup this period",
@@ -610,62 +627,68 @@ class CspDispatch(Dispatch):
             doc="Power cycle maximum thermal energy consumption maximum limit including startup",
             expr=(
                 csp.cycle_thermal_power
-                + (csp.cycle_required_startup_energy / csp.time_duration)
-                * csp.is_cycle_starting
+                + csp.cycle_required_startup_energy / csp.time_duration * csp.is_cycle_starting
                 <= csp.maximum_cycle_thermal_power
-            ),
+            )
         )
         csp.maximum_cycle_thermal_consumption = pyomo.Constraint(
             doc="Power cycle maximum thermal energy consumption maximum limit",
-            expr=csp.cycle_thermal_power
-            <= csp.maximum_cycle_thermal_power * csp.is_cycle_generating,
+            expr=(
+                csp.cycle_thermal_power
+                <= csp.maximum_cycle_thermal_power * csp.is_cycle_generating
+            )
         )
         csp.minimum_cycle_thermal_consumption = pyomo.Constraint(
             doc="Power cycle minimum thermal energy consumption minimum limit",
-            expr=csp.cycle_thermal_power
-            >= csp.minimum_cycle_thermal_power * csp.is_cycle_generating,
+            expr=(
+                csp.cycle_thermal_power
+                >= csp.minimum_cycle_thermal_power * csp.is_cycle_generating
+            )
         )
         csp.cycle_performance_curve = pyomo.Constraint(
-            doc="Power cycle relationship between electrical power and thermal input with corrections "
-            "for ambient temperature",
+            doc="Power cycle relationship between electrical power and thermal input with "
+                "corrections for ambient temperature",
             expr=(
                 csp.cycle_generation
                 == (
-                    csp.cycle_ambient_efficiency_correction
-                    / csp.cycle_nominal_efficiency
-                )
-                * (
-                    csp.cycle_performance_slope * csp.cycle_thermal_power
-                    + (
-                        csp.maximum_cycle_power
-                        - csp.cycle_performance_slope * csp.maximum_cycle_thermal_power
+                    (csp.cycle_ambient_efficiency_correction / csp.cycle_nominal_efficiency)
+                    * (
+                        csp.cycle_performance_slope * csp.cycle_thermal_power
+                        + (
+                            csp.maximum_cycle_power
+                            - csp.cycle_performance_slope
+                            * csp.maximum_cycle_thermal_power
+                        )
+                        * csp.is_cycle_generating
                     )
-                    * csp.is_cycle_generating
                 )
-            ),
+            )
         )
         csp.cycle_thermal_ramp_constraint = pyomo.Constraint(
             doc="Positive ramping of power cycle thermal power",
-            expr=csp.cycle_thermal_ramp
-            >= csp.cycle_thermal_power - csp.previous_cycle_thermal_power,
+            expr=(
+                csp.cycle_thermal_ramp
+                >= csp.cycle_thermal_power - csp.previous_cycle_thermal_power
+            )
         )
         # System load
         csp.generation_balance = pyomo.Constraint(
             doc="Calculates csp system load for grid model",
-            expr=csp.system_load
-            == (
-                csp.cycle_generation * csp.condenser_losses
-                + csp.receiver_pumping_losses
-                * (csp.receiver_thermal_power + csp.receiver_startup_consumption)
-                + csp.cycle_pumping_losses
-                * (
-                    csp.cycle_thermal_power
-                    + (csp.allowable_cycle_startup_power * csp.is_cycle_starting)
+            expr=(
+                csp.system_load
+                == (
+                    csp.cycle_generation * csp.condenser_losses
+                    + csp.receiver_pumping_losses
+                    * (csp.receiver_thermal_power + csp.receiver_startup_consumption)
+                    + csp.cycle_pumping_losses
+                    * (csp.cycle_thermal_power + (
+                        csp.allowable_cycle_startup_power * csp.is_cycle_starting
+                    ))
+                    + csp.field_track_losses * csp.is_field_generating
+                    # + csp.heat_trace_losses * csp.is_field_starting
+                    + (csp.field_startup_losses / csp.time_duration) * csp.is_field_starting
                 )
-                + csp.field_track_losses * csp.is_field_generating
-                # + csp.heat_trace_losses * csp.is_field_starting
-                + (csp.field_startup_losses / csp.time_duration) * csp.is_field_starting
-            ),
+            )
         )
         # Logic governing cycle modes
         csp.cycle_startup = pyomo.Constraint(
@@ -707,7 +730,8 @@ class CspDispatch(Dispatch):
     def _create_storage_linking_constraints(self):
         """Create constraints for linking storage."""
         self.model.initial_thermal_energy_storage = pyomo.Param(
-            doc="Initial thermal energy storage reserve quantity at beginning of the horizon [MWht]",
+            doc="Initial thermal energy storage reserve quantity at beginning of the horizon "
+                "[MWht]",
             default=0.0,
             within=pyomo.NonNegativeReals,
             # validate= # TODO: Might be worth looking into
@@ -742,7 +766,8 @@ class CspDispatch(Dispatch):
             units=u.MWh,
         )
         self.model.is_field_generating_initial = pyomo.Param(
-            doc="1 if solar field is generating 'usable' thermal power at beginning of the horizon; 0 Otherwise [-]",
+            doc="1 if solar field is generating 'usable' thermal power at beginning of the "
+                "horizon; 0 Otherwise [-]",
             default=0.0,
             within=pyomo.Binary,
             mutable=True,
@@ -825,7 +850,8 @@ class CspDispatch(Dispatch):
             units=u.MW,
         )
         self.model.is_cycle_generating_initial = pyomo.Param(
-            doc="1 if cycle is generating electric power at beginning of the horizon; 0 Otherwise [-]",
+            doc="1 if cycle is generating electric power at beginning of the horizon; "
+                "0 Otherwise [-]",
             default=0.0,
             within=pyomo.Binary,
             mutable=True,
@@ -939,15 +965,13 @@ class CspDispatch(Dispatch):
             csp.value("rec_qf_delay") * field_rated_thermal
         )
         self.storage_capacity = csp.tes_hours * cycle_rated_thermal
-        self.minimum_receiver_power = (
-            csp.minimum_receiver_power_fraction * field_rated_thermal
-        )
+        self.minimum_receiver_power = csp.minimum_receiver_power_fraction * field_rated_thermal
         self.allowable_receiver_startup_power = (
-            self.receiver_required_startup_energy / csp.value("rec_su_delay")
+            self.receiver_required_startup_energy / csp.value('rec_su_delay')
         )
         self.receiver_pumping_losses = csp.estimate_receiver_pumping_parasitic()
         self.field_track_losses = csp.field_tracking_power
-        # self.heat_trace_losses = 0.00163 * field_rated_thermal     # TODO: need to update for troughs
+        #self.heat_trace_losses = 0.00163 * field_rated_thermal   # TODO: need to update for troughs
 
         # Power cycle performance
         self.cycle_required_startup_energy = (
@@ -1035,7 +1059,9 @@ class CspDispatch(Dispatch):
                 "Defaulting to constant efficiency vs load."
             )
             self.cycle_performance_slope = self._system_model.cycle_nominal_efficiency
-            # self.minimum_cycle_power = self.minimum_cycle_thermal_power * self._system_model.cycle_nominal_efficiency
+            # self.minimum_cycle_power = (
+            #     self.minimum_cycle_thermal_power * self._system_model.cycle_nominal_efficiency
+            # )
             self.maximum_cycle_power = (
                 self.maximum_cycle_thermal_power
                 * self._system_model.cycle_nominal_efficiency
@@ -1070,7 +1096,9 @@ class CspDispatch(Dispatch):
         etap = (q[1] * eta[1] - q[0] * eta[0]) / (q[1] - q[0])
         b = q[1] * (eta[1] - etap)
         self.cycle_performance_slope = etap
-        # self.minimum_cycle_power = b + self.minimum_cycle_thermal_power * self.cycle_performance_slope
+        # self.minimum_cycle_power = (
+        #     b + self.minimum_cycle_thermal_power * self.cycle_performance_slope
+        # )
         self.maximum_cycle_power = (
             b + self.maximum_cycle_thermal_power * self.cycle_performance_slope
         )
@@ -1156,9 +1184,7 @@ class CspDispatch(Dispatch):
             ambient temperature(s) and tabulated values. The corrections are set for each dispatch time step.
 
         """
-        n = len(
-            Tdb
-        )  # Tdb = set of ambient temperature points for each dispatch time step
+        n = len(Tdb)  # Tdb = set of ambient temperature points for each dispatch time step
         npts = len(Tpts)  # Tpts = ambient temperature points with tabulated values
         cycle_ambient_efficiency_correction = [1.0] * n
         condenser_losses = [0.0] * n
@@ -1843,12 +1869,16 @@ class CspDispatch(Dispatch):
 
     @property
     def is_field_starting_initial(self) -> bool:
-        """True (1) if solar field  is starting up at beginning of the horizon; False (0) Otherwise [-]"""
+        """
+        True (1) if solar field  is starting up at beginning of the horizon; False (0) Otherwise [-]
+        """
         return bool(self.model.is_field_starting_initial.value)
 
     @is_field_starting_initial.setter
     def is_field_starting_initial(self, is_field_starting: Union[bool, int]):
-        """True (1) if solar field  is starting up at beginning of the horizon; False (0) Otherwise [-]"""
+        """
+        True (1) if solar field  is starting up at beginning of the horizon; False (0) Otherwise [-]
+        """
         self.model.is_field_starting_initial = int(is_field_starting)
 
     @property
@@ -1875,12 +1905,18 @@ class CspDispatch(Dispatch):
 
     @property
     def is_cycle_generating_initial(self) -> bool:
-        """True (1) if cycle is generating electric power at beginning of the horizon; False (0) Otherwise [-]"""
+        """
+        True (1) if cycle is generating electric power at beginning of the horizon; False (0)
+        Otherwise [-]
+        """
         return bool(self.model.is_cycle_generating_initial.value)
 
     @is_cycle_generating_initial.setter
     def is_cycle_generating_initial(self, is_cycle_generating: Union[bool, int]):
-        """True (1) if cycle is generating electric power at beginning of the horizon; False (0) Otherwise [-]"""
+        """
+        True (1) if cycle is generating electric power at beginning of the horizon; False (0)
+        Otherwise [-]
+        """
         self.model.is_cycle_generating_initial = int(is_cycle_generating)
 
     @property

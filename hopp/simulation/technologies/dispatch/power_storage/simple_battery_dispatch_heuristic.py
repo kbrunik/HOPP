@@ -67,16 +67,16 @@ class SimpleBatteryDispatchHeuristic(SimpleBatteryDispatch):
         self.max_charge_fraction = list([0.0] * len(self.blocks.index_set()))
         self.max_discharge_fraction = list([0.0] * len(self.blocks.index_set()))
         self.user_fixed_dispatch = list([0.0] * len(self.blocks.index_set()))
-        # TODO: should I enforce either a day schedule or a year schedule year and save it as user input.
-        #  Additionally, Should I drop it as input in the init function?
+        # TODO: should I enforce either a day schedule or a year schedule year and save it as
+        # user input. Additionally, Should I drop it as input in the init function?
         if fixed_dispatch is not None:
             self.user_fixed_dispatch = fixed_dispatch
 
         self._fixed_dispatch = list([0.0] * len(self.blocks.index_set()))
 
     def set_fixed_dispatch(self, gen: list, grid_limit: list):
-        """Sets charge and discharge power of battery dispatch using fixed_dispatch attribute and enforces available
-        generation and grid limits.
+        """Sets charge and discharge power of battery dispatch using fixed_dispatch attribute and
+        enforces available generation and grid limits.
 
         Args:
             gen (list): Generation blocks.

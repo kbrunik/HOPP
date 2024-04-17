@@ -135,8 +135,8 @@ class PowerSourceDispatch(Dispatch):
         if len(horizon_gen) < len(self.blocks):
             raise RuntimeError(
                 f"Dispatch parameter update error at start_time {start_time}: System model "
-                f"{type(self._system_model)} generation profile should have at least {len(self.blocks)} "
-                f"length but has only {len(generation)}"
+                f"{type(self._system_model)} generation profile should have at least "
+                f"{len(self.blocks)} length but has only {len(generation)}."
             )
         self.available_generation = [gen_kw / 1e3 for gen_kw in horizon_gen]
 

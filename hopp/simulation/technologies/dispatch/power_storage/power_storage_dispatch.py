@@ -111,7 +111,7 @@ class PowerStorageDispatch(Dispatch):
                 models by adding modeling components as attributes.
         """
         objective = sum(
-            blocks[t].time_weighting_factor
+            hybrid_blocks[t].time_weighting_factor
             * self.blocks[t].time_duration
             * (
                 self.blocks[t].cost_per_discharge * blocks[t].battery_discharge

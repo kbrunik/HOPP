@@ -115,7 +115,7 @@ class TowerDispatch(CspDispatch):
                         * self.blocks[t].cycle_thermal_ramp
                     )
                 )
-                for t in blocks.index_set()
+                for t in hybrid_blocks.index_set()
             )
         )
 
@@ -127,7 +127,7 @@ class TowerDispatch(CspDispatch):
                 models by adding modeling components as attributes.
         """
         self.obj = sum(
-            blocks[t].time_weighting_factor
+            hybrid_blocks[t].time_weighting_factor
             * (
                 self.blocks[t].cost_per_field_start * self.blocks[t].incur_field_start
                 - (
@@ -144,7 +144,7 @@ class TowerDispatch(CspDispatch):
                 + self.blocks[t].cost_per_change_thermal_input
                 * self.blocks[t].cycle_thermal_ramp
             )
-            for t in blocks.index_set()
+            for t in hybrid_blocks.index_set()
         )
 
     def _create_variables(self, hybrid):
