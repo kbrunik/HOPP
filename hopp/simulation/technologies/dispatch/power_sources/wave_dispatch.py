@@ -83,8 +83,8 @@ class WaveDispatch(PowerSourceDispatch):
             blocks[t].time_weighting_factor
             * self.blocks[t].time_duration
             * self.blocks[t].cost_per_generation
-            * blocks[t].wave_generation
-            for t in blocks.index_set()
+            * hybrid_blocks[t].wave_generation
+            for t in hybrid_blocks.index_set()
         )
 
     def _create_variables(self, hybrid):

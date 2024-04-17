@@ -96,8 +96,8 @@ class PvDispatch(PowerSourceDispatch):
             blocks[t].time_weighting_factor
             * self.blocks[t].time_duration
             * self.blocks[t].cost_per_generation
-            * blocks[t].pv_generation
-            for t in blocks.index_set()
+            * hybrid_blocks[t].pv_generation
+            for t in hybrid_blocks.index_set()
         )
 
     def _create_variables(self, hybrid):
