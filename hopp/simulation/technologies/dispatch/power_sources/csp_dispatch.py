@@ -605,6 +605,7 @@ class CspDispatch(Dispatch):
                 csp.cycle_startup_inventory
                 <= csp.cycle_required_startup_energy * csp.is_cycle_starting
             )
+        )
         csp.cycle_operation_startup = pyomo.Constraint(
             doc="Electric production is allowed only upon completion of start-up or operating in "
                 "previous time period",
