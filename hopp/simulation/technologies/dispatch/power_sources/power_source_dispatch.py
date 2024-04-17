@@ -176,17 +176,12 @@ class PowerSourceDispatch(Dispatch):
 
     @property
     def cost_per_generation(self) -> float:
+        """Cost per generation [$/MWh]"""
         for t in self.blocks.index_set():
             return self.blocks[t].cost_per_generation.value
 
     @cost_per_generation.setter
     def cost_per_generation(self, om_dollar_per_mwh: float):
-        """
-        Cost per generation setter.
-
-        Args:
-            om_dollar_per_mwh (float): O&M cost per MWh.
-        """
         for t in self.blocks.index_set():
             self.blocks[t].cost_per_generation.set_value(
                 round(om_dollar_per_mwh, self.round_digits)
@@ -206,13 +201,6 @@ class PowerSourceDispatch(Dispatch):
 
     @available_generation.setter
     def available_generation(self, resource: list):
-        """Available generation setter.
-        Args:
-            resource (list): List of resources.
-
-        Raises:
-            ValueError: If resource list is not the same lenth as time horizon.
-        """
         if len(resource) == len(self.blocks):
             for t, gen in zip(self.blocks, resource):
                 self.blocks[t].available_generation.set_value(

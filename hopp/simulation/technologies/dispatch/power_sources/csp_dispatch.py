@@ -1392,7 +1392,6 @@ class CspDispatch(Dispatch):
 
     @time_duration.setter
     def time_duration(self, time_duration: list):
-        """Dispatch horizon time steps [hour]"""
         if len(time_duration) == len(self.blocks):
             for t, delta in zip(self.blocks, time_duration):
                 self.blocks[t].time_duration = round(delta, self.round_digits)
@@ -1412,7 +1411,6 @@ class CspDispatch(Dispatch):
 
     @available_thermal_generation.setter
     def available_thermal_generation(self, available_thermal_generation: list):
-        """Available solar thermal generation from the csp field [MWt]"""
         if len(available_thermal_generation) == len(self.blocks):
             for t, value in zip(self.blocks, available_thermal_generation):
                 self.blocks[t].available_thermal_generation = round(
@@ -1436,7 +1434,6 @@ class CspDispatch(Dispatch):
     def cycle_ambient_efficiency_correction(
         self, cycle_ambient_efficiency_correction: list
     ):
-        """Cycle efficiency ambient temperature adjustment factor [-]"""
         if len(cycle_ambient_efficiency_correction) == len(self.blocks):
             for t, value in zip(self.blocks, cycle_ambient_efficiency_correction):
                 self.blocks[t].cycle_ambient_efficiency_correction = round(
@@ -1455,7 +1452,6 @@ class CspDispatch(Dispatch):
 
     @condenser_losses.setter
     def condenser_losses(self, condenser_losses: list):
-        """Normalized condenser parasitic losses [-]"""
         if len(condenser_losses) == len(self.blocks):
             for t, value in zip(self.blocks, condenser_losses):
                 self.blocks[t].condenser_losses = round(value, self.round_digits)
@@ -1475,7 +1471,6 @@ class CspDispatch(Dispatch):
 
     @receiver_startup_fraction.setter
     def receiver_startup_fraction(self, receiver_startup_fraction: list):
-        """Estimated fraction of time period required for receiver start-up [-]"""
         if len(receiver_startup_fraction) == len(self.blocks):
             for t, value in zip(self.blocks, receiver_startup_fraction):
                 self.blocks[t].receiver_startup_fraction = round(
@@ -1495,7 +1490,6 @@ class CspDispatch(Dispatch):
 
     @min_receiver_start_time.setter
     def min_receiver_start_time(self, min_receiver_start_time_hr: float):
-        """Minimum time to start the receiver [hr]"""
         for t in self.blocks.index_set():
             self.blocks[t].min_receiver_start_time.set_value(
                 round(min_receiver_start_time_hr, self.round_digits)
@@ -1509,7 +1503,6 @@ class CspDispatch(Dispatch):
 
     @cost_per_field_generation.setter
     def cost_per_field_generation(self, om_dollar_per_mwh_thermal: float):
-        """Generation cost for the csp field [$/MWht]"""
         for t in self.blocks.index_set():
             self.blocks[t].cost_per_field_generation.set_value(
                 round(om_dollar_per_mwh_thermal, self.round_digits)
@@ -1523,7 +1516,6 @@ class CspDispatch(Dispatch):
 
     @cost_per_field_start.setter
     def cost_per_field_start(self, dollars_per_start: float):
-        """Penalty for field start-up [$/start]"""
         for t in self.blocks.index_set():
             self.blocks[t].cost_per_field_start.set_value(
                 round(dollars_per_start, self.round_digits)
@@ -1537,7 +1529,6 @@ class CspDispatch(Dispatch):
 
     @cost_per_cycle_generation.setter
     def cost_per_cycle_generation(self, om_dollar_per_mwh_electric: float):
-        """Generation cost for power cycle [$/MWhe]"""
         for t in self.blocks.index_set():
             self.blocks[t].cost_per_cycle_generation.set_value(
                 round(om_dollar_per_mwh_electric, self.round_digits)
@@ -1551,7 +1542,6 @@ class CspDispatch(Dispatch):
 
     @cost_per_cycle_start.setter
     def cost_per_cycle_start(self, dollars_per_start: float):
-        """Penalty for power cycle start [$/start]"""
         for t in self.blocks.index_set():
             self.blocks[t].cost_per_cycle_start.set_value(
                 round(dollars_per_start, self.round_digits)
@@ -1565,7 +1555,6 @@ class CspDispatch(Dispatch):
 
     @cost_per_change_thermal_input.setter
     def cost_per_change_thermal_input(self, dollars_per_thermal_power: float):
-        """Penalty for change in power cycle thermal input [$/MWt]"""
         for t in self.blocks.index_set():
             self.blocks[t].cost_per_change_thermal_input.set_value(
                 round(dollars_per_thermal_power, self.round_digits)
@@ -1579,7 +1568,6 @@ class CspDispatch(Dispatch):
 
     @field_startup_losses.setter
     def field_startup_losses(self, field_startup_losses: float):
-        """Solar field startup or shutdown parasitic loss [MWhe]"""
         for t in self.blocks.index_set():
             self.blocks[t].field_startup_losses.set_value(
                 round(field_startup_losses, self.round_digits)
@@ -1593,7 +1581,6 @@ class CspDispatch(Dispatch):
 
     @receiver_required_startup_energy.setter
     def receiver_required_startup_energy(self, energy: float):
-        """Required energy expended to start receiver [MWht]"""
         for t in self.blocks.index_set():
             self.blocks[t].receiver_required_startup_energy.set_value(
                 round(energy, self.round_digits)
@@ -1607,7 +1594,6 @@ class CspDispatch(Dispatch):
 
     @storage_capacity.setter
     def storage_capacity(self, energy: float):
-        """Thermal energy storage capacity [MWht]"""
         for t in self.blocks.index_set():
             self.blocks[t].storage_capacity.set_value(round(energy, self.round_digits))
 
@@ -1619,7 +1605,6 @@ class CspDispatch(Dispatch):
 
     @receiver_pumping_losses.setter
     def receiver_pumping_losses(self, electric_per_thermal: float):
-        """Solar field and/or receiver pumping power per unit power produced [MWe/MWt]"""
         for t in self.blocks.index_set():
             self.blocks[t].receiver_pumping_losses.set_value(
                 round(electric_per_thermal, self.round_digits)
@@ -1633,7 +1618,6 @@ class CspDispatch(Dispatch):
 
     @minimum_receiver_power.setter
     def minimum_receiver_power(self, thermal_power: float):
-        """Minimum operational thermal power delivered by receiver [MWt]"""
         for t in self.blocks.index_set():
             self.blocks[t].minimum_receiver_power.set_value(
                 round(thermal_power, self.round_digits)
@@ -1647,7 +1631,6 @@ class CspDispatch(Dispatch):
 
     @allowable_receiver_startup_power.setter
     def allowable_receiver_startup_power(self, thermal_power: float):
-        """Allowable power per period for receiver start-up [MWt]"""
         for t in self.blocks.index_set():
             self.blocks[t].allowable_receiver_startup_power.set_value(
                 round(thermal_power, self.round_digits)
@@ -1661,7 +1644,6 @@ class CspDispatch(Dispatch):
 
     @field_track_losses.setter
     def field_track_losses(self, electric_power: float):
-        """Solar field tracking parasitic loss [MWe]"""
         for t in self.blocks.index_set():
             self.blocks[t].field_track_losses.set_value(
                 round(electric_power, self.round_digits)
@@ -1701,7 +1683,6 @@ class CspDispatch(Dispatch):
 
     @cycle_nominal_efficiency.setter
     def cycle_nominal_efficiency(self, efficiency: float):
-        """Power cycle nominal efficiency [-]"""
         efficiency = self._check_efficiency_value(efficiency)
         for t in self.blocks.index_set():
             self.blocks[t].cycle_nominal_efficiency.set_value(
@@ -1716,7 +1697,6 @@ class CspDispatch(Dispatch):
 
     @cycle_performance_slope.setter
     def cycle_performance_slope(self, slope: float):
-        """Slope of linear approximation of power cycle performance curve [MWe/MWt]"""
         for t in self.blocks.index_set():
             self.blocks[t].cycle_performance_slope.set_value(
                 round(slope, self.round_digits)
@@ -1730,7 +1710,6 @@ class CspDispatch(Dispatch):
 
     @cycle_pumping_losses.setter
     def cycle_pumping_losses(self, electric_per_thermal: float):
-        """Cycle heat transfer fluid pumping power per unit energy expended [MWe/MWt]"""
         for t in self.blocks.index_set():
             self.blocks[t].cycle_pumping_losses.set_value(
                 round(electric_per_thermal, self.round_digits)
@@ -1744,7 +1723,6 @@ class CspDispatch(Dispatch):
 
     @allowable_cycle_startup_power.setter
     def allowable_cycle_startup_power(self, thermal_power: float):
-        """Allowable power per period for cycle start-up [MWt]"""
         for t in self.blocks.index_set():
             self.blocks[t].allowable_cycle_startup_power.set_value(
                 round(thermal_power, self.round_digits)
@@ -1758,7 +1736,6 @@ class CspDispatch(Dispatch):
 
     @minimum_cycle_thermal_power.setter
     def minimum_cycle_thermal_power(self, thermal_power: float):
-        """Minimum operational thermal power delivered to the power cycle [MWt]"""
         for t in self.blocks.index_set():
             self.blocks[t].minimum_cycle_thermal_power.set_value(
                 round(thermal_power, self.round_digits)
@@ -1772,7 +1749,6 @@ class CspDispatch(Dispatch):
 
     @maximum_cycle_thermal_power.setter
     def maximum_cycle_thermal_power(self, thermal_power: float):
-        """Maximum operational thermal power delivered to the power cycle [MWt]"""
         for t in self.blocks.index_set():
             self.blocks[t].maximum_cycle_thermal_power.set_value(
                 round(thermal_power, self.round_digits)
@@ -1798,7 +1774,6 @@ class CspDispatch(Dispatch):
 
     @maximum_cycle_power.setter
     def maximum_cycle_power(self, electric_power: float):
-        """Maximum cycle electric power output [MWe]"""
         for t in self.blocks.index_set():
             self.blocks[t].maximum_cycle_power.set_value(
                 round(electric_power, self.round_digits)
@@ -1812,7 +1787,6 @@ class CspDispatch(Dispatch):
 
     @initial_thermal_energy_storage.setter
     def initial_thermal_energy_storage(self, initial_energy: float):
-        """Initial thermal energy storage reserve quantity at beginning of the horizon [MWht]"""
         self.model.initial_thermal_energy_storage = round(
             initial_energy, self.round_digits
         )
@@ -1824,7 +1798,6 @@ class CspDispatch(Dispatch):
 
     @initial_receiver_startup_inventory.setter
     def initial_receiver_startup_inventory(self, initial_energy: float):
-        """Initial receiver start-up energy inventory at beginning of the horizon [MWht]"""
         self.model.initial_receiver_startup_inventory = round(
             initial_energy, self.round_digits
         )
@@ -1837,8 +1810,6 @@ class CspDispatch(Dispatch):
 
     @is_field_generating_initial.setter
     def is_field_generating_initial(self, is_field_generating: Union[bool, int]):
-        """True (1) if solar field is generating 'usable' thermal power at beginning of the horizon;
-        False (0) Otherwise [-]"""
         self.model.is_field_generating_initial = int(is_field_generating)
 
     @property
@@ -1848,7 +1819,6 @@ class CspDispatch(Dispatch):
 
     @is_field_starting_initial.setter
     def is_field_starting_initial(self, is_field_starting: Union[bool, int]):
-        """True (1) if solar field  is starting up at beginning of the horizon; False (0) Otherwise [-]"""
         self.model.is_field_starting_initial = int(is_field_starting)
 
     @property
@@ -1858,7 +1828,6 @@ class CspDispatch(Dispatch):
 
     @initial_cycle_startup_inventory.setter
     def initial_cycle_startup_inventory(self, initial_energy: float):
-        """Initial cycle start-up energy inventory at beginning of the horizon [MWht]"""
         self.model.initial_cycle_startup_inventory = round(
             initial_energy, self.round_digits
         )
@@ -1870,7 +1839,6 @@ class CspDispatch(Dispatch):
 
     @initial_cycle_thermal_power.setter
     def initial_cycle_thermal_power(self, initial_power: float):
-        """Initial cycle thermal power at beginning of the horizon [MWt]"""
         self.model.initial_cycle_thermal_power = round(initial_power, self.round_digits)
 
     @property
@@ -1880,7 +1848,6 @@ class CspDispatch(Dispatch):
 
     @is_cycle_generating_initial.setter
     def is_cycle_generating_initial(self, is_cycle_generating: Union[bool, int]):
-        """True (1) if cycle is generating electric power at beginning of the horizon; False (0) Otherwise [-]"""
         self.model.is_cycle_generating_initial = int(is_cycle_generating)
 
     @property
@@ -1890,7 +1857,6 @@ class CspDispatch(Dispatch):
 
     @is_cycle_starting_initial.setter
     def is_cycle_starting_initial(self, is_cycle_starting: Union[bool, int]):
-        """True (1) if cycle is starting up at beginning of the horizon; False (0) Otherwise [-]"""
         self.model.is_cycle_starting_initial = int(is_cycle_starting)
 
     # OUTPUTS
