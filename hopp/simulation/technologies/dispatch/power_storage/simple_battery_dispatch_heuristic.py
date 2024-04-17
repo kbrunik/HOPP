@@ -6,7 +6,9 @@ from pyomo.environ import units as u
 import PySAM.BatteryStateful as BatteryModel
 import PySAM.Singleowner as Singleowner
 
-from hopp.simulation.technologies.dispatch.power_storage.simple_battery_dispatch import SimpleBatteryDispatch
+from hopp.simulation.technologies.dispatch.power_storage.simple_battery_dispatch import (
+    SimpleBatteryDispatch
+)
 
 
 class SimpleBatteryDispatchHeuristic(SimpleBatteryDispatch):
@@ -14,40 +16,44 @@ class SimpleBatteryDispatchHeuristic(SimpleBatteryDispatch):
 
     Currently, enforces available generation and grid limit assuming no battery charging from grid
     """
-    def __init__(self,
-                 pyomo_model: pyomo.ConcreteModel,
-                 index_set: pyomo.Set,
-                 system_model: BatteryModel.BatteryStateful,
-                 financial_model: Singleowner.Singleowner,
-                 fixed_dispatch: Optional[List] = None,
-                 block_set_name: str = 'heuristic_battery',
-                 dispatch_options: Optional[Dict] = None):
+    def __init__(
+            self,
+            pyomo_model: pyomo.ConcreteModel,
+            index_set: pyomo.Set,
+            system_model: BatteryModel.BatteryStateful,
+            financial_model: Singleowner.Singleowner,
+            fixed_dispatch: Optional[List] = None,
+            block_set_name: str = 'heuristic_battery',
+            dispatch_options: Optional[Dict] = None,
+        ):
         """
 
         :param fixed_dispatch: list of normalized values [-1, 1] (Charging (-), Discharging (+))
         """
         if dispatch_options is None:
             dispatch_options = {}
-        super().__init__(pyomo_model,
-                         index_set,
-                         system_model,
-                         financial_model,
-                         block_set_name=block_set_name,
-                         dispatch_options=dispatch_options)
+        super().__init__(
+            pyomo_model,
+            index_set,
+            system_model,
+            financial_model,
+            block_set_name=block_set_name,
+            dispatch_options=dispatch_options,
+        )
 
         self.max_charge_fraction = list([0.0]*len(self.blocks.index_set()))
         self.max_discharge_fraction = list([0.0]*len(self.blocks.index_set()))
         self.user_fixed_dispatch = list([0.0]*len(self.blocks.index_set()))
-        # TODO: should I enforce either a day schedule or a year schedule year and save it as user input.
-        #  Additionally, Should I drop it as input in the init function?
+        # TODO: should I enforce either a day schedule or a year schedule year and save it as user
+        # input. Additionally, Should I drop it as input in the init function?
         if fixed_dispatch is not None:
             self.user_fixed_dispatch = fixed_dispatch
 
         self._fixed_dispatch = list([0.0] * len(self.blocks.index_set()))
 
     def set_fixed_dispatch(self, gen: list, grid_limit: list):
-        """Sets charge and discharge power of battery dispatch using fixed_dispatch attribute and enforces available
-        generation and grid limits.
+        """Sets charge and discharge power of battery dispatch using fixed_dispatch attribute and
+        enforces available generation and grid limits.
 
         """
         self.check_gen_grid_limit(gen, grid_limit)
@@ -73,9 +79,12 @@ class SimpleBatteryDispatchHeuristic(SimpleBatteryDispatch):
         NOTE: This method assumes that battery cannot be charged by the grid.
         """
         for t in self.blocks.index_set():
-            self.max_charge_fraction[t] = self.enforce_power_fraction_simple_bounds(gen[t] / self.maximum_power)
-            self.max_discharge_fraction[t] = self.enforce_power_fraction_simple_bounds((grid_limit[t] - gen[t])
-                                                                                       / self.maximum_power)
+            self.max_charge_fraction[t] = self.enforce_power_fraction_simple_bounds(
+                gen[t] / self.maximum_power
+            )
+            self.max_discharge_fraction[t] = self.enforce_power_fraction_simple_bounds(
+                (grid_limit[t] - gen[t]) / self.maximum_power
+            )
 
     @staticmethod
     def enforce_power_fraction_simple_bounds(power_fraction: float) -> float:
@@ -108,10 +117,21 @@ class SimpleBatteryDispatchHeuristic(SimpleBatteryDispatch):
         """
         if power_fraction > 0.0:
             discharge_power = power_fraction * self.maximum_power
-            soc = soc0 - self.time_duration[0] * (1/(self.discharge_efficiency/100.) * discharge_power) / self.capacity
+            soc = (
+                soc0 
+                - self.time_duration[0]
+                * (1 / (self.discharge_efficiency / 100.)
+                * discharge_power)
+                / self.capacity
+            )
         elif power_fraction < 0.0:
             charge_power = -power_fraction * self.maximum_power
-            soc = soc0 + self.time_duration[0] * (self.charge_efficiency / 100. * charge_power) / self.capacity
+            soc = (
+                soc0
+                + self.time_duration[0]
+                * (self.charge_efficiency / 100. * charge_power)
+                / self.capacity
+            )
         else:
             soc = soc0
 
@@ -175,4 +195,3 @@ class SimpleBatteryDispatchHeuristic(SimpleBatteryDispatch):
             raise ValueError("fixed_dispatch must be normalized values between -1 and 1.")
         else:
             self._user_fixed_dispatch = fixed_dispatch
-

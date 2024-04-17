@@ -4,7 +4,9 @@ from pyomo.environ import units as u
 import PySAM.BatteryStateful as BatteryModel
 import PySAM.Singleowner as Singleowner
 
-from hopp.simulation.technologies.dispatch.power_storage.simple_battery_dispatch import SimpleBatteryDispatch
+from hopp.simulation.technologies.dispatch.power_storage.simple_battery_dispatch import (
+    SimpleBatteryDispatch
+)
 
 
 class NonConvexLinearVoltageBatteryDispatch(SimpleBatteryDispatch):
@@ -13,23 +15,27 @@ class NonConvexLinearVoltageBatteryDispatch(SimpleBatteryDispatch):
     """
     # TODO: add a reference to original paper
 
-    def __init__(self,
-                 pyomo_model: pyomo.ConcreteModel,
-                 index_set: pyomo.Set,
-                 system_model: BatteryModel.BatteryStateful,
-                 financial_model: Singleowner.Singleowner,
-                 block_set_name: str = 'LV_battery',
-                 dispatch_options: dict = None,
-                 use_exp_voltage_point: bool = False):
+    def __init__(
+            self,
+            pyomo_model: pyomo.ConcreteModel,
+            index_set: pyomo.Set,
+            system_model: BatteryModel.BatteryStateful,
+            financial_model: Singleowner.Singleowner,
+            block_set_name: str = 'LV_battery',
+            dispatch_options: dict = None,
+            use_exp_voltage_point: bool = False,
+        ):
         u.load_definitions_from_strings(['amp_hour = amp * hour = Ah = amphour'])
         if dispatch_options is None:
             dispatch_options = {}
-        super().__init__(pyomo_model,
-                         index_set,
-                         system_model,
-                         financial_model,
-                         block_set_name=block_set_name,
-                         dispatch_options=dispatch_options)
+        super().__init__(
+            pyomo_model,
+            index_set,
+            system_model,
+            financial_model,
+            block_set_name=block_set_name,
+            dispatch_options=dispatch_options,
+        )
         self.use_exp_voltage_point = use_exp_voltage_point
 
     def dispatch_block_rule(self, battery):
@@ -115,7 +121,9 @@ class NonConvexLinearVoltageBatteryDispatch(SimpleBatteryDispatch):
     def _create_soc_inventory_constraint(self, storage):
         def soc_inventory_rule(m):
             # TODO: add alpha and beta terms
-            return m.soc == (m.soc0 + m.time_duration * (m.charge_current - m.discharge_current) / m.capacity)
+            return m.soc == (
+                m.soc0 + m.time_duration * (m.charge_current - m.discharge_current) / m.capacity
+            )
         # Storage State-of-charge balance
         storage.soc_inventory = pyomo.Constraint(
             doc=self.block_set_name + " state-of-charge inventory balance",
@@ -132,14 +140,26 @@ class NonConvexLinearVoltageBatteryDispatch(SimpleBatteryDispatch):
             expr=battery.charge_current <= battery.maximum_charge_current * battery.is_charging)
         battery.charge_current_ub_soc = pyomo.Constraint(
             doc="Battery Charging current upper bound state-of-charge dependence",
-            expr=battery.charge_current <= battery.capacity * (1.0 - battery.soc0) / battery.time_duration)
+            expr=(
+                battery.charge_current
+                <= battery.capacity * (1.0 - battery.soc0) / battery.time_duration
+            )
+        )
         # Discharge current bounds
         battery.discharge_current_lb = pyomo.Constraint(
             doc="Battery Discharging current lower bound",
-            expr=battery.discharge_current >= battery.minimum_discharge_current * battery.is_discharging)
+            expr=(
+                battery.discharge_current 
+                >= battery.minimum_discharge_current * battery.is_discharging
+            )
+        )
         battery.discharge_current_ub = pyomo.Constraint(
             doc="Battery Discharging current upper bound",
-            expr=battery.discharge_current <= battery.maximum_discharge_current * battery.is_discharging)
+            expr=(
+                battery.discharge_current
+                <= battery.maximum_discharge_current * battery.is_discharging
+            )
+        )
         battery.discharge_current_ub_soc = pyomo.Constraint(
             doc="Battery Discharging current upper bound state-of-charge dependence",
             expr=battery.discharge_current <= battery.maximum_discharge_current * battery.soc0)
@@ -148,25 +168,54 @@ class NonConvexLinearVoltageBatteryDispatch(SimpleBatteryDispatch):
     def _create_lv_battery_power_equation_constraints(battery):
         battery.charge_power_equation = pyomo.Constraint(
             doc="Battery charge power equation equal to the product of current and voltage",
-            expr=battery.charge_power == battery.charge_current * (battery.voltage_slope * battery.soc0
-                                                                   + (battery.voltage_intercept
-                                                                      + battery.average_current
-                                                                      * battery.internal_resistance)))
+            expr=(
+                battery.charge_power
+                == (
+                    battery.charge_current
+                    * (
+                        battery.voltage_slope
+                        * battery.soc0
+                        + (
+                            battery.voltage_intercept
+                            + battery.average_current
+                            * battery.internal_resistance
+                        )
+                    )
+                )
+            )
+        )
         battery.discharge_power_equation = pyomo.Constraint(
             doc="Battery discharge power equation equal to the product of current and voltage",
-            expr=battery.discharge_power == battery.discharge_current * (battery.voltage_slope * battery.soc0
-                                                                         + (battery.voltage_intercept
-                                                                            - battery.average_current
-                                                                            * battery.internal_resistance)))
+            expr=(
+                battery.discharge_power
+                == (
+                    battery.discharge_current
+                    * (
+                        battery.voltage_slope
+                        * battery.soc0
+                        + (
+                            battery.voltage_intercept
+                            - battery.average_current
+                            * battery.internal_resistance
+                        )
+                    )
+                )
+            )
+        )
 
     def _lifecycle_count_rule(self, m, i):
         # current accounting
         start = int(i * self.timesteps_per_day)
         end = int((i + 1) * self.timesteps_per_day)
-        return self.model.lifecycles[i] == sum(self.blocks[t].time_duration
-                                            * (0.8 * self.blocks[t].discharge_current
-                                               - 0.8 * self.blocks[t].discharge_current * self.blocks[t].soc0)
-                                            / self.blocks[t].capacity for t in range(start, end))
+        return self.model.lifecycles[i] == sum(
+            self.blocks[t].time_duration
+            * (
+                0.8 * self.blocks[t].discharge_current
+                - 0.8 * self.blocks[t].discharge_current * self.blocks[t].soc0
+            )
+            / self.blocks[t].capacity
+            for t in range(start, end)
+        )
 
     def _set_control_mode(self):
         self._system_model.value("control_mode", 0.0)  # Current control
@@ -294,7 +343,9 @@ class NonConvexLinearVoltageBatteryDispatch(SimpleBatteryDispatch):
     @minimum_discharge_current.setter
     def minimum_discharge_current(self, minimum_discharge_current: float):
         for t in self.blocks.index_set():
-            self.blocks[t].minimum_discharge_current = round(minimum_discharge_current, self.round_digits)
+            self.blocks[t].minimum_discharge_current = round(
+                minimum_discharge_current, self.round_digits
+            )
 
     @property
     def maximum_discharge_current(self) -> float:
@@ -304,7 +355,9 @@ class NonConvexLinearVoltageBatteryDispatch(SimpleBatteryDispatch):
     @maximum_discharge_current.setter
     def maximum_discharge_current(self, maximum_discharge_current: float):
         for t in self.blocks.index_set():
-            self.blocks[t].maximum_discharge_current = round(maximum_discharge_current, self.round_digits)
+            self.blocks[t].maximum_discharge_current = round(
+                maximum_discharge_current, self.round_digits
+            )
 
     # Outputs
     @property

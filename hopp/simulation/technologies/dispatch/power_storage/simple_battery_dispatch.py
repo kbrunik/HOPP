@@ -4,7 +4,9 @@ from pyomo.environ import units as u
 import PySAM.BatteryStateful as BatteryModel
 import PySAM.Singleowner as Singleowner
 
-from hopp.simulation.technologies.dispatch.power_storage.power_storage_dispatch import PowerStorageDispatch
+from hopp.simulation.technologies.dispatch.power_storage.power_storage_dispatch import (
+    PowerStorageDispatch
+)
 from hopp.simulation.technologies.financial import FinancialModelType
 
 
@@ -15,29 +17,38 @@ class SimpleBatteryDispatch(PowerStorageDispatch):
 
     """
 
-    def __init__(self,
-                 pyomo_model: pyomo.ConcreteModel,
-                 index_set: pyomo.Set,
-                 system_model: BatteryModel.BatteryStateful,
-                 financial_model: FinancialModelType,
-                 block_set_name: str,
-                 dispatch_options):
-        super().__init__(pyomo_model,
-                         index_set,
-                         system_model,
-                         financial_model,
-                         block_set_name=block_set_name,
-                         dispatch_options=dispatch_options)
+    def __init__(
+            self,
+            pyomo_model: pyomo.ConcreteModel,
+            index_set: pyomo.Set,
+            system_model: BatteryModel.BatteryStateful,
+            financial_model: FinancialModelType,
+            block_set_name: str,
+            dispatch_options,
+        ):
+        super().__init__(
+            pyomo_model,
+            index_set,
+            system_model,
+            financial_model,
+            block_set_name=block_set_name,
+            dispatch_options=dispatch_options,
+        )
 
     def initialize_parameters(self):
         if self.options.include_lifecycle_count:
-            self.lifecycle_cost = self.options.lifecycle_cost_per_kWh_cycle * self._system_model.value('nominal_energy')
+            self.lifecycle_cost = (
+                self.options.lifecycle_cost_per_kWh_cycle
+                * self._system_model.value('nominal_energy')
+            )
 
         self.cost_per_charge = 0.75  # [$/MWh]
         self.cost_per_discharge = 0.75  # [$/MWh]
         self.minimum_power = 0.0
         # FIXME: Change C_rate call to user set system_capacity_kw
-        # self.maximum_power = self._system_model.value('nominal_energy') * self._system_model.value('C_rate') / 1e3
+        # self.maximum_power = (
+        #     self._system_model.value('nominal_energy') * self._system_model.value('C_rate') / 1e3
+        # )
         self.maximum_power = self._financial_model.value("system_capacity") / 1e3
         self.minimum_soc = self._system_model.value('minimum_SOC')
         self.maximum_soc = self._system_model.value('maximum_SOC')

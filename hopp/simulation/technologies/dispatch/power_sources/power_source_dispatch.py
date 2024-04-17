@@ -9,17 +9,21 @@ class PowerSourceDispatch(Dispatch):
     """
 
     """
-    def __init__(self,
-                 pyomo_model: pyomo.ConcreteModel,
-                 index_set: pyomo.Set,
-                 system_model,
-                 financial_model,
-                 block_set_name: str = 'generator'):
-        super().__init__(pyomo_model,
-                         index_set,
-                         system_model,
-                         financial_model,
-                         block_set_name=block_set_name)
+    def __init__(
+            self,
+            pyomo_model: pyomo.ConcreteModel,
+            index_set: pyomo.Set,
+            system_model,
+            financial_model,
+            block_set_name: str = 'generator',
+        ):
+        super().__init__(
+            pyomo_model,
+            index_set,
+            system_model,
+            financial_model,
+            block_set_name=block_set_name,
+        )
 
     @staticmethod
     def dispatch_block_rule(gen):
@@ -74,9 +78,11 @@ class PowerSourceDispatch(Dispatch):
             horizon_gen = generation[start_time:start_time + n_horizon]
 
         if len(horizon_gen) < len(self.blocks):
-            raise RuntimeError(f"Dispatch parameter update error at start_time {start_time}: System model "
-                               f"{type(self._system_model)} generation profile should have at least {len(self.blocks)} "
-                               f"length but has only {len(generation)}")
+            raise RuntimeError(
+                f"Dispatch parameter update error at start_time {start_time}: System model "
+                f"{type(self._system_model)} generation profile should have at least "
+                f"{len(self.blocks)} length but has only {len(generation)}."
+            )
         self.available_generation = [gen_kw / 1e3 for gen_kw in horizon_gen]
 
     def _create_variables(self, hyrbid):
@@ -93,7 +99,9 @@ class PowerSourceDispatch(Dispatch):
     @cost_per_generation.setter
     def cost_per_generation(self, om_dollar_per_mwh: float):
         for t in self.blocks.index_set():
-            self.blocks[t].cost_per_generation.set_value(round(om_dollar_per_mwh, self.round_digits))
+            self.blocks[t].cost_per_generation.set_value(
+                round(om_dollar_per_mwh, self.round_digits)
+            )
 
     @property
     def available_generation(self) -> list:
@@ -109,7 +117,7 @@ class PowerSourceDispatch(Dispatch):
 
     @property
     def generation(self) -> list:
-        return [round(self.blocks[t].generation.value, self.round_digits) for t in self.blocks.index_set()]
-
-
-
+        return [
+            round(self.blocks[t].generation.value, self.round_digits)
+            for t in self.blocks.index_set()
+        ]
