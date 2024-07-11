@@ -1,13 +1,16 @@
-import json
 import os
-import pandas as pd
-import requests
 import time
+
+import PySAM.Singleowner as Singleowner
+import PySAM.Pvsamv1 as Pvsam
+import json
+import requests
+import pandas as pd
 
 from typing import Sequence
 
-from hopp.simulation.technologies.pv_source import *
-from hopp.simulation.technologies.wind_source import WindPlant
+from hopp.simulation.technologies.pv.pv_plant import PVPlant
+from hopp.simulation.technologies.wind.wind_plant import WindPlant
 from hopp.simulation.technologies.battery import Battery
 from hopp.utilities.log import hybrid_logger as logger
 from hopp.utilities.keys import get_developer_nrel_gov_key
@@ -16,6 +19,8 @@ from hopp.simulation.technologies.utility_rate import UtilityRate
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+# enable to record responses for testing/debugging
+# from responses import _recorder
 
 class REopt:
     """
@@ -33,7 +38,7 @@ class REopt:
                  solar_model: PVPlant = None,
                  wind_model: WindPlant = None,
                  storage_model: Battery = None,
-                 fin_model: Singleowner = None,
+                 fin_model: Singleowner.Singleowner = None,
                  off_grid=False,
                  fileout=None):
         """
@@ -133,7 +138,7 @@ class REopt:
 
             fin_model: Singleowner.Singleowner = solar_model._financial_model
             if fin_model is not None:
-                PV['federal_itc_pct'] = fin_model.TaxCreditIncentives.itc_fed_percent * 0.01
+                PV['federal_itc_pct'] = fin_model.TaxCreditIncentives.itc_fed_percent[0] * 0.01
                 PV['om_cost_us_dollars_per_kw'] = fin_model.SystemCosts.om_capacity[0]
         return PV
 
@@ -245,7 +250,7 @@ class REopt:
         # logger.info("Created REopt post, exported to " + post_path)
         return post
 
-    def get_reopt_results(self, results_file=None):
+    def get_reopt_results(self, results_file=None, poll_interval=5):
         """
         Function for posting job and polling results end-point
         :param post:
@@ -261,7 +266,7 @@ class REopt:
 
         if run_id is not None:
             results_url = self.reopt_api_url + '<run_uuid>/results/?api_key=' + self.api_key
-            results = self.poller(url=results_url.replace('<run_uuid>', run_id))
+            results = self.poller(results_url.replace('<run_uuid>', run_id), poll_interval)
 
             with open(results_file, 'w') as fp:
                 json.dump(obj=results, fp=fp)
@@ -274,6 +279,8 @@ class REopt:
         return results
 
     @staticmethod
+    # enable to record the response for testing/debugging
+    # @_recorder.record(file_path="reopt_responses.yaml")
     def poller(url, poll_interval=5):
         """
         Function for polling the REopt API results URL until status is not "Optimizing..."
@@ -317,6 +324,8 @@ class REopt:
         return resp_dict
 
     @staticmethod
+    # enable to record the response for testing/debugging
+    # @_recorder.record(file_path="reopt_responses_post.yaml")
     def get_run_uuid(post, API_KEY, api_url):
         """
         Function for posting job

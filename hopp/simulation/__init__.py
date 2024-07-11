@@ -1,1 +1,1 @@
-from hopp.simulation.hybrid_simulation import HybridSimulation
+from hopp.simulation.hopp_interface import HoppInterface

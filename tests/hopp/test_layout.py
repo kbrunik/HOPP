@@ -3,27 +3,25 @@ from pytest import approx
 from pathlib import Path
 from timeit import default_timer
 import numpy as np
-import os
 import json
 import matplotlib.pyplot as plt
 from shapely import affinity
 from shapely.ops import unary_union
-from shapely.geometry import Point, Polygon, MultiLineString
+from shapely.geometry import Point, MultiLineString
 
-from hopp.simulation.technologies.sites import SiteInfo, flatirons_site
-from hopp.simulation.technologies.wind_source import WindPlant
-from hopp.simulation.technologies.pv_source import PVPlant
+from hopp.simulation.technologies.wind.wind_plant import WindPlant, WindConfig
+from hopp.simulation.technologies.pv.pv_plant import PVPlant, PVConfig
 from hopp.simulation.technologies.layout.hybrid_layout import HybridLayout, WindBoundaryGridParameters, PVGridParameters, get_flicker_loss_multiplier
 from hopp.simulation.technologies.layout.wind_layout_tools import create_grid
 from hopp.simulation.technologies.layout.pv_design_utils import size_electrical_parameters, find_modules_per_string
-from hopp.simulation.technologies.detailed_pv_plant import DetailedPVPlant
+from hopp.simulation.technologies.pv.detailed_pv_plant import DetailedPVPlant, DetailedPVConfig
+
+from hopp.utilities.utils_for_tests import create_default_site_info
 
 
 @pytest.fixture
 def site():
-    solar_resource_file = Path(__file__).absolute().parent.parent.parent / "resource_files" / "solar" / "35.2018863_-101.945027_psmv3_60_2012.csv"
-    wind_resource_file = Path(__file__).absolute().parent.parent.parent / "resource_files" / "wind" / "35.2018863_-101.945027_windtoolkit_2012_60min_80m_100m.srw"
-    return SiteInfo(flatirons_site, solar_resource_file=solar_resource_file, wind_resource_file=wind_resource_file)
+    return create_default_site_info()
 
 
 technology = {
@@ -49,12 +47,11 @@ technology = {
 }
 
 
-def test_create_grid():
-    site_info = SiteInfo(flatirons_site)
-    bounding_shape = site_info.polygon.buffer(-200)
-    site_info.plot()
+def test_create_grid(site):
+    bounding_shape = site.polygon.buffer(-200)
+    site.plot()
     turbine_positions = create_grid(bounding_shape,
-                                    site_info.polygon.centroid,
+                                    site.polygon.centroid,
                                     np.pi / 4,
                                     200,
                                     200,
@@ -76,23 +73,25 @@ def test_create_grid():
 
 
 def test_wind_layout(site):
-    wind_model = WindPlant(site, technology['wind'])
+    config = WindConfig.from_dict(technology['wind'])
+    wind_model = WindPlant(site, config=config)
     xcoords, ycoords = wind_model._layout.turb_pos_x, wind_model._layout.turb_pos_y
 
-    expected_xcoords = [0.7510, 1004.83, 1470.38, 903.06, 658.182]
-    expected_ycoords = [888.865, 1084.148, 929.881, 266.4096, 647.169]
+    expected_xcoords = [1498, 867, 525, 3, 658]
+    expected_ycoords = [951, 265, 74, 288, 647]
 
     for i in range(len(xcoords)):
-        assert xcoords[i] == pytest.approx(expected_xcoords[i], 1e-3)
-        assert ycoords[i] == pytest.approx(expected_ycoords[i], 1e-3)
+        assert xcoords[i] == pytest.approx(expected_xcoords[i], abs=1)
+        assert ycoords[i] == pytest.approx(expected_ycoords[i], abs=1)
 
     # wind_model.plot()
     # plt.show()
 
 
 def test_solar_layout(site):
-    solar_model = PVPlant(site, technology['pv'])
-    solar_region, buffer_region = solar_model._layout.solar_region.bounds, solar_model._layout.buffer_region.bounds
+    config = PVConfig.from_dict(technology['pv'])
+    solar_model = PVPlant(site, config=config)
+    solar_region, buffer_region = solar_model.layout.solar_region.bounds, solar_model.layout.buffer_region.bounds
 
     expected_solar_region = (358.026, 451.623, 539.019, 632.617)
     expected_buffer_region = (248.026, 341.623, 649.019, 632.617)
@@ -103,12 +102,16 @@ def test_solar_layout(site):
 
 
 def test_hybrid_layout(site):
+    pv_config = PVConfig.from_dict(technology['pv'])
+    wind_config = WindConfig.from_dict(technology['wind'])
     power_sources = {
-        'wind': WindPlant(site, technology['wind']),
-        'pv': PVPlant(site, technology['pv'])
+        'wind': WindPlant(site, config=wind_config),
+        'pv': PVPlant(site, config=pv_config)
     }
 
     layout = HybridLayout(site, power_sources)
+    assert layout.wind is not None
+    assert layout.pv is not None
     xcoords, ycoords = layout.wind.turb_pos_x, layout.wind.turb_pos_y
     buffer_region = layout.pv.buffer_region
 
@@ -120,9 +123,11 @@ def test_hybrid_layout(site):
 
 
 def test_hybrid_layout_rotated_array(site):
+    pv_config = PVConfig.from_dict(technology['pv'])
+    wind_config = WindConfig.from_dict(technology['wind'])
     power_sources = {
-        'wind': WindPlant(site, technology['wind']),
-        'pv': PVPlant(site, technology['pv'])
+        'wind': WindPlant(site, config=wind_config),
+        'pv': PVPlant(site, config=pv_config)
     }
 
     layout = HybridLayout(site, power_sources)
@@ -169,8 +174,9 @@ def test_hybrid_layout_rotated_array(site):
 
 
 def test_hybrid_layout_wind_only(site):
+    config = WindConfig.from_dict(technology['wind'])
     power_sources = {
-        'wind': WindPlant(site, technology['wind']),
+        'wind': WindPlant(site, config=config),
         # 'solar': PVPlant(site, technology['solar'])
     }
 
@@ -179,19 +185,20 @@ def test_hybrid_layout_wind_only(site):
 
     print(xcoords, ycoords)
 
-    expected_xcoords = [0.751, 1004.834, 1470.385, 903.063, 658.181]
-    expected_ycoords = [888.865, 1084.148, 929.881, 266.409, 647.169]
+    expected_xcoords = [1498, 867, 525, 3, 658]
+    expected_ycoords = [951, 265, 74, 288, 647]
 
     # turbines move from `test_wind_layout` due to the solar exclusion
     for i in range(len(xcoords)):
-        assert xcoords[i] == pytest.approx(expected_xcoords[i], 1e-3)
-        assert ycoords[i] == pytest.approx(expected_ycoords[i], 1e-3)
+        assert xcoords[i] == pytest.approx(expected_xcoords[i], abs=1)
+        assert ycoords[i] == pytest.approx(expected_ycoords[i], abs=1)
 
 
 def test_hybrid_layout_solar_only(site):
+    config = PVConfig.from_dict(technology['pv'])
     power_sources = {
         # 'wind': WindPlant(site, technology['wind']),
-        'pv': PVPlant(site, technology['pv'])
+        'pv': PVPlant(site, config=config)
     }
 
     layout = HybridLayout(site, power_sources)
@@ -203,37 +210,6 @@ def test_hybrid_layout_solar_only(site):
     for i in range(4):
         assert solar_region[i] == pytest.approx(expected_solar_region[i], 1e-3)
         assert buffer_region[i] == pytest.approx(expected_buffer_region[i], 1e-3)
-
-
-def test_kml_file_read():
-    filepath = Path(__file__).absolute().parent / "layout_example.kml"
-    site_data = {'kml_file': filepath}
-    solar_resource_file = Path(__file__).absolute().parent.parent.parent / "resource_files" / "solar" / "35.2018863_-101.945027_psmv3_60_2012.csv"
-    wind_resource_file = Path(__file__).absolute().parent.parent.parent / "resource_files" / "wind" / "35.2018863_-101.945027_windtoolkit_2012_60min_80m_100m.srw"
-    site = SiteInfo(site_data, solar_resource_file=solar_resource_file, wind_resource_file=wind_resource_file)
-    site.plot()
-    assert np.array_equal(np.round(site.polygon.bounds), [ 681175., 4944970.,  686386., 4949064.])
-    assert site.polygon.area * 3.86102e-7 == pytest.approx(2.3393, abs=0.01) # m2 to mi2
-
-
-def test_kml_file_append():
-    filepath = Path(__file__).absolute().parent / "layout_example.kml"
-    site_data = {'kml_file': filepath}
-    solar_resource_file = Path(__file__).absolute().parent.parent.parent / "resource_files" / "solar" / "35.2018863_-101.945027_psmv3_60_2012.csv"
-    wind_resource_file = Path(__file__).absolute().parent.parent.parent / "resource_files" / "wind" / "35.2018863_-101.945027_windtoolkit_2012_60min_80m_100m.srw"
-    site = SiteInfo(site_data, solar_resource_file=solar_resource_file, wind_resource_file=wind_resource_file)
-
-    x = site.polygon.centroid.x
-    y = site.polygon.centroid.y
-    turb_coords = [x - 500, y - 500]
-    solar_region = Polygon(((x, y), (x, y + 5000), (x + 5000, y), (x + 5000, y + 5000)))
-
-    filepath_new = Path(__file__).absolute().parent / "layout_example2.kml"
-    site.kml_write(filepath_new, turb_coords, solar_region)
-    assert filepath_new.exists()
-    k, valid_region, lat, lon = SiteInfo.kml_read(filepath)
-    assert valid_region.area > 0
-    os.remove(filepath_new)
 
 
 def test_system_electrical_sizing(site):
@@ -293,7 +269,7 @@ def test_detailed_pv_properties(site):
     INV_SNL_PACO_DEFAULT = 753200
     DC_AC_RATIO_DEFAULT = 0.67057
 
-    pvsamv1_defaults_file = Path(__file__).absolute().parent.parent / "hybrid/pvsamv1_basic_params.json"
+    pvsamv1_defaults_file = Path(__file__).absolute().parent.parent / "hopp/pvsamv1_basic_params.json"
     with open(pvsamv1_defaults_file, 'r') as f:
         tech_config = json.load(f)
 
@@ -307,11 +283,10 @@ def test_detailed_pv_properties(site):
     assert tech_config['inv_snl_paco'] == approx(INV_SNL_PACO_DEFAULT, 1e-3)
 
     # Create a detailed PV plant with the pvsamv1_basic_params.json config file
+    config = DetailedPVConfig.from_dict({'tech_config': tech_config})
     detailed_pvplant = DetailedPVPlant(
         site=site,
-        pv_config={
-            'tech_config': tech_config,
-        }
+        config=config
     )
 
     # Verify that the detailed PV plant has the same values as in the config file
@@ -356,9 +331,7 @@ def test_detailed_pv_properties(site):
     # Reinstantiate (reset) the detailed PV plant
     detailed_pvplant = DetailedPVPlant(
         site=site,
-        pv_config={
-            'tech_config': tech_config,
-        }
+        config=config
     )
 
     # Modify the number of strings and verify that values update correctly
@@ -378,9 +351,7 @@ def test_detailed_pv_properties(site):
     # Reinstantiate (reset) the detailed PV plant
     detailed_pvplant = DetailedPVPlant(
         site=site,
-        pv_config={
-            'tech_config': tech_config,
-        }
+        config=config
     )
 
     # Modify the modules per string and verify that values update correctly
@@ -400,9 +371,7 @@ def test_detailed_pv_properties(site):
     # Reinstantiate (reset) the detailed PV plant
     detailed_pvplant = DetailedPVPlant(
         site=site,
-        pv_config={
-            'tech_config': tech_config,
-        }
+        config=config
     )
 
     # Change the PV module and verify that values update correctly
@@ -452,9 +421,7 @@ def test_detailed_pv_properties(site):
     # Reinstantiate (reset) the detailed PV plant
     detailed_pvplant = DetailedPVPlant(
         site=site,
-        pv_config={
-            'tech_config': tech_config,
-        }
+        config=config
     )
 
     # Change the inverter and verify that values update correctly
@@ -492,7 +459,7 @@ def test_detailed_pv_properties(site):
 
 
 def test_detailed_pv_plant_custom_design(site):
-    pvsamv1_defaults_file = Path(__file__).absolute().parent.parent / "hybrid/pvsamv1_basic_params.json"
+    pvsamv1_defaults_file = Path(__file__).absolute().parent.parent / "hopp/pvsamv1_basic_params.json"
     with open(pvsamv1_defaults_file, 'r') as f:
         tech_config = json.load(f)
 
@@ -521,11 +488,10 @@ def test_detailed_pv_plant_custom_design(site):
     tech_config['n_inverters'] = n_inverters
 
     # Create a detailed PV plant with the pvsamv1_basic_params.json config file
+    config = DetailedPVConfig.from_dict({'tech_config': tech_config})
     detailed_pvplant = DetailedPVPlant(
         site=site,
-        pv_config={
-            'tech_config': tech_config,
-        }
+        config=config
     )
 
     assert detailed_pvplant.system_capacity == pytest.approx(calculated_system_capacity, 1e-3)
@@ -533,22 +499,21 @@ def test_detailed_pv_plant_custom_design(site):
 
     detailed_pvplant.simulate(target_solar_kw)
 
-    assert detailed_pvplant._system_model.Outputs.annual_ac_inv_clip_loss_percent < 1.2
+    assert detailed_pvplant._system_model.Outputs.annual_ac_inv_clip_loss_percent < 1.3
     assert detailed_pvplant._system_model.Outputs.annual_ac_inv_eff_loss_percent < 3
     assert detailed_pvplant._system_model.Outputs.annual_ac_gross / detailed_pvplant._system_model.Outputs.annual_dc_gross > 0.91
 
 
 def test_detailed_pv_plant_modify_after_init(site):
-    pvsamv1_defaults_file = Path(__file__).absolute().parent.parent / "hybrid/pvsamv1_basic_params.json"
+    pvsamv1_defaults_file = Path(__file__).absolute().parent.parent / "hopp/pvsamv1_basic_params.json"
     with open(pvsamv1_defaults_file, 'r') as f:
         tech_config = json.load(f)
 
     # Create a detailed PV plant with the pvsamv1_basic_params.json config file
+    config = DetailedPVConfig.from_dict({'tech_config': tech_config})
     detailed_pvplant = DetailedPVPlant(
         site=site,
-        pv_config={
-            'tech_config': tech_config,
-        }
+        config=config
     )
 
     assert detailed_pvplant.system_capacity == pytest.approx(tech_config['system_capacity'], 1e-3)

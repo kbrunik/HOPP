@@ -97,6 +97,18 @@ class HybridDispatch(Dispatch):
         hybrid.wind_port = Port(initialize={'generation': hybrid.wind_generation})
         self.ports[t].append(hybrid.wind_port)
 
+    def _create_wave_variables(self, hybrid, t):
+        hybrid.wave_generation = pyomo.Var(
+            doc="Power generation of wave devices [MW]",
+            domain=pyomo.NonNegativeReals,
+            units=u.MW,
+            initialize=0.0)
+        self.power_source_gen_vars[t].append(hybrid.wave_generation)
+
+    def _create_wave_port(self, hybrid, t):
+        hybrid.wave_port = Port(initialize={'generation': hybrid.wave_generation})
+        self.ports[t].append(hybrid.wave_port)
+
     def _create_tower_variables(self, hybrid, t):
         hybrid.tower_generation = pyomo.Var(
             doc="Power generation of CSP tower [MW]",
@@ -217,7 +229,7 @@ class HybridDispatch(Dispatch):
         pyomo.TransformationFactory("network.expand_arcs").apply_to(self.model)
 
     def initialize_parameters(self):
-        self.time_weighting_factor = 0.995  # Discount factor
+        self.time_weighting_factor = self.options.time_weighting_factor     # Discount factor
         for tech in self.power_sources.values():
             tech.dispatch.initialize_parameters()
 
@@ -232,53 +244,76 @@ class HybridDispatch(Dispatch):
     def create_max_gross_profit_objective(self):
         self._delete_objective()
 
+        if 'grid' in self.power_sources.keys():
+            tb = self.power_sources['grid'].dispatch.blocks
+            self.model.grid_obj = pyomo.Expression(expr=
+                sum(self.blocks[t].time_weighting_factor * tb[t].time_duration
+                * tb[t].electricity_sell_price * self.blocks[t].electricity_sold
+                - (1/self.blocks[t].time_weighting_factor) * tb[t].time_duration
+                * tb[t].electricity_purchase_price * self.blocks[t].electricity_purchased
+                - tb[t].epsilon * tb[t].is_generating
+                for t in self.blocks.index_set()))
+            
+        if 'pv' in self.power_sources.keys():
+            tb = self.power_sources['pv'].dispatch.blocks
+            self.model.pv_obj = pyomo.Expression(expr=
+                sum(- (1/self.blocks[t].time_weighting_factor)
+                * tb[t].time_duration * tb[t].cost_per_generation * self.blocks[t].pv_generation
+                for t in self.blocks.index_set()))
+
+        if 'wind' in self.power_sources.keys():
+            tb = self.power_sources['wind'].dispatch.blocks
+            self.model.wind_obj = pyomo.Expression(expr=
+                sum(- (1/self.blocks[t].time_weighting_factor)
+                * tb[t].time_duration * tb[t].cost_per_generation * self.blocks[t].wind_generation
+                for t in self.blocks.index_set()))
+
+        if 'wave' in self.power_sources.keys():
+            tb = self.power_sources['wave'].dispatch.blocks
+            self.model.wave_obj = pyomo.Expression(expr=
+                sum(- (1/self.blocks[t].time_weighting_factor)
+                * tb[t].time_duration * tb[t].cost_per_generation * self.blocks[t].wave_generation
+                for t in self.blocks.index_set()))
+
+        csp_techs = [i for i in ['tower', 'trough'] if i in self.power_sources.keys()]
+        for tech in csp_techs:
+            tb = self.power_sources[tech].dispatch.blocks
+            objective = pyomo.Expression(expr=
+                sum(- (1/self.blocks[t].time_weighting_factor)
+                * ((tb[t].cost_per_field_generation
+                    * tb[t].receiver_thermal_power
+                    * tb[t].time_duration)
+                + tb[t].cost_per_field_start * tb[t].incur_field_start
+                + (tb[t].cost_per_cycle_generation
+                    * tb[t].cycle_generation
+                    * tb[t].time_duration)
+                + tb[t].cost_per_cycle_start * tb[t].incur_cycle_start
+                + tb[t].cost_per_change_thermal_input * tb[t].cycle_thermal_ramp)
+                for t in self.blocks.index_set()))
+            setattr(self.model, tech + "_obj", objective)
+            
+        if 'battery' in self.power_sources.keys():
+            def battery_profit_objective_rule(m):
+                objective = 0
+                tb = self.power_sources['battery'].dispatch.blocks
+                objective += sum(- (1/self.blocks[t].time_weighting_factor) * tb[t].time_duration
+                                    * (tb[t].cost_per_charge * self.blocks[t].battery_charge
+                                    + tb[t].cost_per_discharge * self.blocks[t].battery_discharge)
+                                    for t in self.blocks.index_set())
+                tb = self.power_sources['battery'].dispatch
+                if tb.options.include_lifecycle_count:
+                    objective -= tb.model.lifecycle_cost * sum(tb.model.lifecycles)
+                return objective
+            self.model.battery_obj = pyomo.Expression(rule=battery_profit_objective_rule)
+
         def gross_profit_objective_rule(m):
-            objective = 0.0
+            obj = 0
             for tech in self.power_sources.keys():
-                if tech == 'grid':
-                    tb = self.power_sources[tech].dispatch.blocks
-                    objective += sum(self.blocks[t].time_weighting_factor * tb[t].time_duration
-                                     * tb[t].electricity_sell_price * self.blocks[t].electricity_sold
-                                     - (1/self.blocks[t].time_weighting_factor) * tb[t].time_duration
-                                     * tb[t].electricity_purchase_price * self.blocks[t].electricity_purchased
-                                     - tb[t].epsilon * tb[t].is_generating
-                                     for t in self.blocks.index_set())
-                elif tech == 'pv':
-                    tb = self.power_sources[tech].dispatch.blocks
-                    objective += sum(- (1/self.blocks[t].time_weighting_factor)
-                                     * tb[t].time_duration * tb[t].cost_per_generation * self.blocks[t].pv_generation
-                                     for t in self.blocks.index_set())
-                elif tech == 'wind':
-                    tb = self.power_sources[tech].dispatch.blocks
-                    objective += sum(- (1/self.blocks[t].time_weighting_factor)
-                                     * tb[t].time_duration * tb[t].cost_per_generation * self.blocks[t].wind_generation
-                                     for t in self.blocks.index_set())
-                elif tech == 'tower' or tech == 'trough':
-                    tb = self.power_sources[tech].dispatch.blocks
-                    objective += sum(- (1/self.blocks[t].time_weighting_factor)
-                                     * ((tb[t].cost_per_field_generation
-                                         * tb[t].receiver_thermal_power
-                                         * tb[t].time_duration)
-                                        + tb[t].cost_per_field_start * tb[t].incur_field_start
-                                        + (tb[t].cost_per_cycle_generation
-                                           * tb[t].cycle_generation
-                                           * tb[t].time_duration)
-                                        + tb[t].cost_per_cycle_start * tb[t].incur_cycle_start
-                                        + tb[t].cost_per_change_thermal_input * tb[t].cycle_thermal_ramp)
-                                     for t in self.blocks.index_set())
-                elif tech == 'battery':
-                    tb = self.power_sources[tech].dispatch.blocks
-                    objective += sum(- (1/self.blocks[t].time_weighting_factor) * tb[t].time_duration
-                                     * (tb[t].cost_per_charge * self.blocks[t].battery_charge
-                                        + tb[t].cost_per_discharge * self.blocks[t].battery_discharge)
-                                     for t in self.blocks.index_set())
-                    tb = self.power_sources['battery'].dispatch
-                    if tb.include_lifecycle_count:
-                        objective -= tb.model.lifecycle_cost * tb.model.lifecycles
-            return objective
+                obj += getattr(m, tech + "_obj")
+            return obj
 
         self.model.objective = pyomo.Objective(
-            rule=gross_profit_objective_rule,
+            expr=gross_profit_objective_rule,
             sense=pyomo.maximize)
 
     def create_min_operating_cost_objective(self):
@@ -306,6 +341,11 @@ class HybridDispatch(Dispatch):
                     objective += sum(self.blocks[t].time_weighting_factor * tb[t].time_duration
                                      * tb[t].cost_per_generation * self.blocks[t].wind_generation
                                      for t in self.blocks.index_set())
+                elif tech == 'wave':
+                    tb = self.power_sources[tech].dispatch.blocks
+                    objective += sum(self.blocks[t].time_weighting_factor * tb[t].time_duration
+                                     * tb[t].cost_per_generation * self.blocks[t].wave_generation
+                                     for t in self.blocks.index_set())
                 elif tech == 'tower' or tech == 'trough':
                     tb = self.power_sources[tech].dispatch.blocks
                     objective += sum(self.blocks[t].time_weighting_factor
@@ -327,7 +367,7 @@ class HybridDispatch(Dispatch):
                                      # Try to incentivize battery charging
                                      for t in self.blocks.index_set())
                     tb = self.power_sources['battery'].dispatch
-                    if tb.include_lifecycle_count:
+                    if tb.options.include_lifecycle_count:
                         objective += tb.model.lifecycle_cost * tb.model.lifecycles
             return objective
 
@@ -362,6 +402,10 @@ class HybridDispatch(Dispatch):
     def wind_generation(self) -> list:
         return [self.blocks[t].wind_generation.value for t in self.blocks.index_set()]
 
+    @property
+    def wave_generation(self) -> list:
+        return [self.blocks[t].wave_generation.value for t in self.blocks.index_set()]
+    
     @property
     def tower_generation(self) -> list:
         return [self.blocks[t].tower_generation.value for t in self.blocks.index_set()]

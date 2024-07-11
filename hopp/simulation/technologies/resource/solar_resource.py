@@ -1,29 +1,45 @@
 import os
 from collections import defaultdict
+from pathlib import Path
+from typing import Union
 import numpy as np
 import csv
 from PySAM.ResourceTools import SAM_CSV_to_solar_data
 
-from hopp.utilities.keys import get_developer_nrel_gov_key
+from hopp.utilities.keys import get_developer_nrel_gov_key, get_developer_nrel_gov_email
 from hopp.utilities.log import hybrid_logger as logger
 from hopp.simulation.technologies.resource.resource import Resource
+from hopp import ROOT_DIR
+
+
+BASE_URL = "https://developer.nrel.gov/api/nsrdb/v2/solar/psm3-download.csv"
 
 
 class SolarResource(Resource):
     """
-        Class to manage Solar Resource data
-        """
+    Class to manage Solar Resource data.
 
-    def __init__(self, lat, lon, year, path_resource="", filepath="", **kwargs):
-        """
+    Args:
+        lat: latitude
+        lon: longitude
+        year: year
+        path_resource: directory where to save downloaded files
+        filepath: file path of resource file to load
+        use_api: Make an API call even if there's an existing file. Defaults to False
+        kwargs: extra kwargs
 
-        :param lat: float
-        :param lon: float
-        :param year: int
-        :param path_resource: directory where to save downloaded files
-        :param filepath: file path of resource file to load
-        :param kwargs:
-        """
+    """
+
+    def __init__(
+        self, 
+        lat: float, 
+        lon: float, 
+        year: int, 
+        path_resource: Union[str, Path] = ROOT_DIR.parent / "resource_files", 
+        filepath: Union[str, Path] ="", 
+        use_api: bool = False,
+        **kwargs
+    ):
         super().__init__(lat, lon, year)
 
         if os.path.isdir(path_resource):
@@ -45,7 +61,7 @@ class SolarResource(Resource):
 
         self.check_download_dir()   # FIXME: This breaks if weather file is in the same directory as caller
 
-        if not os.path.isfile(self.filename):
+        if not os.path.isfile(self.filename) or use_api:
             self.download_resource()
 
         self.format_data()
@@ -53,9 +69,9 @@ class SolarResource(Resource):
         logger.info("SolarResource: {}".format(self.filename))
 
     def download_resource(self):
-        url = 'https://developer.nrel.gov/api/nsrdb/v2/solar/psm3-download.csv?wkt=POINT({lon}+{lat})&names={year}&leap_day={leap}&interval={interval}&utc={utc}&full_name={name}&email={email}&affiliation={affiliation}&mailing_list={mailing_list}&reason={reason}&api_key={api}&attributes={attr}'.format(
-            year=self.year, lat=self.latitude, lon=self.longitude, leap=self.leap_year, interval=self.interval,
-            utc=self.utc, name=self.name, email=self.email,
+        url = '{base}?wkt=POINT({lon}+{lat})&names={year}&leap_day={leap}&interval={interval}&utc={utc}&full_name={name}&email={email}&affiliation={affiliation}&mailing_list={mailing_list}&reason={reason}&api_key={api}&attributes={attr}'.format(
+            base=BASE_URL, year=self.year, lat=self.latitude, lon=self.longitude, leap=self.leap_year, interval=self.interval,
+            utc=self.utc, name=self.name, email=get_developer_nrel_gov_email(),
             mailing_list=self.mailing_list, affiliation=self.affiliation, reason=self.reason, api=get_developer_nrel_gov_key(),
             attr=self.solar_attributes)
 
