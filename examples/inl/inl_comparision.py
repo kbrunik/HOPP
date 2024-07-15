@@ -57,7 +57,7 @@ hopp_config["technologies"]["battery"]["fin_model"]["system_costs"][
 ] = hopp_config["config"]["cost_info"]["battery_om_per_kw"]
 
 hopp_config["site"]["desired_schedule"] = [
-    362.560118387
+    362.560118387 # 1/3 the 
 ] * 8760  # reduced demand size by 3 [1087.68035516] * 8760 #rating of electrolyzer
 
 # load hybrid system
@@ -350,6 +350,7 @@ h2_storage_results["storage_energy"] = 0.0
 
 def run_capex(
     hopp_results,
+    storage_input,
     electrolyzer_cost_results,
     h2_storage_results,
     hopp_config,
@@ -440,7 +441,8 @@ def run_capex(
     elif (
         greenheart_config["h2_storage"]["type"] == "salt_cavern"
     ):  # salt cavern storage model includes compression
-        h2_storage_capex = h2_storage_results["storage_capex"]
+        # h2_storage_capex = h2_storage_results["storage_capex"]
+        h2_storage_capex = 160 * storage_input["h2_storage_kg"]
     elif (
         greenheart_config["h2_storage"]["type"] == "lined_rock_cavern"
     ):  # lined rock cavern storage model includes compression
@@ -508,6 +510,7 @@ def run_capex(
 
 total_system_installed_cost, capex_breakdown = run_capex(
     hopp_results,
+    storage_input,
     electrolyzer_cost_results,
     h2_storage_results,
     hopp_config,
@@ -519,6 +522,7 @@ total_system_installed_cost, capex_breakdown = run_capex(
 def run_opex(
     hopp_results,
     electrolyzer_physics_results,
+    storage_input,
     # wind_cost_results,
     electrolyzer_cost_results,
     # h2_pipe_array_results,
@@ -573,7 +577,7 @@ def run_opex(
     # H2 OPEX
     # platform_operating_costs = platform_results["opex"]  # TODO update this
 
-    annual_operating_cost_h2 = electrolyzer_cost_results["electrolyzer_OM_cost_annual"]
+    # annual_operating_cost_h2 = electrolyzer_cost_results["electrolyzer_OM_cost_annual"]
     annual_operating_cost_h2 = (31.03 * greenheart_config['electrolyzer']['rating'] #Fixed OM
                                 + 1.68 * (electrolyzer_physics_results['H2_Results']['Life: Annual H2 production [kg/year]']*55.49/1E3)
                                 ) 
@@ -586,7 +590,8 @@ def run_opex(
     #     0
     # ]  # annual
 
-    storage_opex = h2_storage_results["storage_opex"]
+    # storage_opex = h2_storage_results["storage_opex"]
+    storage_opex = (10/12) * storage_input["h2_storage_kg"] #$10/kg-month
     # # desal OPEX
     # if desal_results != None:
     #     desal_opex = desal_results["desal_opex_usd_per_year"]
@@ -647,6 +652,7 @@ def run_opex(
 total_annual_operating_costs, opex_breakdown_annual = run_opex(
     hopp_results,
     electrolyzer_physics_results,
+    storage_input,
     electrolyzer_cost_results,
     h2_storage_results,
     hopp_config,
@@ -663,7 +669,7 @@ design_scenario = {
     "battery_location": "onshore",  # can be one of ["none", "onshore", "platform"]'
 }
 
-incentive_option = "1"
+incentive_option = "3"
 
 
 def run_profast_lcoe(
@@ -817,7 +823,7 @@ def run_profast_lcoe(
             cost=capex_breakdown["battery"],
             depr_type=greenheart_config["finance_parameters"]["depreciation_method"],
             depr_period=greenheart_config["finance_parameters"]["depreciation_period"],
-            refurb=[0],
+            refurb=[0,0,0,0,0,0,0,0,0,0.85,0,0,0,0,0,0,0,0,0],
         )
 
     # if design_scenario["transportation"] == "hvdc+pipeline" or not (
