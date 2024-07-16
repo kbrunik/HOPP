@@ -105,7 +105,7 @@ policy_parameters: # these should be adjusted for inflation prior to application
     electricity_itc: 0
     electricity_ptc: 0.015 # $/kWh 1992 dollars
     h2_ptc: 3.00 # $/kg 2022 dollars - do not adjust for inflation
-    h2_storage_itc: 0 #0.3
+    h2_storage_itc: 0.3
   # bonus options, option 5 and 6 but ITC equivalents
   option4: # prevailing wages not met
     electricity_itc: 0.06 # %/100 capex
@@ -117,7 +117,7 @@ policy_parameters: # these should be adjusted for inflation prior to application
     electricity_itc: 0.30 # %/100 capex
     electricity_ptc: 0.0 # $/kWh 1992 dollars
     h2_ptc: 3.00 # $/kg of h2 produced 2022 dollars - do adjust for inflation every year applied and until application year
-    h2_storage_itc: 0.3
+    h2_storage_itc: 0 #0.3
   option6: # assumes prevailing wages are met, and includes 10% bonus credit of domestic content (100% of steel and iron
   # and mfg. components from the US)
     electricity_itc: 0.40 # %/100 capex

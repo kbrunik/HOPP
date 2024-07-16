@@ -36,7 +36,7 @@ from greenheart.simulation.technologies.hydrogen.h2_storage.salt_cavern.salt_cav
 import ProFAST
 
 # load hopp config
-hopp_config = load_yaml("./input/plant/texas-hopp-config.yaml")
+hopp_config = load_yaml("./input/plant/texas-hopp-config-6MW.yaml")
 
 # load greenheart config
 greenheart_config = load_yaml("./input/plant/greenheart_config_onshore_tx.yaml")
@@ -66,7 +66,8 @@ hi.system.wind.om_variable = 0.15
 
 
 # update power curve to Vestas V90 2MW (reference SAM 2023.12.17)
-curve_data = pd.read_csv("./input/turbines/vestas-2mw.csv")
+# curve_data = pd.read_csv("./input/turbines/vestas-2mw.csv")
+curve_data = pd.read_csv("./input/turbines/2023NREL_Bespoke_6MW_170.csv")
 wind_speed = curve_data["Wind Speed [m/s]"].values.tolist()
 curve_power = curve_data["Power [kW]"]
 hi.system.wind._system_model.Turbine.wind_turbine_powercurve_windspeeds = wind_speed
@@ -82,14 +83,12 @@ hi.simulate(project_life=20)
 hopp_results = {
     "hopp_interface": hi,
     "hybrid_plant": hi.system,
-    "combined_hybrid_power_production_hopp": hi.system.grid._system_model.Outputs.system_pre_interconnect_kwac[
-        0:8760
-    ]*3,
-    "combined_hybrid_curtailment_hopp": hi.system.grid.generation_curtailed*3,
-    "energy_shortfall_hopp": hi.system.grid.missed_load*3,
+    "combined_hybrid_power_production_hopp": [value * 3 for value in hi.system.grid._system_model.Outputs.system_pre_interconnect_kwac[0:8760]],
+    "combined_hybrid_curtailment_hopp": [value *3 for value in hi.system.grid.generation_curtailed],
+    "energy_shortfall_hopp": [value *3 for value in hi.system.grid.missed_load],
     "annual_energies": hi.system.annual_energies,
 }
-
+print(len(hopp_results["energy_shortfall_hopp"]))
 print("\nHOPP Results")
 print("Hybrid Annual Energy: ", hopp_results["annual_energies"])
 print("Capacity factors: ", hi.system.capacity_factors)
@@ -99,6 +98,28 @@ print("Missed Load", sum(hopp_results["energy_shortfall_hopp"]))
 
 electrolyzer_size_mw = greenheart_config["electrolyzer"]["rating"]
 electrolyzer_capex_kw = greenheart_config["electrolyzer"]["electrolyzer_capex"]
+
+elec_power = []
+curtailed = []
+
+for x in hopp_results['combined_hybrid_power_production_hopp'][0:8760]:
+    if x < greenheart_config['electrolyzer']['cluster_rating_MW'] * 0.1 * 1E3:
+        elec_power.append(0)
+        curtailed.append(x)
+    elif x <= greenheart_config['electrolyzer']['rating'] * 1E3:
+        elec_power.append(x)
+        curtailed.append(0)
+    else:
+        elec_power.append(greenheart_config['electrolyzer']['rating'] * 1E3)
+        curtailed.append(x - greenheart_config['electrolyzer']['rating'] * 1E3)
+
+sum_power = sum(elec_power)
+basic_h2_conversion = sum_power * 55.49
+print("Basic H2 conversion", basic_h2_conversion)
+print("Curtailment, ", sum(curtailed))
+
+
+
 
 # IF GRID CONNECTED
 if greenheart_config["project_parameters"]["grid_connection"]:
@@ -164,6 +185,20 @@ electrolyzer_physics_results = {
 }
 
 print("Electrolyzer Capacity Factor", electrolyzer_physics_results['capacity_factor'])
+print("Annual H2 production (kg)", H2_Results['Life: Annual H2 production [kg/year]'])
+
+min_usable_power_kW = greenheart_config["electrolyzer"]["turndown_ratio"]*greenheart_config["electrolyzer"]["cluster_rating_MW"]*1e3
+max_usable_power_kW = electrolyzer_size_mw*1e3
+
+usable_power_kW = np.where(energy_to_electrolyzer_kw>max_usable_power_kW,max_usable_power_kW,energy_to_electrolyzer_kw)
+usable_power_kW = np.where(usable_power_kW<min_usable_power_kW,0,usable_power_kW)
+
+print(len(hopp_results["combined_hybrid_power_production_hopp"]))
+
+a_lte = 0.01802 #kg/kWh
+h2_production_kg_linear = usable_power_kW/a_lte
+h2_production_kg_linear_tot = np.sum(h2_production_kg_linear)
+print("Linear total: ", h2_production_kg_linear_tot)
 
 
 # unpack inputs
@@ -226,9 +261,14 @@ h2_storage_capacity_kg = hydrogen_storage_capacity_kg
 h2_storage_results["hydrogen_storage_duration_hr"] = hydrogen_storage_duration_hr
 h2_storage_results["hydrogen_storage_soc"] = hydrogen_storage_soc
 
+print("H2 storage capacity",h2_storage_capacity_kg)
+
 
 
 df_data = pd.DataFrame.from_dict(h2_storage_results)
+df_data['h2 production hourly [kg]'] = H2_Results[
+                        "Hydrogen Hourly Production [kg/hr]"
+                    ]
 
 # set start and end dates
 dt_start = dt.datetime(2024, 1, 1, 0)
@@ -243,11 +283,10 @@ def get_hour_from_datetime(dt_start: dt.datetime, dt_end: dt.datetime):
     return hour_start, hour_end
 
 hour_start, hour_end = get_hour_from_datetime(dt_start, dt_end)
+print("HR STRT", hour_start, "HR END",hour_end)
 
 # get hydrogen demand
-df_h_out_demand = pd.DataFrame(H2_Results[
-                        "Hydrogen Hourly Production [kg/hr]"
-                    ])*1E-3
+df_h_out_demand = df_data[["h2 production hourly [kg]"]]*1E-3
 h2_demand = df_h_out_demand.mean().values[0]
 
 df_data = df_data.iloc[hour_start:hour_end]
@@ -256,15 +295,13 @@ df_data = df_data.iloc[hour_start:hour_end]
 fig, ax = plt.subplots(3,1, sharex=True, figsize=(10,6))
 
 # plot hydrogen production
-df_h_out = pd.DataFrame(H2_Results[
-                        "Hydrogen Hourly Production [kg/hr]"
-                    ])*1E-3
+df_h_out = df_data[["h2 production hourly [kg]"]]*1E-3
 
 ax[0].plot(df_h_out)
 ax[0].set(ylabel="Hydrogen (t)", xlabel="Hour", title="Hydrogen Production")
 
 # plot storage SOC
-df_h_soc = np.array(pd.DataFrame(h2_storage_results["hydrogen_storage_soc"])*1E-3)
+df_h_soc = np.array(pd.DataFrame(df_data[["hydrogen_storage_soc"]])*1E-3)
 df_h_soc_change = np.array([(df_h_soc[i] - df_h_soc[i-1]) for i in np.arange(1, len(df_h_soc))]).flatten()
 initial_value = (df_h_out.iloc[0] - h2_demand) #df_h_soc_change[0]/2 #h2_demand - df_h_out.iloc[0]
 # import pdb; pdb.set_trace()
@@ -669,7 +706,7 @@ design_scenario = {
     "battery_location": "onshore",  # can be one of ["none", "onshore", "platform"]'
 }
 
-incentive_option = "3"
+incentive_option = "1"
 
 
 def run_profast_lcoe(
@@ -900,6 +937,22 @@ def run_profast_lcoe(
         tax_credit=True,
     )  # TODO check decay
 
+        # add wind_itc (% of wind capex)
+    electricity_itc_value_percent_wind_capex = incentive_dict["electricity_itc"]
+    electricity_itc_value_dollars = electricity_itc_value_percent_wind_capex * (
+        capex_breakdown["wind"] +capex_breakdown['solar'] ) #+ capex_breakdown["electrical_export_system"]
+    # )
+    pf.set_params(
+        "one time cap inct",
+        {
+            "value": electricity_itc_value_dollars,
+            "depr type": greenheart_config["finance_parameters"]["depreciation_method"],
+            "depr period": greenheart_config["finance_parameters"][
+                "depreciation_period"
+            ],
+            "depreciable": True,
+        },
+    )
     sol = pf.solve_price()
 
     lcoe = sol["price"]
@@ -1381,7 +1434,7 @@ def run_profast_full_plant_model(
     # add wind_itc (% of wind capex)
     electricity_itc_value_percent_wind_capex = incentive_dict["electricity_itc"]
     electricity_itc_value_dollars = electricity_itc_value_percent_wind_capex * (
-        capex_breakdown["wind"] ) #+ capex_breakdown["electrical_export_system"]
+        capex_breakdown["wind"] +capex_breakdown['solar'] ) #+ capex_breakdown["electrical_export_system"]
     # )
     pf.set_params(
         "one time cap inct",
