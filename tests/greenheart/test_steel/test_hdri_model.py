@@ -1,5 +1,5 @@
 import pytest
-from hopp.simulation.technologies.steel.hdri_model import hdri_model
+from greenheart.simulation.technologies.steel.hdri_model import hdri_model
 '''
 Test files for hdri_model.py class and its functions.
 

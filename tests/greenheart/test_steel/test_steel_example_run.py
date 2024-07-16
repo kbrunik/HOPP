@@ -1,5 +1,5 @@
 import pytest
-from hopp.simulation.technologies.steel.example_steel_run_script import h2_main_steel
+from greenheart.simulation.technologies.steel.example_steel_run_script import h2_main_steel
 '''
 Values for tests were determined from [1]: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339.
 And hand calcs to verify the results

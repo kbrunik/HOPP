@@ -1,3 +1,6 @@
+from greenheart.simulation.technologies.steel.hdri_model import hdri_model
+from greenheart.simulation.technologies.steel.enthalpy_functions import fe_enthalpy, fe_enthalpy
+
 def establish_save_output_dict():
         """
         Establishes and returns a 'save_outputs_dict' dict
@@ -134,7 +137,6 @@ class eaf_model():
         Sources:
         Model derived from: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339.
         '''
-        from hopp.simulation.technologies.steel.hdri_model import hdri_model
 
         model_instance = hdri_model()
         hdri_mass_model_outputs = model_instance.mass_model(steel_out_desired)
@@ -176,8 +178,7 @@ class eaf_model():
         Model derived from: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339.
 
         '''
-        from hopp.simulation.technologies.steel.hdri_model import hdri_model
-        from hopp.simulation.technologies.steel.enthalpy_functions import fe_enthalpy, fe_enthalpy
+
 
         model_instance = hdri_model()
 
@@ -214,7 +215,6 @@ class eaf_model():
         Model derived from: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339.
 
         '''
-        from hopp.simulation.technologies.steel.hdri_model import hdri_model
 
         eaf_model.energy_model(self,steel_out_desired)
         model_instance = hdri_model()

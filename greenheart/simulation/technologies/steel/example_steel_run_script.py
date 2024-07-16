@@ -1,5 +1,5 @@
-from hopp.simulation.technologies.steel.eaf_model import eaf_model
-from hopp.simulation.technologies.steel.hdri_model import hdri_model
+from greenheart.simulation.technologies.steel.eaf_model import eaf_model
+from greenheart.simulation.technologies.steel.hdri_model import hdri_model
 
 
 #from csv import writer
@@ -7,21 +7,9 @@ import os
 #from dotenv import load_dotenv
 import pandas as pd
 
-from hopp.simulation.technologies.sites import SiteInfo
 from hopp.simulation.technologies.sites import flatirons_site as sample_site
-#from hopp.utilities.keys import set_developer_nrel_gov_key
-#from examples.H2_Analysis.plot_reopt_results import plot_reopt_results
-from examples.H2_Analysis.run_reopt import run_reopt
-from examples.H2_Analysis.hopp_for_h2 import hopp_for_h2
-from examples.H2_Analysis.run_h2a import run_h2a as run_h2a
-#from examples.H2_Analysis.simple_dispatch import SimpleDispatch
-#import hopp.simulation.technologies.hydrogen.electrolysis.run_h2_PEM as run_h2_PEM
 import numpy as np
-#import numpy_financial as npf
-#from lcoe.lcoe import lcoe as lcoe_calc
-#import matplotlib.pyplot as plt
 import warnings
-#from pathlib import Path
 warnings.filterwarnings("ignore")
 
 def greensteel_run(steel_output_desired_kg_hr=120160):
@@ -204,22 +192,11 @@ def greensteel_run(steel_output_desired_kg_hr=120160):
 import os
 from dotenv import load_dotenv
 import pandas as pd
-import json
-from hopp.simulation.technologies.sites import SiteInfo
 from hopp.simulation.technologies.sites import flatirons_site as sample_site
 from hopp.utilities.keys import set_developer_nrel_gov_key
-#from examples.H2_Analysis.plot_reopt_results import plot_reopt_results
-#from examples.H2_Analysis.run_reopt import run_reopt
-#from examples.H2_Analysis.hopp_for_h2 import hopp_for_h2
-from examples.H2_Analysis.run_h2a import run_h2a as run_h2a
-#from examples.H2_Analysis.simple_dispatch import SimpleDispatch
-#import hopp.simulation.technologies.hydrogen.electrolysis.run_h2_PEM as run_h2_PEM
 import numpy as np
-#import numpy_financial as npf
 from lcoe.lcoe import lcoe as lcoe_calc
-#import matplotlib.pyplot as plt
 import warnings
-#from pathlib import Path
 warnings.filterwarnings("ignore")
 
 # Set API key
@@ -646,7 +623,7 @@ def h2_main_steel(lcoe=.5612,steel_output_desired=120160,efficiency=.67,MW_h2=.6
 
     sol = pf.solve_price()
 
-    df = pf.cash_flow_out_table
+    # df = pf.cash_flow_out_table
 
     lcoh = sol["price"]
 

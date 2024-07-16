@@ -1,5 +1,5 @@
 import pytest
-import hopp.simulation.technologies.steel.enthalpy_functions as ep_f
+import greenheart.simulation.technologies.steel.enthalpy_functions as ep_f
 '''
 Values were grabbed from NIST https://webbook.nist.gov/chemistry/form-ser/ Gas thermochemistry tab for each element
 and were hand calculated to verify results

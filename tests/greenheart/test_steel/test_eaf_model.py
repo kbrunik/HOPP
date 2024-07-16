@@ -1,5 +1,5 @@
 import pytest
-from hopp.simulation.technologies.steel.eaf_model import eaf_model
+from greenheart.simulation.technologies.steel.eaf_model import eaf_model
 '''
 Test files for eaf_model.py class and its functions.
 

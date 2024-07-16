@@ -1,3 +1,5 @@
+from greenheart.simulation.technologies.steel.enthalpy_functions import h2_enthalpy, h2_enthalpy, h2o_enthalpy, sio2_enthalpy, al2o3_enthalpy, feo_enthalpy ,fe_enthalpy
+
 def establish_save_output_dict():
         """
         Establishes and returns a 'save_outputs_dict' dict
@@ -218,7 +220,7 @@ class hdri_model:
 
 
         '''
-        from hopp.simulation.technologies.steel.enthalpy_functions import h2_enthalpy, h2_enthalpy, h2o_enthalpy, sio2_enthalpy, al2o3_enthalpy, feo_enthalpy ,fe_enthalpy
+        # from greenheart.simulation.technologies.steel.enthalpy_functions import h2_enthalpy, h2_enthalpy, h2o_enthalpy, sio2_enthalpy, al2o3_enthalpy, feo_enthalpy ,fe_enthalpy
         
         hdri_model.mass_model(self,steel_out_desired)
 
@@ -316,7 +318,7 @@ class hdri_model:
         Model derived from: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339.
 
         '''
-        from hopp.simulation.technologies.steel.enthalpy_functions import h2o_enthalpy, h2_enthalpy
+        # from greenheart.simulation.technologies.steel.enthalpy_functions import h2o_enthalpy, h2_enthalpy
 
         hdri_model.mass_model(self,steel_out_desired)
         hdri_model.energy_model(self,steel_out_desired)
@@ -353,7 +355,7 @@ class hdri_model:
         Model derived from: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339.
 
         '''
-        from hopp.simulation.technologies.steel.enthalpy_functions import h2_enthalpy
+        # from hopp.simulation.technologies.steel.enthalpy_functions import h2_enthalpy
         
         hdri_model.mass_model(self,steel_out_desired)
         hdri_model.energy_model(self,steel_out_desired)
@@ -392,4 +394,5 @@ if __name__ == '__main__':
     steel_output_desired_yr = 2000000 #(ton/yr)
 
     financial_outputs = model_instance.financial_model(steel_output_desired_yr)
+    print(mass_outputs)
 
