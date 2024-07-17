@@ -998,8 +998,7 @@ def test_hybrid_dispatch_baseload_heuristic_and_analysis(site):
 
     desired_schedule = 8760*[20]
 
-    desired_schedule_site = SiteInfo(flatirons_site,
-                                     desired_schedule=desired_schedule)
+    desired_schedule_site = create_default_site_info(desired_schedule=desired_schedule)
     wind_solar_battery = {key: technologies[key] for key in ('pv', 'wind', 'battery')}
 
     dispatch_options = {'battery_dispatch': 'load_following_heuristic',
