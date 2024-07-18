@@ -175,6 +175,7 @@ class EnergyModelOutputs:
     """
 
     shaft_energy_balance: float  # kWh
+    enthalpy_out: float
 
 
 def energy_model(config: EnergyModelConfig) -> EnergyModelOutputs:
@@ -226,7 +227,10 @@ def energy_model(config: EnergyModelConfig) -> EnergyModelOutputs:
         - (enthalpy_out_stream + enthalpy_stream_output + h_reaction_total)
     ) / 3600  # kWh
 
-    return EnergyModelOutputs(shaft_energy_balance=energy_balance)
+    return EnergyModelOutputs(shaft_energy_balance=energy_balance,
+                              enthalpy_out=enthalpy_out_stream)
+
+e.entha
 
 
 def establish_save_output_dict():
@@ -711,16 +715,16 @@ if __name__ == "__main__":
 
     steel_output_desired = 1000  # (kg or kg/hr)
 
-    mass_outputs = model_instance.mass_model(steel_output_desired)
-    energy_outputs = model_instance.energy_model(steel_output_desired)
-    # recuperator_outputs = model_instance.recuperator_mass_energy_model(steel_output_desired)
+    # mass_outputs = model_instance.mass_model(steel_output_desired)
+    # energy_outputs = model_instance.energy_model(steel_output_desired)
+    recuperator_outputs = model_instance.recuperator_mass_energy_model(steel_output_desired)
     # heater_outputs = model_instance.heater_mass_energy_model(steel_output_desired)
 
     # steel_output_desired_yr = 2000000 #(ton/yr)
 
     # financial_outputs = model_instance.financial_model(steel_output_desired_yr)
     print()
-    print(mass_outputs)
+    print(recuperator_outputs)
 
     config = MassModelConfig(steel_output_desired=1000)
     out = mass_model(config)
