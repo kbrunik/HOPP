@@ -165,7 +165,6 @@ class EnergyModelConfig:
     h_endothermic: float = 99.5
     stream_temp_out: float = 973
 
-
 @define
 class EnergyModelOutputs:
     """Outputs from the HDRI energy model.
@@ -228,6 +227,190 @@ def energy_model(config: EnergyModelConfig) -> EnergyModelOutputs:
 
     return EnergyModelOutputs(shaft_energy_balance=energy_balance)
 
+
+
+@define
+class HDRI_Recouperator_ModelConfig:
+    """Configuration for Recouperator model
+       Accessory process for heat exchanger.  Currently has no outputs as recuperator doesn't change masses
+       
+    Attributes:
+        steel_output_desired  (float): Resulting desired steel output (kg) or (kg/hr)
+
+        Sources:
+        Model derived from: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339."""
+    mass_inputs: MassModelConfig
+    energy_inputs:EnergyModelConfig
+    steel_output_desired: (float)
+
+
+@define 
+class HDRI_Recoupertor_output:
+    """
+    """
+    steel_output_desired: (float)
+
+def recoup_model(config: HDRI_Recouperator_ModelConfig )-> HDRI_Recoupertor_output:   
+    """
+    Accessory process for heat exchanger.  Currently has no outputs as recuperator doesn't change masses
+
+    Args:steel_output_desired (kg) or (kg/hr): (float) resulting desired steel output
+
+    Sources:Model derived from: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339.
+    #iron_ore_mass_needed=m1,
+    #hydrogen_gas_needed=m4,
+    #hydrogen_gas_leaving_shaft=m5_h2,
+    #water_leaving_shaft=m5_h2o,
+    #pure_iron_leaving_shaft=m2_fe,
+    #total_mass_h2_h2o_leaving_shaft=m5,
+    #iron_ore_leaving_shaft=m2_feo,
+    #silicon_dioxide_mass=m1_sio2,
+    #aluminium_oxide_mass=m1_al2o3,
+    """
+    mass_inputs = config.mass_inputs
+    energy_inputs = config.energy_inputs
+
+    m = mass_model(mass_inputs)
+    e = energy_model(energy_inputs)
+    
+    m10            = m.hydrogen_gas_needed                                      # Hydrogen from electrolyzer = hydrogen into DRI
+    m12_h2o        = m.water_leaving_shaft                                      # Mass h2o of exhaust stream = mass h2o to condensor
+    m12_h2         = m.hydrogen_gas_leaving_shaft                               # Mass h2 of exhaust stream = mass h2
+    
+    #m13_h2o_enter = m.water_leaving_shaft                                      # Mass h2o from condenser to electrolyzer
+    
+    h12_h2o = (
+        m12_h2o * h2o_enthalpy(config.temp_stream_exit_recup) * 1000
+    )       # exit h20 in recuperator to condenser stream
+
+    h12_h2 = (
+        m12_h2 * h2_enthalpy(e.) * 1000
+    )       # exit h2 in recuperator to condenser stream
+    
+    h12 = h12_h2 + h12_h2o  
+            # total enthalpy in exit of recuperator to condensor
+
+    h10 = h2_enthalpy(self.h2_temp_elec) * m10 * 1000      
+            # electrolyzer to recuperator
+
+    h10_kwh = h10 / 3600                                                        
+            # conversion kj to kwh
+
+    h11 = (
+        (e.enthalpy_out_stream - h12) + h10) / 3600                       
+            #save_outputs_dict = establish_save_output_dict()                            
+    
+    
+    #return (save_outputs_dict, h11)
+   
+   
+   
+   
+    #iron_ore_mass_needed=m1,
+    #hydrogen_gas_needed=m4,
+    #hydrogen_gas_leaving_shaft=m5_h2,
+    #water_leaving_shaft=m5_h2o,
+    #pure_iron_leaving_shaft=m2_fe,
+    #total_mass_h2_h2o_leaving_shaft=m5,
+    #iron_ore_leaving_shaft=m2_feo,
+    #silicon_dioxide_mass=m1_sio2,
+    #aluminium_oxide_mass=m1_al2o3,
+
+    
+@define
+class Cost_modelConfig:
+    """
+    configuration definitions 
+
+    hdri_total_capital_cost
+    self.hdri_operational_cost_yr
+    self.hdri_maintenance_cost_yr
+    self.depreciation_cost
+    self.iron_ore_total_cost_yr
+    self.total_labor_cost_yr
+    
+    """
+@define  
+class Cost_modelOutput:
+    """
+    Output definations 
+    
+    """
+
+def financial_model(config: Cost_modelConfig )-> Cost_modelOutput:
+
+    """
+    define function
+    
+    
+    """
+
+
+@define
+class Heater_modelConfig:
+    """
+    configuration definitions 
+
+    hdri_total_capital_cost
+    self.hdri_operational_cost_yr
+    self.hdri_maintenance_cost_yr
+    self.depreciation_cost
+    self.iron_ore_total_cost_yr
+    self.total_labor_cost_yr
+    
+    """
+@define  
+class Heater_modelOutput:
+    """
+    Output define 
+    
+    """
+
+def heater_model(config: Heater_modelConfig )-> Heater_modelOutput:
+    """
+    Define function 
+    
+        Function returns the energy needed to heat up gas to needed temp for oxidation
+
+        Args:
+        steel_output_desired (kg) or (kg/hr): (float) resulting desired steel output
+
+        Sources:
+        Model derived from: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339.
+
+    """
+    hdri_model.mass_model(self, steel_out_desired)
+    hdri_model.energy_model(self, steel_out_desired)
+
+    T11_heat_in = (
+            self.temp_input_heater
+        )  # Assumes 30 degree heat loss from recuperator to heater
+    m11_heat_in = (
+            self.mass_h2_input
+        )  # mass of hydrogen into heater = mass hydrogen into recuperator
+
+    h11_heat_in = (
+            h2_enthalpy(T11_heat_in) * m11_heat_in * 1000
+        )  # enthalpy of stream into heater
+        # h11_heat_in_kwh = (h11_heat_in/3600)      #kj to kwh conversion
+
+        # eta_rec = ((h11_heat_in - h10)/(h5-h12))    #recuperator efficiency
+    q_heater = (
+            self.enthalpy_h2_input - h11_heat_in
+        ) / 3600  # energy needed to be provided to heater
+
+    eta_el_heater = self.eta_el_heater  # Efficiency of heater
+    el_heater = q_heater / eta_el_heater  # electricity need at heater
+
+    self.el_needed_heater = el_heater  # kWh or kw
+
+    save_outputs_dict = establish_save_output_dict()
+
+    save_outputs_dict[
+            "Electricity Needed for Heater (kWh per desired output)"
+        ].append(self.el_needed_heater)
+
+    return (save_outputs_dict, self.el_needed_heater)
 
 def establish_save_output_dict():
     """
