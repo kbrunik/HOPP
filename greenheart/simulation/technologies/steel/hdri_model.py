@@ -81,6 +81,8 @@ def mass_model(config: MassModelConfig) -> MassModelOutputs:
         "Decarbonizing primary steel production: Techno-economic assessment of a hydrogen-based green steel production plant in Norway." 
         Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339.
     """
+
+    
     fe_o_ratio = (
         2 * config.mol_weight_fe
     ) / config.mol_weight_fe2o3  # Ratio of Fe weight to Fe2O3 weight
@@ -106,6 +108,7 @@ def mass_model(config: MassModelConfig) -> MassModelOutputs:
     mol_per_input_fe = (
         config.steel_output_desired * 1000
     ) / config.mol_weight_fe  # mols of iron in the input kg of Fe
+    
     m4_stoich = (
         h2_weight_per_mol * mol_per_input_fe
     ) / 1000  # kg H2 minimum mass needed per tonne steel
@@ -171,6 +174,7 @@ class EnergyModelOutputs:
     shaft_energy_balance: float  # kWh
     enthalpy_h2_input: float #kJ
     enthalpy_out_stream: float #KJ
+
 def energy_model(config: EnergyModelConfig) -> EnergyModelOutputs:
     """Calculates the energy balance of the HDRI shaft. Negative values indicate heat leaving the system, while positive values indicate heat entering the system.
 
@@ -228,24 +232,26 @@ class HDRI_Recouperator_ModelConfig:
        Accessory process for heat exchanger.  Currently has no outputs as recuperator doesn't change masses
        
     Attributes:
-        steel_output_desired  (float): Resulting desired steel output (kg) or (kg/hr)
+    steel_output_desired  (float): Resulting desired steel output (kg) or (kg/hr)
 
-        Sources:
-        Model derived from: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339."""
+    Sources:
+    Model derived from: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339."""
+   
     mass_inputs: MassModelConfig
     energy_inputs:EnergyModelConfig
     h2_temp_elec: float = 343  # (K) Temp of hydrogen leaving electrolyzer [3]
     temp_stream_exit_recup: float = 393  # (K) Stream leaving recuperator/entering condenser [3]
-
 @define 
 class HDRI_Recoupertor_output:
     """
-
+    recoup_energy_balance:  #KJ The eenrgy balance of the recuperator 
+    m10: float # Hydrogen leaving the recuperator and going to shaft furnace 
 
     """
     recoup_energy_balance: float #KJ
-
-def recoup_model(config: HDRI_Recouperator_ModelConfig ) -> HDRI_Recoupertor_output:   
+    m10: float # hydrogen leaving the recouperator
+    
+def recoup_model(config: HDRI_Recouperator_ModelConfig ) -> HDRI_Recoupertor_output:
     """
     Accessory process for heat exchanger.  Currently has no outputs as recuperator doesn't change masses
 
@@ -263,7 +269,7 @@ def recoup_model(config: HDRI_Recouperator_ModelConfig ) -> HDRI_Recoupertor_out
     m10            = m.hydrogen_gas_needed                                      # Hydrogen from electrolyzer = hydrogen into DRI
     m12_h2o        = m.water_leaving_shaft                                      # Mass h2o of exhaust stream = mass h2o to condensor
     m12_h2         = m.hydrogen_gas_leaving_shaft                               # Mass h2 of exhaust stream = mass h2
-    enthalpy_h2_input= e.enthalpy_h2_input
+    
     #m13_h2o_enter = m.water_leaving_shaft                                      # Mass h2o from condenser to electrolyzer
     
     h12_h2o = (
@@ -288,111 +294,8 @@ def recoup_model(config: HDRI_Recouperator_ModelConfig ) -> HDRI_Recoupertor_out
             #save_outputs_dict = establish_save_output_dict()       #KJ                     
     
     
-    return HDRI_Recoupertor_output(recoup_energy_balance=h11)
+    return HDRI_Recoupertor_output(recoup_energy_balance=h11, m10 = m10 )
    
-    
-@define
-class Cost_modelConfig:
-    """
-
-
-    lang_factor = 3  # (no units) Capital cost multiplier [3]
-    plant_life = 40  # (years) [3]
-    hdri_cost_per_ton_yr = 80  # (USD/tls/yr)
-    hdri_op_cost_tls = 13  # (tls/yr of dri)
-    maintenance_cost_percent = 0.015  # (% of capital cost)[3]
-    iron_ore_cost_tls = 90  # (USD/ton) [3]
-    labor_cost_tls = (20)  # (USD/ton/year) [3] $40 is flat rate for hdri and eaf together
-        
-    
-    """
-     
-    mass_inputs: MassModelConfig
-    steel_prod_yr:float
-    lang_factor:float  = 3  # (no units) Capital cost multiplier [3]
-    plant_life: float = 40  # (years) [3]
-    hdri_cost_per_ton_yr: float = 80  # (USD/tls/yr)
-    hdri_op_cost_tls: float = 13  # (tls/yr of dri)
-    maintenance_cost_percent: float = 0.015  # (% of capital cost)[3]
-    iron_ore_cost_tls: float = 90  # (USD/ton) [3]
-    labor_cost_tls:float = (20)  # (USD/ton/year) [3] $40 is flat rate for hdri and eaf together
-@define  
-class Cost_modelOutput:
-    """
-    Output definations 
-    hdri_total_capital_cost: float  # (Million USD)
-    hdri_maintenance_cost_yr: float  # (Million USD)
-    hdri_operational_cost_yr: float # (Million USD)
-    depreciation_cost: float # (Million USD)
-    iron_ore_total_cost_yr: float  # (Million USD)   
-    total_labor_cost_yr: float  # (Million USD)
-    """
-    hdri_total_capital_cost: float  # (Million USD)
-    hdri_maintenance_cost_yr: float  # (Million USD)
-    hdri_operational_cost_yr: float # (Million USD)
-    depreciation_cost: float # (Million USD)
-    iron_ore_total_cost_yr: float  # (Million USD)   
-    total_labor_cost_yr: float  # (Million USD)
-
-def Cost_model(config: Cost_modelConfig )-> Cost_modelOutput:
-
-    """
-    define function
-    This function returns the financials for a rated capacity plant for HDRI shaft
-
-    Args:
-    steel_prod_yr (ton/yr): (float) plant capacity steel produced per year. For financial outputs
-
-    Sources:
-    Model derived from: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339.
-
-    
-    """
-    mass_inputs = config.mass_inputs
-    steel_prod_yr=config.steel_prod_yr
-    m = mass_model(mass_inputs)
-    
-
-
-    hdri_total_capital_cost = (
-            (config.hdri_cost_per_ton_yr * steel_prod_yr) / 10**6 
-        ) * config.lang_factor  # Mil USD
-
-    hdri_operational_cost_yr = (
-            config.hdri_op_cost_tls * steel_prod_yr / (10**6)
-        )  # Mil USD per year
-
-    hdri_maintenance_cost_yr = (
-            config.maintenance_cost_percent * hdri_total_capital_cost
-        )  # Mil USD per year
-
-    depreciation_cost = (
-            hdri_total_capital_cost / config.plant_life
-        )  # Mil USD per year
-
-    total_iron_ore = m.iron_ore_mass_needed  # tonne FeO
-
-    iron_ore_total_cost_yr = (
-            config.iron_ore_cost_tls * total_iron_ore / 10**6
-        )  # USD per ton
-
-    total_labor_cost_yr = config.labor_cost_tls * steel_prod_yr / 10**6 
-
-    
-    
-    
-
-        # labour costs will need to be done separately as they are flat rate
-
-    return Cost_modelOutput(
-            hdri_total_capital_cost=hdri_total_capital_cost,
-            hdri_operational_cost_yr=hdri_operational_cost_yr,
-            hdri_maintenance_cost_yr= hdri_maintenance_cost_yr,
-            depreciation_cost= depreciation_cost,
-            iron_ore_total_cost_yr= iron_ore_total_cost_yr,
-            total_labor_cost_yr= total_labor_cost_yr
-        )
-
 
 @define
 class Heater_modelConfig:
@@ -409,7 +312,6 @@ class Heater_modelConfig:
     """
     mass_inputs: MassModelConfig
     energy_inputs:EnergyModelConfig
-
     temp_input_heater: float  = 413  # (K) H2 entering heater from recuperator [3]
     eta_el_heater: float  = 0.6  # (%) efficiency of electricl heater  
 @define  
@@ -436,16 +338,13 @@ def heater_model(config: Heater_modelConfig )-> Heater_modelOutput:
 
         Sources:
         Model derived from: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339.
+        """
 
-    """
     mass_inputs = config.mass_inputs
     energy_inputs = config.energy_inputs
-     
-
 
     m = mass_model(mass_inputs)
     e = energy_model(energy_inputs)
-    
 
 
 
@@ -453,8 +352,8 @@ def heater_model(config: Heater_modelConfig )-> Heater_modelOutput:
             config.temp_input_heater
         )  # Assumes 30 degree heat loss from recuperator to heater
     m11_heat_in = (
-            m.hydrogen_gas_needed
-        )  # mass of hydrogen into heater = mass hydrogen into recuperator
+            m.hydrogen_gas_needed ############################################
+        )  # mass of hydrogen into heater = mass hydrogen into recuperator ?????????????????????
 
     h11_heat_in = (
             h2_enthalpy(T11_heat_in) * m11_heat_in * 1000
@@ -476,9 +375,7 @@ def heater_model(config: Heater_modelConfig )-> Heater_modelOutput:
      #       "Electricity Needed for Heater (kWh per desired output)"
       #  ].append(self.el_needed_heater)
 
-    return Heater_modelOutput(el_needed_heater=el_needed_heater, q_heater=q_heater) ########################################################
-
-
+    return Heater_modelOutput(el_needed_heater=el_needed_heater, q_heater=q_heater) 
 
 def establish_save_output_dict():
     """
@@ -700,15 +597,9 @@ class hdri_model:
         save_outputs_dict["Hydrogen Gas Needed (kg)"].append(self.mass_h2_input)
         save_outputs_dict["Hydrogen Gas Leaving Shaft (kg)"].append(self.mass_h2_output)
         save_outputs_dict["Mass H2O Leaving Shaft (kg)"].append(self.mass_h2o_output)
-        save_outputs_dict["Mass Pure Iron Leaving Shaft (kg)"].append(
-            self.mass_pure_fe_output
-        )
-        save_outputs_dict["Total Mass H2 H2O Leaving Shaft (kg)"].append(
-            self.mass_h2_h2o_output
-        )
-        save_outputs_dict["Mass Iron Ore Leaving Shaft (kg)"].append(
-            self.mass_iron_ore_output
-        )
+        save_outputs_dict["Mass Pure Iron Leaving Shaft (kg)"].append(self.mass_pure_fe_output)
+        save_outputs_dict["Total Mass H2 H2O Leaving Shaft (kg)"].append(self.mass_h2_h2o_output)
+        save_outputs_dict["Mass Iron Ore Leaving Shaft (kg)"].append(self.mass_iron_ore_output)
 
         return (
             save_outputs_dict,
@@ -791,8 +682,8 @@ class hdri_model:
         save_outputs_dict = establish_save_output_dict()
 
         save_outputs_dict["Energy Balance of Shaft (kWh)"].append(self.energy_balance)
-
-        return (save_outputs_dict, self.energy_balance)
+        
+        return (save_outputs_dict, self.energy_balance,self.enthalpy_h2_input,self.enthalpy_out_stream )
 
     def financial_model(self, steel_prod_yr): ###########****
         """
@@ -857,8 +748,8 @@ class hdri_model:
         return (
             save_outputs_dict,
             self.hdri_total_capital_cost,
-            self.hdri_operational_cost_yr,
             self.hdri_maintenance_cost_yr,
+            self.hdri_operational_cost_yr,
             self.depreciation_cost,
             self.iron_ore_total_cost_yr,
             self.total_labor_cost_yr,
@@ -904,7 +795,7 @@ class hdri_model:
 
         save_outputs_dict = establish_save_output_dict()
 
-        return (save_outputs_dict, h11)
+        return (save_outputs_dict, h11,m10)
 
     def heater_mass_energy_model(self, steel_out_desired):
         """
@@ -917,7 +808,7 @@ class hdri_model:
         Model derived from: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339.
 
         """
-        # from hopp.simulation.technologies.steel.enthalpy_functions import h2_enthalpy
+        #from hopp.simulation.technologies.steel.enthalpy_functions import h2_enthalpy
 
         hdri_model.mass_model(self, steel_out_desired)
         hdri_model.energy_model(self, steel_out_desired)
@@ -950,7 +841,109 @@ class hdri_model:
             "Electricity Needed for Heater (kWh per desired output)"
         ].append(self.el_needed_heater)
 
-        return (save_outputs_dict, self.el_needed_heater)
+        return (save_outputs_dict, self.el_needed_heater,q_heater)
+
+@define
+class Cost_modelConfig:
+    """
+
+
+    lang_factor = 3  # (no units) Capital cost multiplier [3]
+    plant_life = 40  # (years) [3]
+    hdri_cost_per_ton_yr = 80  # (USD/tls/yr)
+    hdri_op_cost_tls = 13  # (tls/yr of dri)
+    maintenance_cost_percent = 0.015  # (% of capital cost)[3]
+    iron_ore_cost_tls = 90  # (USD/ton) [3]
+    labor_cost_tls = (20)  # (USD/ton/year) [3] $40 is flat rate for hdri and eaf together
+        
+    
+    """
+     
+    mass_inputs: MassModelConfig
+    steel_prod_yr:float
+    lang_factor:float  = 3  # (no units) Capital cost multiplier [3]
+    plant_life: float = 40  # (years) [3]
+    hdri_cost_per_ton_yr: float = 80  # (USD/tls/yr)
+    hdri_op_cost_tls: float = 13  # (tls/yr of dri)
+    maintenance_cost_percent: float = 0.015  # (% of capital cost)[3]
+    iron_ore_cost_tls: float = 90  # (USD/ton) [3]
+    labor_cost_tls:float = (20)  # (USD/ton/year) [3] $40 is flat rate for hdri and eaf together
+@define  
+class Cost_modelOutput:
+    """
+    Output definations 
+    hdri_total_capital_cost: float  # (Million USD)
+    hdri_maintenance_cost_yr: float  # (Million USD)
+    hdri_operational_cost_yr: float # (Million USD)
+    depreciation_cost: float # (Million USD)
+    iron_ore_total_cost_yr: float  # (Million USD)   
+    total_labor_cost_yr: float  # (Million USD)
+    """
+    hdri_total_capital_cost: float  # (Million USD)
+    hdri_maintenance_cost_yr: float  # (Million USD)
+    hdri_operational_cost_yr: float # (Million USD)
+    depreciation_cost: float # (Million USD)
+    iron_ore_total_cost_yr: float  # (Million USD)   
+    total_labor_cost_yr: float  # (Million USD)
+
+def Cost_model(config: Cost_modelConfig )-> Cost_modelOutput:
+
+    """
+    define function
+    This function returns the financials for a rated capacity plant for HDRI shaft
+
+    Args:
+    steel_prod_yr (ton/yr): (float) plant capacity steel produced per year. For financial outputs
+
+    Sources:
+    Model derived from: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339.
+
+    
+    """
+    mass_inputs = config.mass_inputs
+    steel_prod_yr=config.steel_prod_yr
+    m = mass_model(mass_inputs)
+    
+
+
+    hdri_total_capital_cost = (
+            (config.hdri_cost_per_ton_yr * steel_prod_yr) / 10**6 
+        ) * config.lang_factor  # Mil USD
+
+    hdri_operational_cost_yr = (
+            config.hdri_op_cost_tls * steel_prod_yr / (10**6)
+        )  # Mil USD per year
+
+    hdri_maintenance_cost_yr = (
+            config.maintenance_cost_percent * hdri_total_capital_cost
+        )  # Mil USD per year
+
+    depreciation_cost = (
+            hdri_total_capital_cost / config.plant_life
+        )  # Mil USD per year
+
+    total_iron_ore = m.iron_ore_mass_needed  # tonne FeO
+
+    iron_ore_total_cost_yr = (
+            config.iron_ore_cost_tls * total_iron_ore / 10**6
+        )  # USD per ton
+
+    total_labor_cost_yr = config.labor_cost_tls * steel_prod_yr / 10**6 
+
+    
+    
+    
+
+        # labour costs will need to be done separately as they are flat rate
+
+    return Cost_modelOutput(
+            hdri_total_capital_cost=hdri_total_capital_cost,
+            hdri_operational_cost_yr=hdri_operational_cost_yr,
+            hdri_maintenance_cost_yr= hdri_maintenance_cost_yr,
+            depreciation_cost= depreciation_cost,
+            iron_ore_total_cost_yr= iron_ore_total_cost_yr,
+            total_labor_cost_yr= total_labor_cost_yr
+        )
 
 
 if __name__ == "__main__":
@@ -959,40 +952,44 @@ if __name__ == "__main__":
 
     steel_output_desired = 1000  # (kg or kg/hr)
 
-    mass_outputs = model_instance.mass_model(steel_output_desired)
-    energy_outputs = model_instance.energy_model(steel_output_desired)
-    recuperator_outputs = model_instance.recuperator_mass_energy_model(steel_output_desired)
-    # heater_outputs = model_instance.heater_mass_energy_model(steel_output_desired)
 
-    # steel_output_desired_yr = 2000000 #(ton/yr)
+    #mass_outputs = model_instance.mass_model(steel_output_desired)
+    
+    #energy_outputs = model_instance.energy_model(steel_output_desired)
+    #recuperator_outputs = model_instance.recuperator_mass_energy_model(steel_output_desired)
+    #heater_outputs = model_instance.heater_mass_energy_model(steel_output_desired)
 
-    # financial_outputs = model_instance.financial_model(steel_output_desired_yr)
+    steel_output_desired_yr = 2000000 #(ton/yr)
+    steel_prod_yr=steel_output_desired_yr
+
+    financial_outputs = model_instance.financial_model(steel_output_desired_yr)
     print()
-    print(mass_outputs)
+    print(financial_outputs)
 
-    config = MassModelConfig(steel_output_desired=1000)
+    config = MassModelConfig(steel_output_desired)
     out = mass_model(config)
-    print()
-    print(out)
+    #print()
+    #print(out)
 
     config1 = EnergyModelConfig(config)
     out1 = energy_model(config1)
-    print()
-    print(out1)
+    #print()
+    #print(out1)
 
     config2 = HDRI_Recouperator_ModelConfig(config,config1)
     out2= recoup_model(config2)
-    print()
-    print(out2)
+    #print()
+    #print(out2) 
 
     config3 = Heater_modelConfig(config,config1)
-    out3= heater_model(config3)
-    print()
-    print(out3)
+    out3 = heater_model(config3)
+    #print()
+    #print(out3)
 
-    config4 = Cost_modelConfig(config, steel_prod_yr=2000000)
+    config4 = Cost_modelConfig(config, steel_prod_yr)
     out4= Cost_model(config4)
     print()
     print(out4)
+
 
 
