@@ -1,5 +1,238 @@
+from attrs import define 
 from greenheart.simulation.technologies.steel.hdri_model import hdri_model
 from greenheart.simulation.technologies.steel.enthalpy_functions import fe_enthalpy, fe_enthalpy
+from greenheart.simulation.technologies.steel import hdri_model as h 
+
+# ##########################################
+# @define 
+# class MassModelConfig:
+#      """
+     
+#      """
+#      steel_output_desired: float
+#      mass_inputs = h.MassModelConfig(steel_output_desired=1000)
+#      mass_carbon_tls:float = 10  #kg/tls
+#      mass_lime_tls: float= 50  #kg/tls
+
+     
+# @define 
+# class MassModelOutputs:
+#     """
+#         Steel Output Actual (kg)
+#         Carbon Mass Needed (kg)
+#         Lime Mass Needed (kg)
+
+#     """
+#     Steel_Output_Actual:float # (kg)
+#     Carbon_Mass_Needed: float #(kg)
+#     Lime_Mass_Needed: float # (kg)
+
+# def mass_model(config:MassModelConfig) -> MassModelOutputs:
+#     """  
+#     Mass model calculates the masses inputted and outputted of 
+#     an EAF system for output of tonne liquid steel
+        
+#         Args:
+#         steel_output_desired (kg) or (kg/hr): (float) resulting desired steel output
+
+#         Sources:
+#         Model derived from: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339.
+#     """
+    
+#     #hdri_mass_inputs = config.hdri_mass_inputs
+    
+#     hdri_m = h.mass_model(config.mass_inputs)
+        
+#     m3 = steel_output_desired #kg
+   
+#     m2_feo = hdri_m.iron_ore_leaving_shaft
+#    # m2_feo = hdri_mass_model_outputs[2]
+        
+#     m6 = config.mass_carbon_tls #kg/tls
+#     m7 = config.mass_lime_tls #kg/tls
+
+#     carbon_total = m6*m3/1000 #(kg)
+#     lime_total = m7*m3/1000 #(kg)
+
+#     m2_feo_reduced = (m2_feo*.7)  #(kg) assumed 70% feo in EAF gets reduced       
+#     m3_actual = m2_feo_reduced + m3 #(kg) Actual steel outputted from excess iron oxidation
+        
+#     steel_out_actual = m3_actual #(kg)
+
+#     return MassModelOutputs(Steel_Output_Actual=steel_out_actual,Carbon_Mass_Needed=carbon_total,Lime_Mass_Needed=lime_total)
+
+
+# ##########################################
+# @define 
+# class EnergyModelConfig:
+#     """`
+#         eta_el = .6 #(%) electrical efficiency [1]
+
+#         stream_temp_in = 973 #(k) Temperature of metallic stream input eaf [1]
+#         eaf_temp = 1923 #(k) Temperature metallic stream out. Temp needed to achieve [1]
+
+#     """
+
+#     mass_inputs: MassModelConfig
+#     eta_el: float = .6 #(%) electrical efficiency [1]
+#     stream_temp_in: float = 973  #(k) Temperature of metallic stream input eaf [1]
+#     eaf_temp: float = 1923 #(k) Temperature metallic stream out. Temp needed to achieve [1]
+#     hfe_melting: float = 247 #(kj/kg) Energy needed to melt iron into a liquid [1] 
+     
+# @define 
+# class EnergyModelOutputs:
+#     """
+#     ['Energy needed for Electric Arc Furnance (kWh)']
+#     """
+#     el_eaf: float  #(kwh)
+    
+# def energy_model(config:EnergyModelConfig) -> EnergyModelOutputs:
+#     '''
+#         This function calculates the energy balance of the hdri EAF. Negative values designate
+#         heat leaving the system. Positive values designate heat needs to enter the system.  
+
+#         Energy belance values should be positive.
+
+#         Args:
+#         steel_output_desired (kg) or (kg/hr): (float) resulting desired steel output
+
+#         Sources:
+#         Model derived from: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339.
+
+#     '''
+
+
+#     #model_instance = hdri_model()
+
+#     #hdri_mass_model_outputs = model_instance.mass_model(steel_out_desired)
+    
+    
+#     hdri_mass_inputs = config.mass_inputs.mass_inputs
+#     hdri_m = h.mass_model(hdri_mass_inputs)
+
+#     m2_fe = hdri_m.pure_iron_leaving_shaft 
+     
+        
+#     hfe_T2 = fe_enthalpy(config.stream_temp_in)    #Enthalpy of DRI entering Eaf (kj/g)
+#     hfe_T3 = fe_enthalpy(config.eaf_temp)    #Enthalpy steel exiting EAF (kj/g)
+#     h3 = ((hfe_T3 - hfe_T2)*m2_fe*1000) + (m2_fe*config.hfe_melting)  #Total Enthalpy at output Kj
+
+#     h3_kwh = h3 / 3600 #(kwh)
+
+#     el_eaf = h3_kwh/config.eta_el #kwh
+
+
+#     #save_outputs_dict['Energy needed for Electric Arc Furnance (kWh)'].append(self.el_eaf)
+        
+#     return EnergyModelOutputs(el_eaf=el_eaf)
+
+# # ##########################################
+# @define 
+# class EmissionModelConfig:
+#     """
+#      self.emission_factor
+#      self.el_eaf
+#      self.eaf_co2
+#      self.cao_emission
+#      self.co2_eaf_electrode 
+#      self.pellet_production
+
+#     """
+#     energy_inputs: EnergyModelConfig
+#     mass_inputs: MassModelConfig
+
+#     hdri_energy_inputs = h.EnergyModelConfig
+#     hdri_heater_inputs = h.HDRI_Recouperator_ModelConfig
+
+    
+
+#     eaf_co2: float = 0.050  #ton/tls [1]
+#     cao_emission:float = 0.056 #tco2/tls [1]
+#     co2_eaf_electrode:float = 0.0070 #tco2/tls [1]
+#     pellet_production:float = 0.12 #tco2/tls [1]
+#     emission_factor:float = .413 #(ton CO2/kwh) [1]
+
+     
+    
+
+     
+# @define 
+# class EmissionModelOutputs:
+#      """
+#     Total Indirect Emissions (Ton CO2)
+#     Total Direct Emissions (Ton CO2)
+#     Total Emissions (Ton CO2)
+
+#      """
+#      indirect_emissions_total: float
+#      direct_emissions_total: float 
+#      total_emissions:float 
+     
+    
+# def emission_model(config:EmissionModelConfig) -> EmissionModelOutputs:
+#     """"
+#     This function models the emissions from the EAF.  This incorporates direct and indirect emissions
+
+#     Args:
+#     steel_output_desired (kg) or (kg/hr): (float) resulting desired steel output
+
+#     Sources:
+#     Model derived from: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339.
+
+#     """
+
+#     #eaf_modelenergy_model(self,steel_out_desired)
+#     #model_instance = hdri_model()
+
+#     energy_inputs = config.energy_inputs
+#     mass_inputs=config.mass_inputs
+#     hdri_energy_inputs= config.hdri_energy_inputs
+   
+#     m = mass_model(mass_inputs)
+#     e = energy_model(energy_inputs)
+
+
+    
+
+#     #heater_inputs = h.heater_model(mass_inputs)
+
+#     heat_m= h.heater_model(hdri_energy_inputs)
+
+#     #el_heater = eater_modelOutput.el_needed_heater
+
+#     indirect_emissions = ((e.el_eaf)
+#                                + (heat_m.el_needed_heater))*config.emission_factor #tco2 or tco2/hr
+
+#     direct_emissions = (config.eaf_co2 + config.cao_emission + config.co2_eaf_electrode 
+#                             + config.pellet_production) #tco2/tls or tco2/hr/tls
+        
+#     indirect_emissions_total = indirect_emissions #tco2 or tco2/hr
+#     direct_emissions_total = direct_emissions*h.steel_out_desired/1000 #tco2 tco2/hr
+
+
+#     indirect_emissions_total = indirect_emissions_total
+#     direct_emissions_total = direct_emissions_total
+#     total_emissions = indirect_emissions_total + direct_emissions_total
+
+       
+
+
+
+   
+
+#     return EmissionModelOutputs(indirect_emissions_total=indirect_emissions_total,direct_emissions_total=direct_emissions_total,total_emissions=total_emissions)
+
+# ##########################################
+# @define 
+# class CostModelConfig:
+     
+# @define 
+# class CostModelOutputs:
+    
+# def cost_model(config:CostModelConfig) -> CostModelOutputs:
+
+#     return
+
 
 def establish_save_output_dict():
         """
@@ -124,8 +357,7 @@ class eaf_model():
         self.coal_total_cost_yr = None #(Mil USD/year)
         self.lime_cost = 112 #(USD/ton lime) [1]
         self.lime_cost_total = None #(USD/year)
-        
-    
+           
     def mass_model(self, steel_out_desired):
         '''
         Mass model calculates the masses inputted and outputted of 
@@ -201,9 +433,7 @@ class eaf_model():
         save_outputs_dict['Energy needed for Electric Arc Furnance (kWh)'].append(self.el_eaf)
         
         return (save_outputs_dict,self.el_eaf)
-    
-    
-    
+       
     def emission_model(self, steel_out_desired):
         '''
         This function models the emissions from the EAF.  This incorporates direct and indirect emissions
@@ -241,10 +471,7 @@ class eaf_model():
         save_outputs_dict['Total Emissions (Ton CO2)'].append(self.total_emissions)
 
         return (save_outputs_dict,self.indirect_emissions_total, self.direct_emissions_total, self.total_emissions)
-        
-        
-        
-        
+                
     def financial_model(self, steel_prod_yr):
         '''
         This function returns the financials for a rated capacity plant for EAF
@@ -311,6 +538,27 @@ if __name__ == '__main__':
     steel_output_desired_yr = 2000000 #(ton/yr)
 
     financial_outputs = model_instance.financial_model(steel_output_desired_yr)
+    
+    #print(mass_outputs)
+    config = MassModelConfig(steel_output_desired)
+    out = mass_model(config)
+    #print()
+    #print(out)
+
+    #print(energy_outputs)
+
+    config1 = EnergyModelConfig(config)
+    out1 = energy_model(config1)
+   # print()
+    #print(out1)
+
+    print(emission_outputs)
+    config2 = EmissionModelConfig(config,config1)
+    out2 = emission_model(config2)
+    print()
+    print(out2)
+
+
 
     
 

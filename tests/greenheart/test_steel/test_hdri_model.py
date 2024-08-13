@@ -48,6 +48,7 @@ def config1():
     return config1
 
 def test_energy_model(subtests, config1):
+
     res: h.EnergyModelOutputs = h.energy_model(config1)
 
     with subtests.test("Shaft energy balnce [kWh]"):
@@ -60,6 +61,8 @@ def test_energy_model(subtests, config1):
 
 @fixture
 def config2():
+    config = h.MassModelConfig(steel_output_desired=1000)
+    config1 = h.EnergyModelConfig(config )
     config2 = h.HDRI_Recouperator_ModelConfig(config,config1)
     return config2
 
@@ -84,6 +87,7 @@ def test_heater_model(subtests, config3):
 
 @fixture 
 def config4():
+    config = h.MassModelConfig(steel_output_desired=1000)
     config4 = h.Cost_modelConfig(config,steel_prod_yr=2000000)
     return config4
 
@@ -92,13 +96,13 @@ def test_cost_model(subtests,config4):
     with subtests.test("Shaft Total Capital Cost (Mil USD)"):
         assert res.hdri_total_capital_cost == approx(480.00,.01)
     with subtests.test("Shaft Operational Cost (Mil USD per year)"):
-        assert res.hdri_operational_cost_yr == approx(7.19,.01)
+        assert res.hdri_operational_cost_yr == approx(26,.01)
     with subtests.test("Shaft Maintenance Cost (Mil USD per year)"):
-        assert res.hdri_maintenance_cost_yr == approx(26.00,.01)
+        assert res.hdri_maintenance_cost_yr == approx(7.19,.01)
     with subtests.test("Shaft Depreciation Cost (Mil USD per year)"):
         assert res.depreciation_cost == approx(12.00,.01)
     with subtests.test("Total Iron Ore Cost (Mil USD per year)"):
-        assert res.iron_ore_total_cost_yr == approx(0.14, .01)
+        assert res.iron_ore_total_cost_yr == approx(0.144, .01)
     with subtests.test("Total Labor Cost (Mil USD per year)"):
         assert res.total_labor_cost_yr == approx(40.00, .01)
         

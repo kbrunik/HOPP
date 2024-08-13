@@ -82,9 +82,9 @@ def mass_model(config: MassModelConfig) -> MassModelOutputs:
         Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339.
     """
 
-    
+
     fe_o_ratio = (
-        2 * config.mol_weight_fe
+        2 * (config.mol_weight_fe)
     ) / config.mol_weight_fe2o3  # Ratio of Fe weight to Fe2O3 weight
 
     m1 = config.steel_output_desired / (
@@ -228,19 +228,23 @@ def energy_model(config: EnergyModelConfig) -> EnergyModelOutputs:
 
 @define
 class HDRI_Recouperator_ModelConfig:
-    """Configuration for Recouperator model
-       Accessory process for heat exchanger.  Currently has no outputs as recuperator doesn't change masses
+    """
+    Configuration for Recouperator model
+    Accessory process for heat exchanger.  Currently has no outputs as recuperator doesn't change masses
        
     Attributes:
     steel_output_desired  (float): Resulting desired steel output (kg) or (kg/hr)
 
     Sources:
-    Model derived from: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339."""
+    Model derived from: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339.
+    """
    
     mass_inputs: MassModelConfig
     energy_inputs:EnergyModelConfig
     h2_temp_elec: float = 343  # (K) Temp of hydrogen leaving electrolyzer [3]
     temp_stream_exit_recup: float = 393  # (K) Stream leaving recuperator/entering condenser [3]
+
+
 @define 
 class HDRI_Recoupertor_output:
     """
@@ -250,7 +254,7 @@ class HDRI_Recoupertor_output:
     """
     recoup_energy_balance: float #KJ
     m10: float # hydrogen leaving the recouperator
-    
+
 def recoup_model(config: HDRI_Recouperator_ModelConfig ) -> HDRI_Recoupertor_output:
     """
     Accessory process for heat exchanger.  Currently has no outputs as recuperator doesn't change masses
@@ -353,7 +357,7 @@ def heater_model(config: Heater_modelConfig )-> Heater_modelOutput:
         )  # Assumes 30 degree heat loss from recuperator to heater
     m11_heat_in = (
             m.hydrogen_gas_needed ############################################
-        )  # mass of hydrogen into heater = mass hydrogen into recuperator ?????????????????????
+        )  # mass of hydrogen into heater = mass hydrogen into recuperator 
 
     h11_heat_in = (
             h2_enthalpy(T11_heat_in) * m11_heat_in * 1000
@@ -959,17 +963,17 @@ if __name__ == "__main__":
     #recuperator_outputs = model_instance.recuperator_mass_energy_model(steel_output_desired)
     #heater_outputs = model_instance.heater_mass_energy_model(steel_output_desired)
 
-    steel_output_desired_yr = 2000000 #(ton/yr)
-    steel_prod_yr=steel_output_desired_yr
+    
+    steel_prod_yr=2000000
 
-    financial_outputs = model_instance.financial_model(steel_output_desired_yr)
+    financial_outputs = model_instance.financial_model(steel_prod_yr)
     print()
     print(financial_outputs)
 
     config = MassModelConfig(steel_output_desired)
     out = mass_model(config)
-    #print()
-    #print(out)
+    print()
+    print(out)
 
     config1 = EnergyModelConfig(config)
     out1 = energy_model(config1)
