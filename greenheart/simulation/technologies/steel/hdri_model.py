@@ -228,12 +228,16 @@ def energy_model(config: EnergyModelConfig) -> EnergyModelOutputs:
 
 @define
 class HDRI_Recouperator_ModelConfig:
-    """
-    Configuration for Recouperator model
+    """Configuration for Recouperator model
+
     Accessory process for heat exchanger.  Currently has no outputs as recuperator doesn't change masses
        
     Attributes:
-    steel_output_desired  (float): Resulting desired steel output (kg) or (kg/hr)
+        steel_output_desired  (float): Resulting desired steel output (kg) or (kg/hr)
+        mass_inputs: MassModelConfig
+        energy_inputs:EnergyModelConfig
+        h2_temp_elec: float = 343  # (K) Temp of hydrogen leaving electrolyzer [3]
+        temp_stream_exit_recup: float = 393  # (K) Stream leaving recuperator/entering condenser [3]
 
     Sources:
     Model derived from: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339.
@@ -247,9 +251,11 @@ class HDRI_Recouperator_ModelConfig:
 
 @define 
 class HDRI_Recoupertor_output:
-    """
-    recoup_energy_balance:  #KJ The eenrgy balance of the recuperator 
-    m10: float # Hydrogen leaving the recuperator and going to shaft furnace 
+    """Outputs for the HDRI Recuperator model
+
+    Attributes:
+        recoup_energy_balance:  #KJ The eenrgy balance of the recuperator 
+        m10: float # Hydrogen leaving the recuperator and going to shaft furnace 
 
     """
     recoup_energy_balance: float #KJ
@@ -303,16 +309,17 @@ def recoup_model(config: HDRI_Recouperator_ModelConfig ) -> HDRI_Recoupertor_out
 
 @define
 class Heater_modelConfig:
-    """
-    configuration definitions 
+    """Configuration of HDRI Heater model
 
-        self.h2_temp_in = 1173  # (K) h2 temp needed into shaft [3]
-        self.h2_temp_out = 573  # (K) H2/H20 stream exiting DRI/entering recuperator [3]
-        self.stream_temp_out = 973  # (K) 95% reduced Iron exiting DRI/Entering EAF !!Assuming 0 heat Losses!! [3]
-        self.h2_temp_elec = 343  # (K) Temp of hydrogen leaving electrolyzer [3]
-        self.temp_stream_exit_recup =  393  # (K) Stream leaving recuperator/entering condenser [3]
-        self.temp_input_heater = 413  # (K) H2 entering heater from recuperator [3]
-    
+
+    Attributes:
+        mass_inputs: MassModelConfig
+        energy_inputs:EnergyModelConfig
+        temp_input_heater = 413  # (K) H2 entering heater from recuperator [3]
+        eta_el_heater: float  = 0.6  # (%) efficiency of electricl heater  
+    Sources:
+        [3]: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339.
+
     """
     mass_inputs: MassModelConfig
     energy_inputs:EnergyModelConfig
@@ -320,13 +327,12 @@ class Heater_modelConfig:
     eta_el_heater: float  = 0.6  # (%) efficiency of electricl heater  
 @define  
 class Heater_modelOutput:
-    """
-    Output define 
+    """Output of the HDRI heater model  
     Function returns the energy needed to heat up gas to needed temp for oxidation
 
-    Args:
-    electricty_needed_heater (kWh) electricity need by heater
-    Heat_energy_needed_heater : KJ
+    Attributes:
+        electricty_needed_heater (kWh) electricity need by heater
+        Heat_energy_needed_heater : KJ
     
     """
     el_needed_heater:float 
@@ -356,7 +362,7 @@ def heater_model(config: Heater_modelConfig )-> Heater_modelOutput:
             config.temp_input_heater
         )  # Assumes 30 degree heat loss from recuperator to heater
     m11_heat_in = (
-            m.hydrogen_gas_needed ############################################
+            m.hydrogen_gas_needed 
         )  # mass of hydrogen into heater = mass hydrogen into recuperator 
 
     h11_heat_in = (
@@ -372,12 +378,8 @@ def heater_model(config: Heater_modelConfig )-> Heater_modelOutput:
     eta_el_heater = config.eta_el_heater  # Efficiency of heater
     el_heater = q_heater / eta_el_heater  # electricity need at heater
 
-    el_needed_heater = el_heater  # kWh or kw ##############################################################
+    el_needed_heater = el_heater  # kWh or kw 
 
-
-    #save_outputs_dict[
-     #       "Electricity Needed for Heater (kWh per desired output)"
-      #  ].append(self.el_needed_heater)
 
     return Heater_modelOutput(el_needed_heater=el_needed_heater, q_heater=q_heater) 
 
@@ -849,17 +851,20 @@ class hdri_model:
 
 @define
 class Cost_modelConfig:
-    """
+    """Configuration for the HDRI cost model 
 
-
-    lang_factor = 3  # (no units) Capital cost multiplier [3]
-    plant_life = 40  # (years) [3]
-    hdri_cost_per_ton_yr = 80  # (USD/tls/yr)
-    hdri_op_cost_tls = 13  # (tls/yr of dri)
-    maintenance_cost_percent = 0.015  # (% of capital cost)[3]
-    iron_ore_cost_tls = 90  # (USD/ton) [3]
-    labor_cost_tls = (20)  # (USD/ton/year) [3] $40 is flat rate for hdri and eaf together
-        
+    Attributes:
+        mass_inputs: MassModelConfig
+        steel_prod_yr:float
+        lang_factor = 3  # (no units) Capital cost multiplier [3]
+        plant_life = 40  # (years) [3]
+        hdri_cost_per_ton_yr = 80  # (USD/tls/yr)
+        hdri_op_cost_tls = 13  # (tls/yr of dri)
+        maintenance_cost_percent = 0.015  # (% of capital cost)[3]
+        iron_ore_cost_tls = 90  # (USD/ton) [3]
+        labor_cost_tls = (20)  # (USD/ton/year) [3] $40 is flat rate for hdri and eaf together
+    Sources:
+        [3]: Bhaskar, Abhinav, Rockey Abhishek, Mohsen Assadi, and Homan Nikpey Somehesaraei. 2022. "Decarbonizing primary steel production : Techno-economic assessment of a hydrogen based green steel production plant in Norway." Journal of Cleaner Production 350: 131339. doi: https://doi.org/10.1016/j.jclepro.2022.131339.  
     
     """
      
@@ -874,14 +879,14 @@ class Cost_modelConfig:
     labor_cost_tls:float = (20)  # (USD/ton/year) [3] $40 is flat rate for hdri and eaf together
 @define  
 class Cost_modelOutput:
-    """
-    Output definations 
-    hdri_total_capital_cost: float  # (Million USD)
-    hdri_maintenance_cost_yr: float  # (Million USD)
-    hdri_operational_cost_yr: float # (Million USD)
-    depreciation_cost: float # (Million USD)
-    iron_ore_total_cost_yr: float  # (Million USD)   
-    total_labor_cost_yr: float  # (Million USD)
+    """Output for the HDRI cost model
+    Attributes: 
+        hdri_total_capital_cost: float  # (Million USD)
+        hdri_maintenance_cost_yr: float  # (Million USD)
+        hdri_operational_cost_yr: float # (Million USD)
+        depreciation_cost: float # (Million USD)
+        iron_ore_total_cost_yr: float  # (Million USD)   
+        total_labor_cost_yr: float  # (Million USD)
     """
     hdri_total_capital_cost: float  # (Million USD)
     hdri_maintenance_cost_yr: float  # (Million USD)
@@ -933,12 +938,7 @@ def Cost_model(config: Cost_modelConfig )-> Cost_modelOutput:
         )  # USD per ton
 
     total_labor_cost_yr = config.labor_cost_tls * steel_prod_yr / 10**6 
-
-    
-    
-    
-
-        # labour costs will need to be done separately as they are flat rate
+    # labour costs will need to be done separately as they are flat rate
 
     return Cost_modelOutput(
             hdri_total_capital_cost=hdri_total_capital_cost,
@@ -992,8 +992,8 @@ if __name__ == "__main__":
 
     config4 = Cost_modelConfig(config, steel_prod_yr)
     out4= Cost_model(config4)
-    print()
-    print(out4)
+   # print()
+    #print(out4)
 
 
 
