@@ -37,7 +37,78 @@ def test_mass_model(subtests, config):
         assert res.silicon_dioxide_mass == approx(48.03, 0.01)
     with subtests.test("aluminium oxide mass"):
         assert res.aluminium_oxide_mass == approx(32.02, 0.01)
-    
+
+@fixture 
+def config1():
+    config = h.MassModelConfig(
+        steel_output_desired=1000
+    )
+    config1 = h.EnergyModelConfig(config
+    )
+    return config1
+
+def test_energy_model(subtests, config1):
+
+    res: h.EnergyModelOutputs = h.energy_model(config1)
+
+    with subtests.test("Shaft energy balnce [kWh]"):
+        assert res.shaft_energy_balance == approx(-332.13, 0.01)
+    with subtests.test("Input Hydrogen Enthalpy [KJ]"):
+        assert res.enthalpy_h2_input == approx(836803.97, 0.01)
+    with subtests.test("Total Enthalpy Out of Shaft [KJ]"):
+        assert res.enthalpy_out_stream == approx(298902.04, 0.01)
+
+
+@fixture
+def config2():
+    config = h.MassModelConfig(steel_output_desired=1000)
+    config1 = h.EnergyModelConfig(config )
+    config2 = h.HDRI_Recouperator_ModelConfig(config,config1)
+    return config2
+
+def test_recoup_model(subtests, config2):
+    res: h.HDRI_Recoupertor_output = h.recoup_model(config2)
+    with subtests.test("Recuperator energy balance"):
+        assert res.recoup_energy_balance == approx(37.01, 0.01)
+    with subtests.test("Hydrogen to DRI shaft"):
+        assert res.m10 == approx(64.975, 0.01)
+
+@fixture
+def config3():
+    config3 = h.Heater_modelConfig(config,config1)
+    return config3
+
+def test_heater_model(subtests, config3):
+    res: h.Heater_modelOutput = h.heater_model(config3)
+    with subtests.test("Electricity needed for heater [kWh]"):
+        assert res.el_needed_heater == approx(337.58, 0.01)
+    with subtests.test("Energy needed for heater [KJ]"):
+        assert res.q_heater == approx(202.55, 0.01)
+
+@fixture 
+def config4():
+    config = h.MassModelConfig(steel_output_desired=1000)
+    config4 = h.Cost_modelConfig(config,steel_prod_yr=2000000)
+    return config4
+
+def test_cost_model(subtests,config4):
+    res:h.Cost_modelOutput = h.Cost_model(config4)
+    with subtests.test("Shaft Total Capital Cost (Mil USD)"):
+        assert res.hdri_total_capital_cost == approx(480.00,.01)
+    with subtests.test("Shaft Operational Cost (Mil USD per year)"):
+        assert res.hdri_operational_cost_yr == approx(26,.01)
+    with subtests.test("Shaft Maintenance Cost (Mil USD per year)"):
+        assert res.hdri_maintenance_cost_yr == approx(7.19,.01)
+    with subtests.test("Shaft Depreciation Cost (Mil USD per year)"):
+        assert res.depreciation_cost == approx(12.00,.01)
+    with subtests.test("Total Iron Ore Cost (Mil USD per year)"):
+        assert res.iron_ore_total_cost_yr == approx(0.144, .01)
+    with subtests.test("Total Labor Cost (Mil USD per year)"):
+        assert res.total_labor_cost_yr == approx(40.00, .01)
+        
+
+
+
 
 def test_steel_out_desired_model():
     model_instance = hdri_model()
@@ -193,7 +264,7 @@ def test_op_cost_model():
 
     outputs = model_instance.financial_model(steel_output_desired)
 
-    operational_cost = outputs[2]
+    operational_cost = outputs[3]
 
     assert approx(operational_cost) == .026
  
@@ -204,7 +275,7 @@ def test_maint_cost_model():
 
     outputs = model_instance.financial_model(steel_output_desired)
 
-    maintenance_cost = outputs[3]
+    maintenance_cost = outputs[2]
 
     assert approx(maintenance_cost) == .0072
 
