@@ -524,6 +524,7 @@ def initialize_power_chemical_ranges(
         "c_b",
         "Qin",
         "Qout",
+        "pwrRanges"
     ]
 
     # Initialize the dictionaries
@@ -531,12 +532,13 @@ def initialize_power_chemical_ranges(
     S2 = {key: np.zeros(S2_tot_range) for key in keys}
     S3 = {key: np.zeros(N_range) for key in keys}
     S4 = {key: np.zeros(N_range) for key in keys}
+    S5 = {key: np.zeros(1) for key in keys}
 
     p = initialize_pumps(
         ed_config=ed_config, pump_config=pump_config
     )
 
-################################ Chemical Ranges: S1, S3, S4 #####################################
+########################## Chemical & Power Ranges: S1, S3, S4 ###################################
     for i in range(N_range):
 ############################### S1: Chem Ranges: Tank Filled #####################################
         P_EDi = (i+N_edMin)*P_ed1 # ED unit power requirements
@@ -652,10 +654,6 @@ def initialize_power_chemical_ranges(
         p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q # Outtake flow rate
         S3['Qout'][i] = p.pumpF.Q
 
-        # Define vacuum pump based on mCC ranges from S1 and S3 (S3 has a slightly higher mCC)
-        vacCO2 = Vacuum(min(np.concatenate([S1['mCC'], S3['mCC']])), max(np.concatenate([S1['mCC'], S3['mCC']])), pump_config.p_co2_min_bar, pump_config.p_co2_max_bar, ed_config.y_vac)
-
-
 ############################### S4: Chem Ranges: ED active, no capture ###########################
         P_EDi = (i+N_edMin)*P_ed1 # ED unit power requirements
         p.pumpED.Q = 0 # Regular ED pump is inactive here
@@ -694,8 +692,54 @@ def initialize_power_chemical_ranges(
         S4['pH_f'][i] = pH_i 
         S4['dic_f'][i] = dic_i # (mol/L)
 
-################################ Chemical Ranges: S2 #############################################
+        # Define vacuum pump based on mCC ranges from S1 and S3 (S3 has a slightly higher mCC)
+        vacCO2 = Vacuum(min(np.concatenate([S1['mCC'], S3['mCC']])), max(np.concatenate([S1['mCC'], S3['mCC']])), pump_config.p_co2_min_bar, pump_config.p_co2_max_bar, ed_config.y_vac)
+
+############################### S1: Power Ranges: Tank filled ####################################
+        P_EDi = (i+N_edMin)*P_ed1 # ED unit power requirements
+        p.pumpED.Q = (i+N_edMin)*Q_ed1 # Flow rates for ED Units
+        p.pumpO.Q = 100*p.pumpED.Q # Intake is 100x larger than ED unit
+        p.pumpA.Q = p.pumpED.Q/2 # Acid flow rate
+        p.pumpI.Q = p.pumpO.Q - p.pumpED.Q # Intake remaining after diversion to ED
+        p.pumpCO2ex.Q = p.pumpI.Q + p.pumpA.Q # Acid addition
+        p.pumpASW.Q = p.pumpCO2ex.Q # post extraction
+        p.pumpB.Q = p.pumpED.Q - p.pumpA.Q # Base flow rate
+        p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q # Outtake flow rate
+        vacCO2.mCC = S1['mCC'][i] # mCC rate from the previous calculation
+        S1['pwrRanges'][i] = P_EDi + p.pumpED.power() + p.pumpO.power() + p.pumpA.power() + p.pumpI.power() + p.pumpCO2ex.power() + p.pumpASW.power() + p.pumpB.power() + p.pumpF.power() + vacCO2.power()
+
+######################## S3: Power Ranges: ED not active, tanks not zeros ########################
+        P_EDi = 0 # ED Unit is off
+        p.pumpED.Q = 0 # ED Unit is off
+        p.pumpO.Q = 100*(i+N_edMin)*Q_ed1 # Flow rates for intake based on equivalent ED units that would be active
+        p.pumpI.Q = p.pumpO.Q # since no flow is going to the ED unit
+        p.pumpA.Q = (i+N_edMin)*Q_ed1/2 # Flow rate for acid pump based on equivalent ED units that would be active
+        p.pumpB.Q = p.pumpA.Q
+        p.pumpCO2ex.Q = p.pumpI.Q + p.pumpA.Q # Acid addition
+        p.pumpASW.Q = p.pumpCO2ex.Q # post extraction
+        p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q # Outtake flow rate
+        vacCO2.mCC = S3['mCC'][i] # mCC rate from the previous calculation
+        S3['pwrRanges'][i] = P_EDi + p.pumpED.power() + p.pumpO.power() + p.pumpA.power() + p.pumpI.power() + p.pumpCO2ex.power() + p.pumpASW.power() + p.pumpB.power() + p.pumpF.power() + vacCO2.power()
+        P_minS3_tot = min(S3['pwrRanges'])
+
+######################## S4: Power Ranges: ED active, no capture #################################
+        P_EDi = (i+N_edMin)*P_ed1 # ED unit power requirements
+        p.pumpED.Q = 0 # Regular ED pump is inactive here
+        p.pumpED4.Q = (i+N_edMin)*Q_ed1 # ED pump with filtration pressure
+        p.pumpO.Q = 0 # Need intake for ED & min CC
+        p.pumpA.Q = p.pumpED4.Q/2 # Acid flow rate
+        p.pumpI.Q = 0 # Intake remaining after diversion to ED
+        p.pumpCO2ex.Q = 0 # Acid addition
+        p.pumpASW.Q = 0 # post extraction
+        p.pumpB.Q = p.pumpED4.Q - p.pumpA.Q # Base flow rate
+        p.pumpF.Q = 0 # Outtake flow rate
+        vacCO2.mCC = S4['mCC'][i] # mCC rate from the previous calculation
+        S4['pwrRanges'][i] = P_EDi + p.pumpED4.power() + p.pumpO.power() + p.pumpA.power() + p.pumpI.power() + p.pumpCO2ex.power() + p.pumpASW.power() + p.pumpB.power() + p.pumpF.power() + vacCO2.power()
+        P_minS4_tot = min(S4['pwrRanges'])
+
+################################ Chemical & Power Ranges: S2 #####################################
     for i in range(S2_tot_range):
+##################### S2: Chem Ranges Avoiding Overflow: Capture CO2 & Fill Tank #################
         # ED Unit Characteristics
         N_edi = S2_ranges[i,0] + S2_ranges[i,1] 
         P_EDi = (N_edi)*P_ed1 # ED unit power requirements
@@ -778,6 +822,34 @@ def initialize_power_chemical_ranges(
         # Seawater Outtake
         p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q # Outtake flow rate
         S2['Qout'][i] = p.pumpF.Q # (m3/s) Outtake 
+
+##################### S2: Power Ranges: Capture CO2 & Fill Tank ##################################
+        N_edi = S2_ranges[i,0] + S2_ranges[i,1] 
+        P_EDi = (N_edi)*P_ed1 # ED unit power requirements
+        p.pumpED.Q = (N_edi)*Q_ed1 # Flow rates for ED Units
+        # Amount of acid added for mCC
+        Q_aMCC = S2_ranges[i,0] * Q_ed1/2 # flow rate used for mCC
+        p.pumpO.Q = Q_aMCC * 2 * 100 + (p.pumpED.Q - (Q_aMCC * 2)) # total seawater intake
+        p.pumpA.Q = p.pumpED.Q/2 # Acid flow rate
+        p.pumpI.Q = p.pumpO.Q - p.pumpED.Q # Intake remaining after diversion to ED
+        p.pumpCO2ex.Q = p.pumpI.Q + p.pumpA.Q # Acid addition
+        p.pumpASW.Q = p.pumpCO2ex.Q # post extraction
+        p.pumpB.Q = p.pumpED.Q - p.pumpA.Q # Base flow rate
+        p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q # Outtake flow rate
+        vacCO2.mCC = S2['mCC'][i] # mCC rate from the previous calculation
+        S2['pwrRanges'][i] = P_EDi + p.pumpED.power() + p.pumpO.power() + p.pumpA.power() + p.pumpI.power() + p.pumpCO2ex.power() + p.pumpASW.power() + p.pumpB.power() + p.pumpF.power() + vacCO2.power()
+        P_minS2_tot = min(S2['pwrRanges'])
+
+##################### S5: Chem Ranges: When all input power is excess ############################
+    S5['volAddAcid'] = 0 # No acid generated
+    S5['volAddBase'] = 0 # No base generated
+    S5['mCC'] = 0 # No CO2 capture
+    S5['pH_f'] = pH_i # No changes in sea pH
+    S5['dic_f'] = dic_i # (mol/L) No changes in sea DIC
+    S5['c_a'] = h_i # (mol/L) No acid generated so acid concentration is the same as that of seawater
+    S5['c_b'] = kw/h_i # (mol/L) No base generated so base concentration is the same as that of seawater
+    S5['Qin'] = 0 # (m3/s) No intake
+    S5['Qout'] = 0 # (m3/s) No outtake
 
 # def initialize_scenarios():
 
