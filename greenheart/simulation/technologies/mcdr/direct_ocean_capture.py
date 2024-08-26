@@ -14,7 +14,7 @@ from attrs import define, field
 
 @define
 class ElectroDialysisInputs:
-    """ "
+    """
     A class to represent the inputs for an Electrodialysis (ED) unit.
 
     Attributes:
@@ -77,6 +77,52 @@ class SeaWaterInputs:
         self.h_i = 10**-self.pH_i
         self.h_eq2 = 10**-self.pH_eq2
 
+        # Initial TA (total alkalinity concentration) (mol/L)
+        self.ta_i = findTA(self, self.dic_i,self.h_i)
+
+def findTA(seawater: SeaWaterInputs, dic, h):
+    k1 = seawater.k1
+    k2 = seawater.k2
+    kw = seawater.kw
+    ta = (dic/(1+(h/k1)+(k2/h))) + (2*dic/(1+(h/k2)+((h**2)/(k1*k2)))) + kw/h - h
+    return ta
+
+# Find H+ from TA and DIC (mol/L)
+def findH_TA(seawater: SeaWaterInputs, dic, ta, ph_min, ph_max, step):
+    ph_range = np.arange(ph_min, ph_max + step, step)
+    ta_error = np.zeros(len(ph_range))
+    for i in range(len(ph_range)):
+        h_est = 10**-ph_range[i]
+        ta_est = findTA(seawater, dic,h_est)
+        ta_error[i] = abs(ta - ta_est)
+    for i in range(len(ph_range)):
+        if ta_error[i] == min(ta_error):
+            i_ph = i
+    ph_f = ph_range[i_ph]
+    h_f = 10**-ph_f
+    return h_f
+
+# Find CO2 conc from DIC and H+ Function (mol/L)
+def findCO2(seawater: SeaWaterInputs, dic,h):
+    k1 = seawater.k1
+    k2 = seawater.k2
+    co2 = dic/(1+(k1/h)+((k1*k2)/(h**2)))
+    return co2
+
+# Find H+ from CO2 conc and DIC (mol/L)
+def findH_CO2(seawater: SeaWaterInputs, dic, co2, ph_min, ph_max, step):
+    ph_range = np.arange(ph_min, ph_max + step, step)
+    co2_error = np.zeros(len(ph_range))
+    for i in range(len(ph_range)):
+        h_est = 10**-ph_range[i]
+        co2_est = findCO2(seawater, dic,h_est)
+        co2_error[i] = abs(co2 - co2_est)
+    for i in range(len(ph_range)):
+        if co2_error[i] == min(co2_error):
+            i_ph = i
+    ph_f = ph_range[i_ph]
+    h_f = 10**-ph_f
+    return h_f
 
 @define
 class PumpInputs:
@@ -416,8 +462,8 @@ class ElectrodialysisOutputs:
     pH_f: list  # Final pH at each time
     dic_f: list  # (mol/L) Final DIC at each time
     mCC_t: list  # tCO2/hr at each time
-    volAddAcid: list  # (m^3) Volume of acid added to tanks at each time
-    volAddBase: list  # (m^3) Volume of base added to tanks at each time
+    volAcid: list  # (m^3) Volume of acid added or removed from tanks at each time
+    volBase: list  # (m^3) Volume of base added  or removed from tanks at each time
     Q_in: list  # (m^3/s) Intake flow rate at each time step
     Q_out: list  # (m^3/s) Outtake flow rate at each time step
     ca_t: list  # (mol/L) Acid concentration at each time step
@@ -428,11 +474,34 @@ class ElectrodialysisOutputs:
     )
 
 
-def power_chemical_ranges(config: ElectroDialysisInputs) -> ElectrodialysisOutputs:
+def initialize_power_chemical_ranges(
+        ed_config: ElectroDialysisInputs, 
+        pump_config: PumpInputs, 
+        seawater_config: SeaWaterInputs
+        ) -> ElectrodialysisOutputs:
+    
+    N_edMin = ed_config.N_edMin
+    N_edMax = ed_config.N_edMax
+    P_ed1 = ed_config.P_ed1
+    Q_ed1 = ed_config.Q_ed1
+    E_HCl =ed_config.E_HCl
+    E_NaOH = ed_config.E_NaOH
+    y_ext=ed_config.y_ext
+    co2_mm = ed_config.co2_mm
+    dic_i =seawater_config.dic_i
+    h_i = seawater_config.h_i
+    ta_i = seawater_config.ta_i
+    kw=seawater_config.kw
+    h_eq2 = seawater_config.h_eq2
+    pH_eq2 = seawater_config.pH_eq2
+    pH_i = seawater_config.pH_i
+
+
+
+    
     # Define the range sizes
-    N_range = config.N_edMax - config.N_edMin + 1
+    N_range = N_edMax - N_edMin + 1
     S2_tot_range = (N_range * (N_range + 1)) // 2
-    range2_size = S2_tot_range
 
     S2_ranges = np.zeros((S2_tot_range, 2))
 
@@ -440,14 +509,14 @@ def power_chemical_ranges(config: ElectroDialysisInputs) -> ElectrodialysisOutpu
     k = 0
     for i in range(N_range):
         for j in range(N_range - i):
-            S2_ranges[k, 0] = i + config.N_edMin
+            S2_ranges[k, 0] = i + N_edMin
             S2_ranges[k, 1] = j
             k += 1
 
     # Define the array names
     keys = [
-        "volAddAcid",
-        "volAddBase",
+        "volAcid",
+        "volBase",
         "mCC",
         "pH_f",
         "dic_f",
@@ -459,10 +528,256 @@ def power_chemical_ranges(config: ElectroDialysisInputs) -> ElectrodialysisOutpu
 
     # Initialize the dictionaries
     S1 = {key: np.zeros(N_range) for key in keys}
-    S2 = {key: np.zeros(range2_size) for key in keys}
+    S2 = {key: np.zeros(S2_tot_range) for key in keys}
     S3 = {key: np.zeros(N_range) for key in keys}
     S4 = {key: np.zeros(N_range) for key in keys}
 
+    p = initialize_pumps(
+        ed_config=ed_config, pump_config=pump_config
+    )
+
+################################ Chemical Ranges: S1, S3, S4 #####################################
+    for i in range(N_range):
+############################### S1: Chem Ranges: Tank Filled #####################################
+        P_EDi = (i+N_edMin)*P_ed1 # ED unit power requirements
+        p.pumpED.Q = (i+N_edMin)*Q_ed1 # Flow rates for ED Units
+        p.pumpO.Q = 100*p.pumpED.Q # Intake is 100x larger than ED unit
+        S1['Qin'][i] = p.pumpO.Q # (m3/s) Intake
+
+        # Acid and Base Concentrations
+        p.pumpA.Q = p.pumpED.Q/2 # Acid flow rate
+        C_a = (1/p.pumpA.Q)*(P_EDi/(3600*(E_HCl*1000))-(p.pumpED.Q*h_i*1000)) # (mol/m3) Acid concentration from ED units
+        S1['c_a'][i] = C_a/1000 # (mol/L) Acid concentration from ED units
+
+        p.pumpB.Q = p.pumpED.Q - p.pumpA.Q # Base flow rate
+        C_b = (1/p.pumpB.Q)*(P_EDi/(3600*(E_NaOH*1000))-(p.pumpED.Q*(kw/h_i)*1000)) # (mol/m3) Base concentration from ED units
+        S1['c_b'][i] = C_b/1000 # (mol/L) Base concentration from ED units
+
+        # Acid Addition
+        p.pumpI.Q = p.pumpO.Q - p.pumpED.Q # Intake remaining after diversion to ED
+        n_a = p.pumpA.Q * C_a # mole rate of acid (mol HCl/s)
+        n_tai = ta_i * 1000 * p.pumpI.Q # mole rate of total alkalinity (mol TA/s)
+
+        if n_a >= n_tai:
+            Q_a1 = n_tai/C_a # flow rate needed to reach equivalence point (m3/s)
+            Q_a2 = p.pumpA.Q - Q_a1 # remaining flow rate (m3/s)
+            H_af = (h_eq2*1000*(p.pumpI.Q + Q_a1) + C_a*Q_a2)/(p.pumpA.Q + p.pumpI.Q) # (mol/m3) concentration after acid addition
+        elif n_a < n_tai:
+            n_TAaf = n_tai - n_a # (mol/s) remaining mole rate of total alkalinity
+            TA_af = n_TAaf/(p.pumpI.Q + p.pumpA.Q) # (mol/m3) remaining concentration of total alkalinity
+
+            H_af = (findH_TA(dic_i,TA_af/1000,pH_eq2,pH_i, 0.01)) * 1000 # (mol/m3) Function result is mol/L need mol/m3
+
+        # Find CO2 Extracted
+        p.pumpCO2ex.Q = p.pumpI.Q + p.pumpA.Q # Acid addition
+        p.pumpASW.Q = p.pumpCO2ex.Q # post extraction
+        CO2_af = (findCO2(seawater_config,dic_i,H_af/1000)) * 1000 # (mol/m3) Concentration of aqueous CO2 in the acidified seawater
+        n_co2_h2o = CO2_af * p.pumpASW.Q # mole rate of CO2 in the water
+        n_co2_ext = n_co2_h2o * y_ext # mole rate of CO2 extracted (mol/s)
+        S1['mCC'][i] = n_co2_ext * co2_mm*3600/10**6 # tCO2/hr 
+
+        # Find pH After CO2 Extraction & Before Base Addition
+        CO2_bi = (1-y_ext)*CO2_af # (mol/m3) CO2 conc before base add and after CO2 extraction
+        DIC_f = dic_i * 1000 - (y_ext*CO2_af) # (mol/m3) dic conc before base add and after CO2 extraction
+        S1['dic_f'][i] = DIC_f/1000 # convert final DIC to mol/L
+        
+        H_bi = (findH_CO2(seawater_config,DIC_f/1000, CO2_bi/1000, -np.log10(H_af/1000), pH_i, 0.01)) * 1000 # (mol/m3) acidity after CO2 extraction (note min of search is the acidified seawater pH)
+
+        # Find TA Before Base Addition
+        TA_bi = (findTA(seawater_config, DIC_f/1000,H_bi/1000)) * 1000 # (mol/m3)
+
+        # Find TA After Base Addition
+        TA_bf = (TA_bi * p.pumpASW.Q + C_b * p.pumpB.Q)/(p.pumpASW.Q + p.pumpB.Q) # (mol/m3)
+
+        # Find pH After Base Addition
+        H_bf = (findH_TA(seawater_config, DIC_f/1000, TA_bf/1000, -np.log10(H_bi/1000), -np.log10(kw), 0.01)) * 1000 # (mol/m3) acidity after base addition
+        S1['pH_f'][i] = -np.log10(H_bf/1000)
+
+        # Outtake
+        p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q # (m3/s) Outtake flow rate
+        S1['Qout'][i] = p.pumpF.Q # (m3/s) Outtake
+
+############################### S3: Chem Ranges: ED not active, tanks not zeros ##################
+        P_EDi = 0 # ED Unit is off
+        p.pumpED.Q = 0 # ED Unit is off
+        p.pumpO.Q = 100*(i+N_edMin)*Q_ed1 # Flow rates for intake based on equivalent ED units that would be active
+        S3['Qin'][i] = p.pumpO.Q
+        p.pumpI.Q = p.pumpO.Q # since no flow is going to the ED unit
+        p.pumpA.Q = (i+N_edMin)*Q_ed1/2 # Flow rate for acid pump based on equivalent ED units that would be active
+        p.pumpB.Q = p.pumpA.Q
+        
+        # Change in volume due to acid and base use
+        S3['volAcid'][i] = -p.pumpA.Q * 3600 # (m3) volume of acid lost by the tank
+        S3['volBase'][i] = -p.pumpB.Q * 3600 # (m3) volume of base lost by the tank
+        
+        # The concentration of acid and base produced does not vary with flow rate since Q_a = Q_b = Q_ed/2
+        # Also does not vary with power since the power for the ED units scale directly with the flow rate
+        C_a = (1/p.pumpA.Q_min)*(P_ed1*N_edMin/(3600*(E_HCl*1000))-(p.pumpED.Q_min*h_i*1000)) # (mol/m3) Acid concentration from ED units
+        S3['c_a'][i] = C_a/1000 # (mol/L) Acid concentration used in S3
+        C_b = (1/p.pumpB.Q_min)*(P_ed1*N_edMin/(3600*(E_NaOH*1000))-(p.pumpED.Q_min*(kw/h_i)*1000)) # (mol/m3) Base concentration from ED units
+        S3['c_b'][i] = C_b/1000 # (mol/L) Base concentration used in S3
+        
+        # Acid addition
+        n_a = p.pumpA.Q * C_a # mole rate of acid (mol HCl/s)
+        n_tai = ta_i * 1000 * p.pumpI.Q # mole rate of total alkalinity (mol TA/s)
+        if n_a >= n_tai:
+            Q_a1 = n_tai/C_a # flow rate needed to reach equivalence point (m3/s)
+            Q_a2 = p.pumpA.Q - Q_a1 # remaining flow rate (m3/s)
+            H_af = (h_eq2*1000*(p.pumpI.Q + Q_a1) + C_a*Q_a2)/(p.pumpA.Q + p.pumpI.Q) # (mol/m3) concentration after acid addition
+        elif n_a < n_tai:
+            n_TAaf = n_tai - n_a # (mol/s) remaining mole rate of total alkalinity
+            TA_af = n_TAaf/(p.pumpI.Q + p.pumpA.Q) # (mol/m3) remaining concentration of total alkalinity
+            H_af = (findH_TA(dic_i,TA_af/1000,pH_eq2,pH_i, 0.01)) * 1000 # (mol/m3) Function result is mol/L need mol/m3
+        
+        # Find CO2 Extracted
+        p.pumpCO2ex.Q = p.pumpI.Q + p.pumpA.Q # Acid addition
+        p.pumpASW.Q = p.pumpCO2ex.Q # post extraction
+        CO2_af = (findCO2(seawater_config, dic_i,H_af/1000)) * 1000 # (mol/m3) Concentration of aqueous CO2 in the acidified seawater
+        n_co2_h2o = CO2_af * p.pumpASW.Q # mole rate of CO2 in the water
+        n_co2_ext = n_co2_h2o * y_ext # mole rate of CO2 extracted
+        S3['mCC'][i] = n_co2_ext * co2_mm * 3600/10**6 # tCO2/step
+
+        # Find pH After CO2 Extraction & Before Base Addition
+        CO2_bi = (1-y_ext)*CO2_af # (mol/m3) CO2 conc before base add and after CO2 extraction
+        DIC_f = dic_i * 1000 - (y_ext*CO2_af) # (mol/m3) dic conc before base add and after CO2 extraction
+        S3['dic_f'][i] = DIC_f/1000 # (mol/L)
+        H_bi = (findH_CO2(seawater_config,DIC_f/1000, CO2_bi/1000, -np.log10(H_af/1000), pH_i, 0.01)) * 1000 # (mol/m3) acidity after CO2 extraction (note min of search is the acidified seawater pH)
+        # Find TA Before Base Addition
+        TA_bi = (findTA(seawater_config, DIC_f/1000,H_bi/1000)) * 1000 # (mol/m3)
+        # Find TA After Base Addition
+        TA_bf = (TA_bi * p.pumpASW.Q + C_b * p.pumpB.Q)/(p.pumpASW.Q + p.pumpB.Q) # (mol/m3)
+        # Find pH After Base Addition
+        H_bf = (findH_TA(seawater_config, DIC_f/1000, TA_bf/1000, -np.log10(H_bi/1000), -np.log10(kw), 0.01)) * 1000 # (mol/m3) acidity after base addition
+        S3['pH_f'][i] = -np.log10(H_bf/1000)
+        p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q # Outtake flow rate
+        S3['Qout'][i] = p.pumpF.Q
+
+        # Define vacuum pump based on mCC ranges from S1 and S3 (S3 has a slightly higher mCC)
+        vacCO2 = Vacuum(min(np.concatenate([S1['mCC'], S3['mCC']])), max(np.concatenate([S1['mCC'], S3['mCC']])), pump_config.p_co2_min_bar, pump_config.p_co2_max_bar, ed_config.y_vac)
+
+
+############################### S4: Chem Ranges: ED active, no capture ###########################
+        P_EDi = (i+N_edMin)*P_ed1 # ED unit power requirements
+        p.pumpED.Q = 0 # Regular ED pump is inactive here
+        p.pumpED4.Q = (i+N_edMin)*Q_ed1 # ED pump with filtration pressure
+        
+        # Acid and base concentrations
+        p.pumpA.Q = p.pumpED4.Q/2 # Acid flow rate
+        p.pumpB.Q = p.pumpED4.Q - p.pumpA.Q # Base flow rate
+        C_a = (1/p.pumpA.Q)*(P_EDi/(3600*(E_HCl*1000))-(p.pumpED4.Q*h_i*1000)) # (mol/m3) Acid concentration from ED units
+        S4['c_a'][i] = C_a/1000 # (mol/L) Acid concentration from ED units
+        C_b = (1/p.pumpB.Q)*(P_EDi/(3600*(E_NaOH*1000))-(p.pumpED4.Q*(kw/h_i)*1000)) # (mol/m3) Base concentration from ED units
+        S4['c_b'][i] = C_b/1000 # (mol/L) Base concentration from ED units
+
+        # Acid added to the tank
+        n_aT = C_a*p.pumpA.Q # (mol/s) rate of acid moles added to tank
+        S4['volAcid'][i] = p.pumpA.Q * 3600 # volume of acid in tank after time step
+
+        # Base added to the tank
+        n_bT = C_b*p.pumpB.Q # (mol/s) rate of base moles added to tank
+        S4['volBase'][i] = p.pumpB.Q * 3600 # volume of base in tank after time step
+
+        # Intake (ED4 pump not O pump is used)
+        p.pumpO.Q = 0 # Need intake for ED & min CC
+        S4['Qin'][i] = p.pumpED4.Q # (m3/s) Intake
+        
+        # Other pumps not used
+        p.pumpI.Q = 0 # Intake remaining after diversion to ED
+        p.pumpCO2ex.Q = 0 # Acid addition
+        p.pumpASW.Q = 0 # post extraction
+        
+        # Outtake
+        p.pumpF.Q = 0 # Outtake flow rate
+        S4['Qout'][i] = p.pumpF.Q # (m3/s) Outtake
+
+        # Since no capture is conducted the final DIC and pH is the same as the initial
+        S4['pH_f'][i] = pH_i 
+        S4['dic_f'][i] = dic_i # (mol/L)
+
+################################ Chemical Ranges: S2 #############################################
+    for i in range(S2_tot_range):
+        # ED Unit Characteristics
+        N_edi = S2_ranges[i,0] + S2_ranges[i,1] 
+        P_EDi = (N_edi)*P_ed1 # ED unit power requirements
+        p.pumpED.Q = (N_edi)*Q_ed1 # Flow rates for ED Units
+        
+        # Acid and Base Creation
+        p.pumpA.Q = p.pumpED.Q/2 # Acid flow rate
+        p.pumpB.Q = p.pumpED.Q - p.pumpA.Q # Base flow rate
+        C_a = (1/p.pumpA.Q)*(P_EDi/(3600*(E_HCl*1000))-(p.pumpED.Q*h_i*1000)) # (mol/m3) Acid concentration from ED units
+        S2['c_a'][i] = C_a/1000 # (mol/L) Acid concentration from ED units
+        C_b = (1/p.pumpB.Q)*(P_EDi/(3600*(E_NaOH*1000))-(p.pumpED.Q*(kw/h_i)*1000)) # (mol/m3) Base concentration from ED units
+        S2['c_b'][i] = C_b/1000 # (mol/L) Base concentration from ED units
+
+        # Amount of acid added for mCC
+        Q_aMCC = S2_ranges[i,0] * Q_ed1/2 # flow rate used for mCC
+
+        # Acid addition to tank (base volume will be the same)
+        Q_aT = p.pumpA.Q - Q_aMCC # (m3/s) flow rate of acid to tank
+        n_aT = C_a*Q_aT # (mol/s) rate of acid moles added to tank
+        S2['volAcid'][i] = Q_aT * 3600 # (m3) acid added to tank
+
+        # Seawater Intake
+        p.pumpO.Q = Q_aMCC * 2 * 100 + (p.pumpED.Q - (Q_aMCC * 2)) # total seawater intake
+        S2['Qin'][i] = p.pumpO.Q # (m3/s) intake
+        
+        # Acid addition to seawater
+        p.pumpI.Q = p.pumpO.Q - p.pumpED.Q # seawater that will recieve acid
+
+        # Acid Flow Rate for mCC Chemistry Calcs
+        p.pumpA.Q = Q_aMCC # flow rate remaining after adding acid to tank
+        n_a = p.pumpA.Q * C_a # mole rate of acid (mol HCl/s)
+        n_tai = ta_i * 1000 * p.pumpI.Q # mole rate of total alkalinity (mol TA/s)
+        if n_a >= n_tai:
+            Q_a1 = n_tai/C_a # flow rate needed to reach equivalence point (m3/s)
+            Q_a2 = p.pumpA.Q - Q_a1 # remaining flow rate (m3/s)
+            H_af = (h_eq2*1000*(p.pumpI.Q + Q_a1) + C_a*Q_a2)/(p.pumpA.Q + p.pumpI.Q) # (mol/m3) concentration after acid addition
+        
+        elif n_a < n_tai:
+            n_TAaf = n_tai - n_a # (mol/s) remaining mole rate of total alkalinity
+            TA_af = n_TAaf/(p.pumpI.Q + p.pumpA.Q) # (mol/m3) remaining concentration of total alkalinity
+
+            H_af = (findH_TA(dic_i,TA_af/1000,pH_eq2,pH_i, 0.01)) * 1000 # (mol/m3) Function result is mol/L need mol/m3
+            
+        # Find CO2 Extracted
+        p.pumpCO2ex.Q = p.pumpI.Q + p.pumpA.Q # Acid addition
+        p.pumpASW.Q = p.pumpCO2ex.Q # post extraction
+        CO2_af = (findCO2(seawater_config, dic_i,H_af/1000)) * 1000 # (mol/m3) Concentration of aqueous CO2 in the acidified seawater
+        n_co2_h2o = CO2_af * p.pumpASW.Q # mole rate of CO2 in the water
+        n_co2_ext = n_co2_h2o * y_ext # mole rate of CO2 extracted
+        S2['mCC'][i] = n_co2_ext * co2_mm * 3600/10**6 # tCO2/step
+
+        # Find pH After CO2 Extraction & Before Base Addition
+        CO2_bi = (1-y_ext)*CO2_af # (mol/m3) CO2 conc before base add and after CO2 extraction
+        DIC_f = dic_i * 1000 - (y_ext*CO2_af) # (mol/m3) dic conc before base add and after CO2 extraction
+        S2['dic_f'][i] = DIC_f/1000 # convert final DIC to mol/L
+        H_bi = (findH_CO2(seawater_config, DIC_f/1000, CO2_bi/1000, -np.log10(H_af/1000), pH_i, 0.01)) * 1000 # (mol/m3) acidity after CO2 extraction (note min of search is the acidified seawater pH)
+        
+        # Find TA Before Base Addition
+        TA_bi = (findTA(seawater_config, DIC_f/1000,H_bi/1000)) * 1000 # (mol/m3)
+        
+        # Add Additional Base to Tank
+        # Amount of base added for mCC
+        Q_bMCC = Q_aMCC # flow rate used for minimal mCC
+
+        # Base addition to tank
+        Q_bT = p.pumpB.Q - Q_bMCC # (m3/s) flow rate of base to tank
+        n_bT = C_b*Q_bT # (mol/s) rate of base moles added to tank
+        S2['volBase'][i] = Q_bT * 3600 # (m3) base added to tank
+
+        # Base Flow Rate Adjusted to Minimum for Chemistry Calcs
+        p.pumpB.Q = Q_bMCC # flow rate remaining after adding base to tank
+
+        # Find TA After Base Addition
+        TA_bf = (TA_bi * p.pumpASW.Q + C_b * p.pumpB.Q)/(p.pumpASW.Q + p.pumpB.Q) # (mol/m3)
+
+        # Find pH After Base Addition
+        H_bf = (findH_TA(seawater_config, DIC_f/1000, TA_bf/1000, -np.log10(H_bi/1000), -np.log10(kw), 0.01)) * 1000 # (mol/m3) acidity after base addition
+        S2['pH_f'][i] = -np.log10(H_bf/1000)
+
+        # Seawater Outtake
+        p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q # Outtake flow rate
+        S2['Qout'][i] = p.pumpF.Q # (m3/s) Outtake 
 
 # def initialize_scenarios():
 
@@ -472,3 +787,11 @@ if __name__ == "__main__":
     )
 
     print(pumps.pumpA.Q_max)
+    print(SeaWaterInputs())
+
+
+    res = initialize_power_chemical_ranges(
+        ed_config = ElectroDialysisInputs(), 
+        pump_config= PumpInputs(), 
+        seawater_config= SeaWaterInputs()
+        )
