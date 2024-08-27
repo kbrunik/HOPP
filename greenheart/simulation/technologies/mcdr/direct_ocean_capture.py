@@ -1070,11 +1070,121 @@ def simulate_electrodialysis(
 
             # Find excess power
             P_mCC = ranges.S2['pwrRanges'][i_s2] # power needed for mCC given the available power        
-            ED_outputs['P_xs'][i] = exPwr[i] - P_mCC # Remaining power available for batteries
+            ED_outputs['P_xs'][i] = power_profile[i] - P_mCC # Remaining power available for batteries
 
             # Number of times system is on
             nON = nON + 1 # Used to determine Capacity Factor
 
+        # Scenario 3: Tanks Used for CO2 Capture
+        elif power_profile[i] >= ranges.P_minS3_tot and tank_vol_a[i] >= ranges.V_a3_min: 
+            # Note Scenario 3 is active
+            S_t.append('S3')
+
+            # Find number of equivalent units active based on power
+            for j in range(ranges.N_range):
+                if power_profile[i] >= ranges.S3['pwrRanges'][j] and tank_vol_a[i] >= ranges.S3['volAcid'][j]:
+                    i_ed = j # determine how many ED units can be used
+            ED_outputs['N_ed'][i] = N_edMin + i_ed # number of ED units active
+            
+            # Update recorded values based on number of ED units active
+            ED_outputs['volAcid'][i] = ranges.S3['volAcid'][i_ed]
+            ED_outputs['volBase'][i] = ranges.S3['volBase'][i_ed]
+            ED_outputs['mCC'][i] = ranges.S3['mCC'][i_ed]
+            ED_outputs['pH_f'][i] = ranges.S3['pH_f'][i_ed]
+            ED_outputs['dic_f'][i] = ranges.S3['dic_f'][i_ed]
+            ED_outputs['c_a'][i] = ranges.S3['c_a'][i_ed]
+            ED_outputs['c_b'][i] = ranges.S3['c_b'][i_ed]
+            ED_outputs['Qin'][i] = ranges.S3['Qin'][i_ed]
+            ED_outputs['Qout'][i] = ranges.S3['Qout'][i_ed]
+
+            # Update Tank Volumes
+            tank_vol_a[i+1] = tank_vol_a[i] + ED_outputs['volAcid'][i]
+            tank_vol_b[i+1] = tank_vol_b[i] + ED_outputs['volBase'][i]
+
+            # Ensure Tank Volume Can't be More Than Max
+            if tank_vol_a[i+1] > ranges.V_aT_max:
+                tank_vol_a[i+1] = ranges.V_aT_max
+            if tank_vol_b[i+1] > ranges.V_bT_max:
+                tank_vol_b[i+1] = ranges.V_bT_max
+            
+            # Find excess power
+            P_mCC = ranges.S3['pwrRanges'][i_ed] # Power needed for mCC      
+            ED_outputs['P_xs'][i] = power_profile[i] - P_mCC # Excess Power to Batteries
+
+            # Number of times system is on
+            nON = nON + 1 # Used to determine Capacity Factor
+        
+        # Scenario 4: No Capture, Tanks Filled by ED Units
+        elif power_profile[i] >= ranges.P_minS4_tot and tank_vol_a[i] < ranges.V_a3_min:
+            # Note Scenario 4 is active
+            S_t.append('S4')
+
+            # Determine number of ED units active
+            for j in range(ranges.N_range):
+                if exPwr[i] >= ranges.S4['pwrRanges'][j] and ranges.V_aT_max >= tank_vol_a[i] + ranges.S4['volAcid'][j]:
+                    i_ed = j # determine how many ED units can be used
+            ED_outputs['N_ed'][i] = N_edMin + i_ed # number of ED units active
+
+            # Update recorded values based on number of ED units active
+            ED_outputs['volAcid'][i] = ranges.S4['volAcid'][i_ed]
+            ED_outputs['volBase'][i] = ranges.S4['volBase'][i_ed]
+            ED_outputs['mCC'][i] = ranges.S4['mCC'][i_ed]
+            ED_outputs['pH_f'][i] = ranges.S4['pH_f'][i_ed]
+            ED_outputs['dic_f'][i] = ranges.S4['dic_f'][i_ed]
+            ED_outputs['c_a'][i] = ranges.S4['c_a'][i_ed]
+            ED_outputs['c_b'][i] = ranges.S4['c_b'][i_ed]
+            ED_outputs['Qin'][i] = ranges.S4['Qin'][i_ed]
+            ED_outputs['Qout'][i] = ranges.S4['Qout'][i_ed]
+
+            # Update Tank Volumes
+            tank_vol_a[i+1] = tank_vol_a[i] + ED_outputs['volAddAcid'][i]
+            tank_vol_b[i+1] = tank_vol_b[i] + ED_outputs['volAddBase'][i]
+
+            # Ensure Tank Volume Can't be More Than Max
+            if tank_vol_a[i+1] > ranges.V_aT_max:
+                tank_vol_a[i+1] = ranges.V_aT_max
+            if tank_vol_b[i+1] > ranges.V_bT_max:
+                tank_vol_b[i+1] = ranges.V_bT_max
+
+            # Find excess power
+            P_mCC = ranges.S4['pwrRanges'][i_ed] # power needed for mCC system given the available power
+            ED_outputs['P_xs'][i] = power_profile[i] - P_mCC # Remaining power available for batteries
+
+            # No change to nON since no capture is done
+
+        # Scenario 5: When all Input Power is Excess
+        else: 
+            # Note Scenario 5 is active
+            S_t.append('S5')
+
+            # Determine number of ED units active
+            ED_outputs['N_ed'][i] = 0 # None are used in this case
+            
+            # Update recorded values based on number of ED units active
+            ED_outputs['volAcid'][i] = ranges.S5['volAcid']
+            ED_outputs['volBase'][i] = ranges.S5['volBase']
+            ED_outputs['mCC'][i] = ranges.S5['mCC']
+            ED_outputs['pH_f'][i] = ranges.S5['pH_f']
+            ED_outputs['dic_f'][i] = ranges.S5['dic_f']
+            ED_outputs['c_a'][i] = ranges.S5['c_a']
+            ED_outputs['c_b'][i] = ranges.S5['c_b']
+            ED_outputs['Qin'][i] = ranges.S5['Qin']
+            ED_outputs['Qout'][i] = ranges.S5['Qout']
+
+            # Update Tank Volumes
+            tank_vol_a[i+1] = tank_vol_a[i] + ED_outputs['volAcid'][i]
+            tank_vol_b[i+1] = tank_vol_b[i] + ED_outputs['volBase'][i]
+
+            # Ensure Tank Volume Can't be More Than Max
+            if tank_vol_a[i+1] > ranges.V_aT_max:
+                tank_vol_a[i+1] = ranges.V_aT_max
+            if tank_vol_b[i+1] > ranges.V_bT_max:
+                tank_vol_b[i+1] = ranges.V_bT_max
+            
+            # Find excess power
+            ED_outputs['P_xs'][i] = power_profile[i] # Otherwise the input power goes directly to the batteries
+            
+            # No change to nON since no capture is done
 
 if __name__ == "__main__":
     pumps = initialize_pumps(
