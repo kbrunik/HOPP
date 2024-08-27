@@ -10,6 +10,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from attrs import define, field
+from numpy import ndarray
 
 
 @define
@@ -491,6 +492,7 @@ class ElectrodialysisRangeOutputs:
     V_b3_min: float
     N_range: int
     S2_tot_range: int
+    S2_ranges: ndarray
 
 @define
 class ElectrodialysisOutputs:
@@ -905,8 +907,8 @@ def initialize_power_chemical_ranges(
         P_minS2_tot = min(S2['pwrRanges'])
 
 ##################### S5: Chem Ranges: When all input power is excess ############################
-    S5['volAddAcid'] = 0 # No acid generated
-    S5['volAddBase'] = 0 # No base generated
+    S5['volAcid'] = 0 # No acid generated
+    S5['volBase'] = 0 # No base generated
     S5['mCC'] = 0 # No CO2 capture
     S5['pH_f'] = pH_i # No changes in sea pH
     S5['dic_f'] = dic_i # (mol/L) No changes in sea DIC
@@ -924,6 +926,7 @@ def initialize_power_chemical_ranges(
     V_a3_min = p.pumpED.Q_min/2 * 3600 # enables minimum mCC for 1 timestep
     V_b3_min = V_a3_min # same volume needed for base
 
+
     return ElectrodialysisRangeOutputs(
         S1=S1,
         S2=S2,
@@ -939,7 +942,8 @@ def initialize_power_chemical_ranges(
         V_a3_min=V_a3_min,
         V_b3_min=V_b3_min,
         N_range = N_range,
-        S2_tot_range=S2_tot_range
+        S2_tot_range=S2_tot_range,
+        S2_ranges=S2_ranges
     )
 
 def simulate_electrodialysis(
@@ -959,7 +963,7 @@ def simulate_electrodialysis(
     # Define the array names
     keys = [
         "N_ed",
-        "P_xs"
+        "P_xs",
         "volAcid",  # (m3) Volume of acid added/removed to/from tanks at each time
         "volBase", # (m3) Volume of base added/removed to/from tanks at each time
         "mCC",
@@ -990,14 +994,14 @@ def simulate_electrodialysis(
 
             # Update recorded values based on number of ED units active
             ED_outputs['volAcid'][i] = ranges.S1['volAcid'][i_ed]
-            ED_outputs['volAddBase'][i] = ranges.S1['volAddBase'][i_ed]
-            ED_outputs['mCC_t'][i] = ranges.S1['mCC'][i_ed] 
+            ED_outputs['volBase'][i] = ranges.S1['volBase'][i_ed]
+            ED_outputs['mCC'][i] = ranges.S1['mCC'][i_ed] 
             ED_outputs['pH_f'][i] = ranges.S1['pH_f'][i_ed]
             ED_outputs['dic_f'][i] = ranges.S1['dic_f'][i_ed]
-            ED_outputs['ca_t'][i] = ranges.S1['c_a'][i_ed]
-            ED_outputs['cb_t'][i] = ranges.S1['c_b'][i_ed] 
-            ED_outputs['Q_in'][i] = ranges.S1['Qin'][i_ed] 
-            ED_outputs['Q_out'][i] = ranges.S1['Qout'][i_ed]
+            ED_outputs['c_a'][i] = ranges.S1['c_a'][i_ed]
+            ED_outputs['c_b'][i] = ranges.S1['c_b'][i_ed] 
+            ED_outputs['Qin'][i] = ranges.S1['Qin'][i_ed] 
+            ED_outputs['Qout'][i] = ranges.S1['Qout'][i_ed]
 
             # Update Tank Volumes
             tank_vol_a[i+1] = tank_vol_a[i] + ED_outputs['volAcid'][i]
@@ -1013,6 +1017,61 @@ def simulate_electrodialysis(
             P_mCC = ranges.S1['pwrRanges'][i_ed] # power needed for mCC given the available power
             ED_outputs['P_xs'][i] = power_profile[i] - P_mCC # Remaining power available for batteries
             
+            # Number of times system is on
+            nON = nON + 1 # Used to determine Capacity Factor
+
+        # Scenario 2: Capture CO2 and Fill Tanks
+        elif power_profile[i] >= ranges.P_minS2_tot and tank_vol_a[i] < ranges.V_aT_max: 
+            # Note Scenario 2 is active
+            S_t.append('S2')
+
+            # Find number of units that can be active based on power and volume
+            # Determine number of scenarios that meet the qualifications
+            v = 0
+            for j in range(ranges.S2_tot_range):
+                if power_profile[i] >= ranges.S2['pwrRanges'][j] and ranges.V_aT_max >= tank_vol_a[i] + ranges.S2['volAcid'][j]:
+                    v = v + 1 # determine size of matrix for qualifying scenarios
+            S2_viableRanges = np.zeros((v,2))
+            i_v = 0
+            for j in range(ranges.S2_tot_range):
+                if power_profile[i] >= ranges.S2['pwrRanges'][j] and ranges.V_aT_max >= tank_vol_a[i] + ranges.S2['volAcid'][j]:
+                    S2_viableRanges[i_v,0] = j # index in the scenarios
+                    S2_viableRanges[i_v,1] = ranges.S2['volAcid'][j] # adding volume to the tanks is prioritized
+                    i_v = i_v+1
+            # Select the viable scenario that fills the tank the most
+            for j in range(len(S2_viableRanges[:,1])): 
+                if S2_viableRanges[j,1] == max(S2_viableRanges[:,1]):
+                    i_s2 = int(S2_viableRanges[j,0])
+            
+            # Number of ED Units Active
+            ED_outputs['N_ed'][i] = ranges.S2_ranges[i_s2,0] + ranges.S2_ranges[i_s2,1] # number of ED units active
+            
+            # Update recorded values based on the case within S2
+            ED_outputs['volAcid'][i] = ranges.S2['volAcid'][i_s2]
+            ED_outputs['volBase'][i] = ranges.S2['volBase'][i_s2]
+            ED_outputs['mCC'][i] = ranges.S2['mCC'][i_s2] 
+            ED_outputs['pH_f'][i] = ranges.S2['pH_f'][i_s2]
+            ED_outputs['dic_f'][i] = ranges.S2['dic_f'][i_s2]
+            ED_outputs['c_a'][i] = ranges.S2['c_a'][i_s2]
+            ED_outputs['c_b'][i] = ranges.S2['c_b'][i_s2] 
+            ED_outputs['Qin'][i] = ranges.S2['Qin'][i_s2] 
+            ED_outputs['Qout'][i] = ranges.S2['Qout'][i_s2]
+
+
+            # Update Tank Volumes
+            tank_vol_a[i+1] = tank_vol_a[i] + ED_outputs['volAcid'][i]
+            tank_vol_b[i+1] = tank_vol_b[i] + ED_outputs['volBase'][i]
+
+            # Ensure Tank Volume Can't be More Than Max
+            if tank_vol_a[i+1] > ranges.V_aT_max:
+                tank_vol_a[i+1] = ranges.V_aT_max
+            if tank_vol_b[i+1] > ranges.V_bT_max:
+                tank_vol_b[i+1] = ranges.V_bT_max
+
+            # Find excess power
+            P_mCC = ranges.S2['pwrRanges'][i_s2] # power needed for mCC given the available power        
+            ED_outputs['P_xs'][i] = exPwr[i] - P_mCC # Remaining power available for batteries
+
             # Number of times system is on
             nON = nON + 1 # Used to determine Capacity Factor
 
