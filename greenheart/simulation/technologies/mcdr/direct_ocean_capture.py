@@ -26,6 +26,7 @@ class ElectroDialysisInputs:
         E_NaOH (float): Energy required by the ED unit to process NaOH in kilowatt-hours per mole (kWh/mol). Default is 0.05.
         y_ext (float): CO2 extraction efficiency (%). Default is 0.9.
         y_vac (float): Vacuum efficiency (%). Default is 0.3.
+        store_hours (float): Hours the tanks can provide minimum flow rate for capture. Default is 6.
         co2_mm (float): Molar mass of CO2 in grams per mole (g/mol). Default is 44.01.
     """
 
@@ -36,7 +37,8 @@ class ElectroDialysisInputs:
     E_HCl: float = 0.05
     E_NaOH: float = 0.05
     y_ext: float = 0.9
-    y_vac = 0.3
+    y_vac: float = 0.3
+    store_hours: float = 6
     co2_mm: float = field(init=False, default=44.01)  # g/mol molar mass of CO2
     P_minED: float = field(init=False)
 
@@ -452,6 +454,43 @@ class Vacuum:
         """
         return self.vacPower(self.mCC)
 
+@define
+class ElectrodialysisRangeOutputs:
+    """
+    A class to represent the electrodialysis device power and chemical ranges under each scenario.
+
+    Attributes:
+        S1 (dict): Chemical and power ranges for scenario 1 (e.g., tank filled).
+        S2 (dict): Chemical and power ranges for scenario 2 (e.g., variable power and chemical ranges).
+        S3 (dict): Chemical and power ranges for scenario 3 (e.g., ED not active, tanks not zeros).
+        S4 (dict): Chemical and power ranges for scenario 4 (e.g., ED active, no capture).
+        S5 (dict): Chemical and power ranges for scenario 5 (reserved for special cases).
+        P_minS1_tot (float): Minimum power for scenario 1.
+        P_minS2_tot (float): Minimum power for scenario 2.
+        P_minS3_tot (float): Minimum power for scenario 3.
+        P_minS4_tot (float): Minimum power for scenario 4.
+        V_aT_max (float): Maximum volume of acid in the tank.
+        V_bT_max (float): Maximum volume of base in the tank.
+        V_a3_min (float): Minimum volume of acid required for S3.
+        V_b3_min (float): Minimum volume of base required for S3.
+        N_range (int): Number of ED units active in S1, S3, S4.
+        S2_tot_range (int): Number of ED units active in S2.
+    """
+    S1: dict
+    S2: dict
+    S3: dict
+    S4: dict
+    S5: dict
+    P_minS1_tot: float
+    P_minS2_tot: float
+    P_minS3_tot: float
+    P_minS4_tot: float
+    V_aT_max: float
+    V_bT_max: float
+    V_a3_min: float
+    V_b3_min: float
+    N_range: int
+    S2_tot_range: int
 
 @define
 class ElectrodialysisOutputs:
@@ -478,7 +517,30 @@ def initialize_power_chemical_ranges(
         ed_config: ElectroDialysisInputs, 
         pump_config: PumpInputs, 
         seawater_config: SeaWaterInputs
-        ) -> ElectrodialysisOutputs:
+        ) -> ElectrodialysisRangeOutputs:
+    """
+    Initialize the power and chemical ranges for an electrodialysis system under various scenarios.
+
+    This function calculates the power and chemical usage ranges for an electrodialysis system across five distinct scenarios:
+
+    1. Scenario 1: Tank filled 
+
+    2. Scenario 2: Capture CO2 & Fill Tank 
+
+    3. Scenario 3: ED not active, tanks not zeros*
+
+    4. Scenario 4: ED active, no capture
+
+    5. Scenario 5: All input power is excess 
+
+    Args:
+        ed_config (ElectrodialysisInputs): Configuration parameters for the electrodialysis system.
+        pump_config (PumpInputs): Configuration parameters for the pumping system.
+        seawater_config (SeaWaterInputs): Configuration parameters for the seawater used in the process.
+
+    Returns:
+        ElectrodialysisRangeOutputs: An object containing the power and chemical ranges for each scenario.
+    """
     
     N_edMin = ed_config.N_edMin
     N_edMax = ed_config.N_edMax
@@ -707,6 +769,8 @@ def initialize_power_chemical_ranges(
         p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q # Outtake flow rate
         vacCO2.mCC = S1['mCC'][i] # mCC rate from the previous calculation
         S1['pwrRanges'][i] = P_EDi + p.pumpED.power() + p.pumpO.power() + p.pumpA.power() + p.pumpI.power() + p.pumpCO2ex.power() + p.pumpASW.power() + p.pumpB.power() + p.pumpF.power() + vacCO2.power()
+        # Minimum Power Input for Scenario 1 (ED active Tanks inactive)
+        P_minS1_tot = ed_config.P_minED + p.pumpO.P_min + p.pumpED.P_min + p.pumpA.P_min + p.pumpI.P_min + p.pumpCO2ex.P_min + p.pumpASW.P_min + p.pumpB.P_min + p.pumpF.P_min
 
 ######################## S3: Power Ranges: ED not active, tanks not zeros ########################
         P_EDi = 0 # ED Unit is off
@@ -851,7 +915,107 @@ def initialize_power_chemical_ranges(
     S5['Qin'] = 0 # (m3/s) No intake
     S5['Qout'] = 0 # (m3/s) No outtake
 
-# def initialize_scenarios():
+# Define Tank Max Volumes (note there are two but they have the same volume)
+    V_aT_max = p.pumpED.Q_min/2 * ed_config.store_hours * 3600 # enables enough storage for 1 day or the hours from storeTime
+    V_bT_max = V_aT_max # tanks have the same volume
+    print("Max Tank Volume = ", V_aT_max, "m3")
+
+    # Volume needed for S3
+    V_a3_min = p.pumpED.Q_min/2 * 3600 # enables minimum mCC for 1 timestep
+    V_b3_min = V_a3_min # same volume needed for base
+
+    return ElectrodialysisRangeOutputs(
+        S1=S1,
+        S2=S2,
+        S3=S3,
+        S4=S4,
+        S5=S5,
+        P_minS1_tot=P_minS1_tot,
+        P_minS2_tot=P_minS2_tot,
+        P_minS3_tot=P_minS3_tot,
+        P_minS4_tot=P_minS4_tot,
+        V_aT_max=V_aT_max,
+        V_bT_max=V_bT_max,
+        V_a3_min=V_a3_min,
+        V_b3_min=V_b3_min,
+        N_range = N_range,
+        S2_tot_range=S2_tot_range
+    )
+
+def simulate_electrodialysis(
+        ranges: ElectrodialysisRangeOutputs,
+        ed_config: ElectroDialysisInputs,
+        power_profile,
+        initial_tank_volume_m3
+        ):
+    N_edMin = ed_config.N_edMin
+
+    tank_vol_a = np.zeros(len(power_profile)+1)
+    tank_vol_b = tank_vol_a
+    tank_vol_a[0] = initial_tank_volume_m3
+    tank_vol_b[0] = tank_vol_a[0]
+
+
+    # Define the array names
+    keys = [
+        "N_ed",
+        "P_xs"
+        "volAcid",  # (m3) Volume of acid added/removed to/from tanks at each time
+        "volBase", # (m3) Volume of base added/removed to/from tanks at each time
+        "mCC",
+        "pH_f",
+        "dic_f",
+        "c_a",  # (mol/L) Acid concentration at each time step
+        "c_b",  # (mol/L) Base concentration at each time step
+        "Qin",  # (m3/s) Intake flow rate at each time step
+        "Qout"  # (m3/s) Outtake flow rate at each time step
+    ]
+
+    # Initialize the dictionaries
+    ED_outputs = {key: np.zeros(len(power_profile)) for key in keys}
+
+    nON = 0 # Timesteps when capture occurs (S1-3) used to determine capacity factor
+    S_t = [] # Scenario for each time step
+
+    for i in range(len(power_profile)):
+        if power_profile[i] >= ranges.P_minS1_tot and tank_vol_a[i] == ranges.V_aT_max: 
+            # Note Scenario 1 is active
+            S_t.append('S1')
+
+            # Find number of active units based on power
+            for j in range(ranges.N_range):
+                if power_profile[i] >= ranges.S1['pwrRanges'][j]:
+                    i_ed = j # determine how many ED units can be used
+            ED_outputs['N_ed'][i] = N_edMin + i_ed # number of ED units active
+
+            # Update recorded values based on number of ED units active
+            ED_outputs['volAcid'][i] = ranges.S1['volAcid'][i_ed]
+            ED_outputs['volAddBase'][i] = ranges.S1['volAddBase'][i_ed]
+            ED_outputs['mCC_t'][i] = ranges.S1['mCC'][i_ed] 
+            ED_outputs['pH_f'][i] = ranges.S1['pH_f'][i_ed]
+            ED_outputs['dic_f'][i] = ranges.S1['dic_f'][i_ed]
+            ED_outputs['ca_t'][i] = ranges.S1['c_a'][i_ed]
+            ED_outputs['cb_t'][i] = ranges.S1['c_b'][i_ed] 
+            ED_outputs['Q_in'][i] = ranges.S1['Qin'][i_ed] 
+            ED_outputs['Q_out'][i] = ranges.S1['Qout'][i_ed]
+
+            # Update Tank Volumes
+            tank_vol_a[i+1] = tank_vol_a[i] + ED_outputs['volAcid'][i]
+            tank_vol_b[i+1] = tank_vol_b[i] + ED_outputs['volBase'][i]
+            
+            # Ensure Tank Volume Can't be More Than Max
+            if tank_vol_a[i+1] > ranges.V_aT_max:
+                tank_vol_a[i+1] = ranges.V_aT_max
+            if tank_vol_b[i+1] > ranges.V_bT_max:
+                tank_vol_b[i+1] = ranges.V_bT_max
+
+            # Excess Power
+            P_mCC = ranges.S1['pwrRanges'][i_ed] # power needed for mCC given the available power
+            ED_outputs['P_xs'][i] = power_profile[i] - P_mCC # Remaining power available for batteries
+            
+            # Number of times system is on
+            nON = nON + 1 # Used to determine Capacity Factor
+
 
 if __name__ == "__main__":
     pumps = initialize_pumps(
@@ -866,4 +1030,24 @@ if __name__ == "__main__":
         ed_config = ElectroDialysisInputs(), 
         pump_config= PumpInputs(), 
         seawater_config= SeaWaterInputs()
+        )
+    
+
+    exTime = 8760  # Number of time steps (typically hours in a year)
+    maxPwr = 500 * 10**6  # Maximum power in watts
+    Amp = maxPwr / 2  # Amplitude
+    periodT = 24  # Period of the sine wave (e.g., 24 hours)
+    movUp = Amp  # Vertical shift
+    movSide = -1 * math.pi / 2  # Phase shift
+    exPwr = np.zeros(exTime)  # Initialize the power array
+
+    # Corrected loop: Use range and sine wave computation
+    for i in range(exTime):
+        exPwr[i] = Amp * math.sin(2 * math.pi / periodT * i + movSide) + movUp
+
+    simulate_electrodialysis(
+        ranges= res,
+        ed_config= ElectroDialysisInputs(),
+        power_profile = exPwr,
+        initial_tank_volume_m3=0
         )
