@@ -476,6 +476,10 @@ class ElectrodialysisRangeOutputs:
         V_b3_min (float): Minimum volume of base required for S3.
         N_range (int): Number of ED units active in S1, S3, S4.
         S2_tot_range (int): Number of ED units active in S2.
+        pump_power_min (float): Minimum pump power in MW.
+        pump_power_max (float): Maximum pump power in MW.
+        vacuum_power_min (float): Minimum vacuum power in MW.
+        vacuum_power_max (float): Maximum vacuum power in MW.
     """
     S1: dict
     S2: dict
@@ -493,26 +497,10 @@ class ElectrodialysisRangeOutputs:
     N_range: int
     S2_tot_range: int
     S2_ranges: ndarray
-
-@define
-class ElectrodialysisOutputs:
-    N_ed: list  # Number of ED units active
-    # P_mCC = np.zeros(len(exTime))
-    P_xs: list  # (W) Excess power at each time
-    # P_ed = np.zeros(len(exTime))
-    pH_f: list  # Final pH at each time
-    dic_f: list  # (mol/L) Final DIC at each time
-    mCC_t: list  # tCO2/hr at each time
-    volAcid: list  # (m^3) Volume of acid added or removed from tanks at each time
-    volBase: list  # (m^3) Volume of base added  or removed from tanks at each time
-    Q_in: list  # (m^3/s) Intake flow rate at each time step
-    Q_out: list  # (m^3/s) Outtake flow rate at each time step
-    ca_t: list  # (mol/L) Acid concentration at each time step
-    cb_t: list  # (mol/L) Base concentration at each time step
-    S_t: list  # Scenario for each time step
-    nON: int = (
-        0  # Timesteps when capture occurs (S1-3) used to determine capacity factor
-    )
+    pump_power_min: float
+    pump_power_max: float
+    vacuum_power_min: float
+    vacuum_power_max: float
 
 
 def initialize_power_chemical_ranges(
@@ -917,14 +905,17 @@ def initialize_power_chemical_ranges(
     S5['Qin'] = 0 # (m3/s) No intake
     S5['Qout'] = 0 # (m3/s) No outtake
 
-# Define Tank Max Volumes (note there are two but they have the same volume)
+    # Define Tank Max Volumes (note there are two but they have the same volume)
     V_aT_max = p.pumpED.Q_min/2 * ed_config.store_hours * 3600 # enables enough storage for 1 day or the hours from storeTime
     V_bT_max = V_aT_max # tanks have the same volume
-    print("Max Tank Volume = ", V_aT_max, "m3")
 
     # Volume needed for S3
     V_a3_min = p.pumpED.Q_min/2 * 3600 # enables minimum mCC for 1 timestep
     V_b3_min = V_a3_min # same volume needed for base
+
+    # Pump Power Ranges
+    pumpPwr_min = (p.pumpO.P_min+p.pumpI.P_min+p.pumpED.P_min+p.pumpA.P_min+p.pumpB.P_min+p.pumpCO2ex.P_min+p.pumpASW.P_min+p.pumpF.P_min)/1E6
+    pumpPwr_max = (p.pumpO.P_max+p.pumpI.P_max+p.pumpED.P_max+p.pumpA.P_max+p.pumpB.P_max+p.pumpCO2ex.P_max+p.pumpASW.P_max+p.pumpF.P_max)/1E6
 
 
     return ElectrodialysisRangeOutputs(
@@ -943,8 +934,42 @@ def initialize_power_chemical_ranges(
         V_b3_min=V_b3_min,
         N_range = N_range,
         S2_tot_range=S2_tot_range,
-        S2_ranges=S2_ranges
+        S2_ranges=S2_ranges,
+        pump_power_min = pumpPwr_min,
+        pump_power_max = pumpPwr_max,
+        vacuum_power_min=vacCO2.P_min/10E6,
+        vacuum_power_max=vacCO2.P_max/10E6
     )
+
+@define
+class ElectrodialysisOutputs:
+    """Outputs from the electrodialysis process.
+
+    Attributes:
+        ED_outputs (dict): Dictionary containing various output arrays from the electrodialysis process.
+            Keys include:
+                - N_ed (array): Number of electrodialysis units in operation at each time step.
+                - P_xs (array): Excess power available at each time step (W).
+                - volAcid (array): Volume of acid added or removed from tanks at each time step (m³).
+                - volBase (array): Volume of base added or removed from tanks at each time step (m³).
+                - mCC (array): Amount of CO2 captured at each time step (tCO2/hr).
+                - pH_f (array): Final pH at each time step.
+                - dic_f (array): Final dissolved inorganic carbon concentration at each time step.
+                - c_a (array): Acid concentration at each time step (mol/L).
+                - c_b (array): Base concentration at each time step (mol/L).
+                - Qin (array): Intake flow rate at each time step (m³/s).
+                - Qout (array): Outtake flow rate at each time step (m³/s).
+        mCC_total (float): Total amount of CO2 captured over the entire process.
+        capacity_factor (float): Overall capacity factor of the electrodialysis system.
+        mCC_yr (float): Average yearly CO2 capture.
+        mCC_yr_MaxPwr (float): Yearly CO2 capture under constant maximum power conditions.
+    """
+    ED_outputs: dict
+    mCC_total: float 
+    capacity_factor: float
+    mCC_yr: float
+    mCC_yr_MaxPwr: float
+
 
 def simulate_electrodialysis(
         ranges: ElectrodialysisRangeOutputs,
@@ -962,17 +987,17 @@ def simulate_electrodialysis(
 
     # Define the array names
     keys = [
-        "N_ed",
-        "P_xs",
-        "volAcid",  # (m3) Volume of acid added/removed to/from tanks at each time
-        "volBase", # (m3) Volume of base added/removed to/from tanks at each time
-        "mCC",
-        "pH_f",
-        "dic_f",
+        "N_ed", # Number of ED units active
+        "P_xs", # (W) Excess power at each time 
+        "volAcid",  # (m³) Volume of acid added/removed to/from tanks at each time
+        "volBase", # (m³) Volume of base added/removed to/from tanks at each time
+        "mCC", # (tCO2/hr) Amount CO2 captured at each time
+        "pH_f", # Final pH at each time
+        "dic_f", # (mol/L) Final DIC at each time
         "c_a",  # (mol/L) Acid concentration at each time step
         "c_b",  # (mol/L) Base concentration at each time step
-        "Qin",  # (m3/s) Intake flow rate at each time step
-        "Qout"  # (m3/s) Outtake flow rate at each time step
+        "Qin",  # (m³/s) Intake flow rate at each time step
+        "Qout"  # (m³/s) Outtake flow rate at each time step
     ]
 
     # Initialize the dictionaries
@@ -1186,14 +1211,28 @@ def simulate_electrodialysis(
             
             # No change to nON since no capture is done
 
+    mCC_total = sum(ED_outputs['mCC']) #total amount of CO2 captured
+    capacity_factor = nON/len(ED_outputs['N_ed']) # overall capcity factor
+
+    # Average yearly CO2 capture
+    mCC_yr = sum(ED_outputs['mCC'][0:8760])
+
+    # Yearly CO2 capture under constant max power
+    mCC_yr_MaxPwr = max(ranges.S1['mCC']) * 8760
+
+    return ElectrodialysisOutputs(
+        ED_outputs=ED_outputs,
+        mCC_total=mCC_total,
+        capacity_factor=capacity_factor,
+        mCC_yr=mCC_yr,
+        mCC_yr_MaxPwr=mCC_yr_MaxPwr
+    )
+
+
 if __name__ == "__main__":
     pumps = initialize_pumps(
         ed_config=ElectroDialysisInputs(), pump_config=PumpInputs()
     )
-
-    print(pumps.pumpA.Q_max)
-    print(SeaWaterInputs())
-
 
     res = initialize_power_chemical_ranges(
         ed_config = ElectroDialysisInputs(), 
@@ -1214,7 +1253,7 @@ if __name__ == "__main__":
     for i in range(exTime):
         exPwr[i] = Amp * math.sin(2 * math.pi / periodT * i + movSide) + movUp
 
-    simulate_electrodialysis(
+    res = simulate_electrodialysis(
         ranges= res,
         ed_config= ElectroDialysisInputs(),
         power_profile = exPwr,
