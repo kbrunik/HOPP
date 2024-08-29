@@ -1228,13 +1228,183 @@ def simulate_electrodialysis(
         mCC_yr_MaxPwr=mCC_yr_MaxPwr
     )
 
+@define
+class ElectrodialysisCostInputs:
+    """Inputs for the electrodialysis cost model.
+
+    Attributes:
+        electrodialysis_inputs (ElectroDialysisInputs): Inputs related to the electrodialysis process.
+        mCC_yr (float): Average yearly CO2 capture.
+        max_theoretical_mCC (float): Maximum theoretical CO2 capture TODO: add units.
+        infrastructure_type (str): Infrastructure type, with options "desal", "swCool", or "new". Defaults to "new".
+        user_costs (bool): If True, user-defined cost inputs are used, and the costs are initialized to zero.
+                           If False, default costs are applied. Defaults to False.
+        initial_capital_cost (float, optional): Initial capital cost provided by the user if `user_costs` is True.
+                                                Initializes to zero if `user_costs` is True. Defaults to None.
+        yearly_capital_cost (float, optional): Yearly capital cost provided by the user if `user_costs` is True.
+                                               Initializes to zero if `user_costs` is True. Defaults to None.
+        yearly_operational_cost (float, optional): Yearly operational cost provided by the user if `user_costs` is True.
+                                                   Initializes to zero if `user_costs` is True. Defaults to None.
+        initial_bop_capital_cost (float, optional): Initial Balance of Plant (BOP) capital cost provided by the user if `user_costs` is True.
+                                                    Initializes to zero if `user_costs` is True. Defaults to None.
+        yearly_bop_capital_cost (float, optional): Yearly BOP capital cost provided by the user if `user_costs` is True.
+                                                   Initializes to zero if `user_costs` is True. Defaults to None.
+        yearly_bop_operational_cost (float, optional): Yearly BOP operational cost provided by the user if `user_costs` is True.
+                                                       Initializes to zero if `user_costs` is True. Defaults to None.
+        initial_ed_capital_cost (float, optional): Initial electrodialysis (ED) capital cost provided by the user if `user_costs` is True.
+                                                   Initializes to zero if `user_costs` is True. Defaults to None.
+        yearly_ed_capital_cost (float, optional): Yearly ED capital cost provided by the user if `user_costs` is True.
+                                                  Initializes to zero if `user_costs` is True. Defaults to None.
+        yearly_ed_operational_cost (float, optional): Yearly ED operational cost provided by the user if `user_costs` is True.
+                                                      Initializes to zero if `user_costs` is True. Defaults to None.
+    """
+    electrodialysis_inputs:ElectroDialysisInputs
+    mCC_yr: float
+    max_theoretical_mCC: float
+    infrastructure_type: str = "new"
+    user_costs:bool = False
+
+    initial_capital_cost: float = field(default=None, init=False)
+    yearly_capital_cost: float = field(default=None, init=False)
+    yearly_operational_cost: float = field(default=None, init=False)
+    initial_bop_capital_cost: float = field(default=None, init=False)
+    yearly_bop_capital_cost: float = field(default=None, init=False)
+    yearly_bop_operational_cost: float = field(default=None, init=False)
+    initial_ed_capital_cost: float = field(default=None, init=False)
+    yearly_ed_capital_cost: float = field(default=None, init=False)
+    yearly_ed_operational_cost: float = field(default=None, init=False)
+
+    def __post_init__(self):
+        if self.user_costs:
+            self.initial_capital_cost = 0.0  
+            self.yearly_capital_cost = 0.0
+            self.yearly_operational_cost = 0.0 
+            self.initial_bop_capital_cost = 0.0 
+            self.yearly_bop_capital_cost = 0.0 
+            self.yearly_bop_operational_cost = 0.0
+            self.initial_ed_capital_cost = 0.0
+            self.yearly_ed_capital_cost = 0.0
+            self.yearly_ed_operational_cost = 0.0
+
+@define
+class ElectrodialysisCostOutputs:
+    """
+    Outputs from the electrodialysis cost model. If default cost model is used all costs are in 2023 USD.
+
+    Attributes:
+        initial_capital_cost (float): Total initial capital cost of the electrodialysis system.
+        yearly_capital_cost (float): Yearly capital cost for the electrodialysis system.
+        yearly_operational_cost (float): Yearly operational cost excluding energy costs for the electrodialysis system.
+        initial_bop_capital_cost (float): Initial capital cost for the Balance of Plant (BOP).
+        yearly_bop_capital_cost (float): Yearly capital cost for the BOP.
+        yearly_bop_operational_cost (float): Yearly operational cost for the BOP, excluding energy costs.
+        initial_ed_capital_cost (float): Initial capital cost for the electrodialysis unit.
+        yearly_ed_capital_cost (float): Yearly capital cost for the electrodialysis unit.
+        yearly_ed_operational_cost (float): Yearly operational cost for the electrodialysis unit, excluding energy costs.
+    """
+    initial_capital_cost: float
+    yearly_capital_cost: float
+    yearly_operational_cost: float
+    initial_bop_capital_cost: float
+    yearly_bop_capital_cost: float
+    yearly_bop_operational_cost: float
+    initial_ed_capital_cost: float
+    yearly_ed_capital_cost: float
+    yearly_ed_operational_cost: float
+
+def electrodialysis_cost_model(cost_config: ElectrodialysisCostInputs) -> ElectrodialysisCostOutputs:
+    """
+    Calculates the costs associated with electrodialysis based on user inputs or default literature values.
+
+    Args:
+        cost_config (ElectrodialysisCostInputs): Configuration object containing user-defined or default inputs 
+                                                 for the electrodialysis cost model. Includes infrastructure type, 
+                                                 yearly CO2 capture, and cost settings.
+
+    Returns:
+        ElectrodialysisCostOutputs: Object containing calculated capital and operational costs, 
+                                    both initial and yearly, for the electrodialysis system.
+
+    Calculation Logic:
+        - If `user_costs` is True, the model directly uses the costs provided by the user.
+        - If `user_costs` is False, the model calculates costs using default values from literature,
+          applying learning rates and amortization as necessary.
+        - The infrastructure type ('desal', 'swCool', or 'new') determines the baseline costs, which 
+          are then adjusted based on the modeled CO2 capture capacity.
+
+    Raises:
+        ValueError: If the `infrastructure_type` is not one of 'desal', 'swCool', or 'new'.
+    """
+    ed = cost_config.electrodialysis_inputs
+
+    if cost_config.user_costs:
+        # Use user-provided costs
+        CEyr = cost_config.yearly_capital_cost
+        BOPcapYr = cost_config.yearly_bop_capital_cost
+        EDcapYr = cost_config.yearly_ed_capital_cost
+        OEnoEyr = cost_config.yearly_operational_cost
+        BOPopNoEyr = cost_config.yearly_bop_operational_cost
+        EDopNoEyr = cost_config.yearly_ed_operational_cost
+        CEi = cost_config.initial_capital_cost
+        BOPcapI = cost_config.initial_bop_capital_cost
+        EDcapI = cost_config.initial_ed_capital_cost
+    else:
+        infra_costs = {
+                    "desal": (253, 197, 204, 159, 48, 39),
+                    "swCool": (512, 263, 466, 228, 46, 35),
+                    "new": (1484, 530, 1434, 509, 49, 21)
+        }
+        if cost_config.infrastructure_type not in infra_costs:
+            raise ValueError("`infrastructure_type` must be 'desal', 'swCool', or 'new'")
+        
+        CEco2, OEnoEco2, BOPcapCo2, BOPopNoEco2, EDcapCo2, EDopNoEco2 = infra_costs[cost_config.infrastructure_type]
+        
+        # Apply learning rate
+        lr = 0.15
+        capFactLit = 0.934 # Capacity factor from literature needed for capital cost (93.4%)
+        mCC_yr_lit = 20 * ed.co2_mm / 1000 * capFactLit * 24 * 365
+        mCC_yr_mod = cost_config.max_theoretical_mCC * capFactLit * 24 * 365
+        print("theoretical max", cost_config.max_theoretical_mCC)
+        b = -math.log2(1 - lr)
+        CEco2Mod = CEco2 * (mCC_yr_mod / mCC_yr_lit) ** (-b)
+        BOPcapCo2Mod = BOPcapCo2 * (mCC_yr_mod / mCC_yr_lit) ** (-b)
+        EDcapCo2Mod = EDcapCo2 * (mCC_yr_mod / mCC_yr_lit) ** (-b)
+
+        # Calculate CapEx and OpEx Costs
+        CEyr = CEco2Mod * mCC_yr_mod
+        BOPcapYr = BOPcapCo2Mod * mCC_yr_mod
+        EDcapYr = EDcapCo2Mod * mCC_yr_mod
+        OEnoEyr = OEnoEco2 * cost_config.mCC_yr
+        BOPopNoEyr = BOPopNoEco2 * cost_config.mCC_yr
+        EDopNoEyr = EDopNoEco2 * cost_config.mCC_yr
+
+        # Calculate Initial CapEx
+        r_int = 0.05 # Rate of interest or return (5%)
+        n_pay = 12 # Number of monthly payments in a year (12)
+        t_amor = 20 # (years) Amortization time (20 years)
+        amort_factor = (1 - (1 + r_int / n_pay) ** (-n_pay * t_amor)) / r_int
+        CEi = CEyr * amort_factor
+        BOPcapI = BOPcapYr * amort_factor
+        EDcapI = EDcapYr * amort_factor
+
+    return ElectrodialysisCostOutputs(
+        initial_capital_cost=CEi,
+        yearly_capital_cost=CEyr,
+        yearly_operational_cost=OEnoEyr,
+        initial_bop_capital_cost=BOPcapI,
+        yearly_bop_capital_cost=BOPcapYr,
+        yearly_bop_operational_cost=BOPopNoEyr,
+        initial_ed_capital_cost=EDcapI,
+        yearly_ed_capital_cost=EDcapYr,
+        yearly_ed_operational_cost=EDopNoEyr
+    )
 
 if __name__ == "__main__":
     pumps = initialize_pumps(
         ed_config=ElectroDialysisInputs(), pump_config=PumpInputs()
     )
 
-    res = initialize_power_chemical_ranges(
+    res1 = initialize_power_chemical_ranges(
         ed_config = ElectroDialysisInputs(), 
         pump_config= PumpInputs(), 
         seawater_config= SeaWaterInputs()
@@ -1254,8 +1424,16 @@ if __name__ == "__main__":
         exPwr[i] = Amp * math.sin(2 * math.pi / periodT * i + movSide) + movUp
 
     res = simulate_electrodialysis(
-        ranges= res,
+        ranges= res1,
         ed_config= ElectroDialysisInputs(),
         power_profile = exPwr,
         initial_tank_volume_m3=0
         )
+    
+    costs = electrodialysis_cost_model(ElectrodialysisCostInputs(
+        electrodialysis_inputs=ElectroDialysisInputs(),
+        mCC_yr=res.mCC_yr,
+        max_theoretical_mCC=max(res1.S1['mCC'])
+    ))
+
+    print(costs)
