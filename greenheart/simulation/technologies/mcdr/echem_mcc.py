@@ -89,7 +89,8 @@ class SeaWaterInputs:
         self.h_eq2 = 10**-self.pH_eq2
 
         # Initial TA (total alkalinity concentration) (mol/L)
-        self.ta_i = findTA(self, self.dic_i,self.h_i)
+        self.ta_i = findTA(self, self.dic_i, self.h_i)
+
 
 def findTA(seawater: SeaWaterInputs, dic, h):
     """
@@ -110,8 +111,14 @@ def findTA(seawater: SeaWaterInputs, dic, h):
     k1 = seawater.k1
     k2 = seawater.k2
     kw = seawater.kw
-    ta = (dic/(1+(h/k1)+(k2/h))) + (2*dic/(1+(h/k2)+((h**2)/(k1*k2)))) + kw/h - h
+    ta = (
+        (dic / (1 + (h / k1) + (k2 / h)))
+        + (2 * dic / (1 + (h / k2) + ((h**2) / (k1 * k2))))
+        + kw / h
+        - h
+    )
     return ta
+
 
 def findH_TA(seawater: SeaWaterInputs, dic, ta, ph_min, ph_max, step):
     """
@@ -134,8 +141,8 @@ def findH_TA(seawater: SeaWaterInputs, dic, ta, ph_min, ph_max, step):
     ph_range = np.arange(ph_min, ph_max + step, step)
     ta_error = np.zeros(len(ph_range))
     for i in range(len(ph_range)):
-        h_est = 10**-ph_range[i]
-        ta_est = findTA(seawater, dic,h_est)
+        h_est = 10 ** -ph_range[i]
+        ta_est = findTA(seawater, dic, h_est)
         ta_error[i] = abs(ta - ta_est)
     for i in range(len(ph_range)):
         if ta_error[i] == min(ta_error):
@@ -145,9 +152,9 @@ def findH_TA(seawater: SeaWaterInputs, dic, ta, ph_min, ph_max, step):
     return h_f
 
 
-def findCO2(seawater: SeaWaterInputs, dic,h):
+def findCO2(seawater: SeaWaterInputs, dic, h):
     """
-    Calculate the concentration of dissolved carbon dioxide (CO2) from the dissolved inorganic carbon (DIC) 
+    Calculate the concentration of dissolved carbon dioxide (CO2) from the dissolved inorganic carbon (DIC)
     and hydrogen ion concentration (H+).
 
     This function computes the concentration of CO2 based on the provided DIC, the hydrogen ion concentration,
@@ -163,8 +170,9 @@ def findCO2(seawater: SeaWaterInputs, dic,h):
     """
     k1 = seawater.k1
     k2 = seawater.k2
-    co2 = dic/(1+(k1/h)+((k1*k2)/(h**2)))
+    co2 = dic / (1 + (k1 / h) + ((k1 * k2) / (h**2)))
     return co2
+
 
 def findH_CO2(seawater: SeaWaterInputs, dic, co2, ph_min, ph_max, step):
     """
@@ -187,8 +195,8 @@ def findH_CO2(seawater: SeaWaterInputs, dic, co2, ph_min, ph_max, step):
     ph_range = np.arange(ph_min, ph_max + step, step)
     co2_error = np.zeros(len(ph_range))
     for i in range(len(ph_range)):
-        h_est = 10**-ph_range[i]
-        co2_est = findCO2(seawater, dic,h_est)
+        h_est = 10 ** -ph_range[i]
+        co2_est = findCO2(seawater, dic, h_est)
         co2_error[i] = abs(co2 - co2_est)
     for i in range(len(ph_range)):
         if co2_error[i] == min(co2_error):
@@ -196,6 +204,7 @@ def findH_CO2(seawater: SeaWaterInputs, dic, co2, ph_min, ph_max, step):
     ph_f = ph_range[i_ph]
     h_f = 10**-ph_f
     return h_f
+
 
 @define
 class PumpInputs:
@@ -523,6 +532,7 @@ class Vacuum:
         """
         return self.vacPower(self.mCC)
 
+
 @define
 class ElectrodialysisRangeOutputs:
     """
@@ -568,6 +578,7 @@ class ElectrodialysisRangeOutputs:
         vacuum_power_min (float): Minimum vacuum power in MW.
         vacuum_power_max (float): Maximum vacuum power in MW.
     """
+
     S1: dict
     S2: dict
     S3: dict
@@ -591,24 +602,24 @@ class ElectrodialysisRangeOutputs:
 
 
 def initialize_power_chemical_ranges(
-        ed_config: ElectrodialysisInputs, 
-        pump_config: PumpInputs, 
-        seawater_config: SeaWaterInputs
-        ) -> ElectrodialysisRangeOutputs:
+    ed_config: ElectrodialysisInputs,
+    pump_config: PumpInputs,
+    seawater_config: SeaWaterInputs,
+) -> ElectrodialysisRangeOutputs:
     """
     Initialize the power and chemical ranges for an electrodialysis system under various scenarios.
 
     This function calculates the power and chemical usage ranges for an electrodialysis system across five distinct scenarios:
 
-    1. Scenario 1: Tank filled 
+    1. Scenario 1: Tank filled
 
-    2. Scenario 2: Capture CO2 & Fill Tank 
+    2. Scenario 2: Capture CO2 & Fill Tank
 
     3. Scenario 3: ED not active, tanks not zeros*
 
     4. Scenario 4: ED active, no capture
 
-    5. Scenario 5: All input power is excess 
+    5. Scenario 5: All input power is excess
 
     Args:
         ed_config (ElectrodialysisInputs): Configuration parameters for the electrodialysis system.
@@ -618,26 +629,23 @@ def initialize_power_chemical_ranges(
     Returns:
         ElectrodialysisRangeOutputs: An object containing the power and chemical ranges for each scenario.
     """
-    
+
     N_edMin = ed_config.N_edMin
     N_edMax = ed_config.N_edMax
     P_ed1 = ed_config.P_ed1
     Q_ed1 = ed_config.Q_ed1
-    E_HCl =ed_config.E_HCl
+    E_HCl = ed_config.E_HCl
     E_NaOH = ed_config.E_NaOH
-    y_ext=ed_config.y_ext
+    y_ext = ed_config.y_ext
     co2_mm = ed_config.co2_mm
-    dic_i =seawater_config.dic_i
+    dic_i = seawater_config.dic_i
     h_i = seawater_config.h_i
     ta_i = seawater_config.ta_i
-    kw=seawater_config.kw
+    kw = seawater_config.kw
     h_eq2 = seawater_config.h_eq2
     pH_eq2 = seawater_config.pH_eq2
     pH_i = seawater_config.pH_i
 
-
-
-    
     # Define the range sizes
     N_range = N_edMax - N_edMin + 1
     S2_tot_range = (N_range * (N_range + 1)) // 2
@@ -663,7 +671,7 @@ def initialize_power_chemical_ranges(
         "c_b",
         "Qin",
         "Qout",
-        "pwrRanges"
+        "pwrRanges",
     ]
 
     # Initialize the dictionaries
@@ -673,337 +681,543 @@ def initialize_power_chemical_ranges(
     S4 = {key: np.zeros(N_range) for key in keys}
     S5 = {key: np.zeros(1) for key in keys}
 
-    p = initialize_pumps(
-        ed_config=ed_config, pump_config=pump_config
-    )
+    p = initialize_pumps(ed_config=ed_config, pump_config=pump_config)
 
-########################## Chemical & Power Ranges: S1, S3, S4 ###################################
+    ########################## Chemical & Power Ranges: S1, S3, S4 ###################################
     for i in range(N_range):
-############################### S1: Chem Ranges: Tank Filled #####################################
-        P_EDi = (i+N_edMin)*P_ed1 # ED unit power requirements
-        p.pumpED.Q = (i+N_edMin)*Q_ed1 # Flow rates for ED Units
-        p.pumpO.Q = 100*p.pumpED.Q # Intake is 100x larger than ED unit
-        S1['Qin'][i] = p.pumpO.Q # (m3/s) Intake
+        ############################### S1: Chem Ranges: Tank Filled #####################################
+        P_EDi = (i + N_edMin) * P_ed1  # ED unit power requirements
+        p.pumpED.Q = (i + N_edMin) * Q_ed1  # Flow rates for ED Units
+        p.pumpO.Q = 100 * p.pumpED.Q  # Intake is 100x larger than ED unit
+        S1["Qin"][i] = p.pumpO.Q  # (m3/s) Intake
 
         # Acid and Base Concentrations
-        p.pumpA.Q = p.pumpED.Q/2 # Acid flow rate
-        C_a = (1/p.pumpA.Q)*(P_EDi/(3600*(E_HCl*1000))-(p.pumpED.Q*h_i*1000)) # (mol/m3) Acid concentration from ED units
-        S1['c_a'][i] = C_a/1000 # (mol/L) Acid concentration from ED units
+        p.pumpA.Q = p.pumpED.Q / 2  # Acid flow rate
+        C_a = (1 / p.pumpA.Q) * (
+            P_EDi / (3600 * (E_HCl * 1000)) - (p.pumpED.Q * h_i * 1000)
+        )  # (mol/m3) Acid concentration from ED units
+        S1["c_a"][i] = C_a / 1000  # (mol/L) Acid concentration from ED units
 
-        p.pumpB.Q = p.pumpED.Q - p.pumpA.Q # Base flow rate
-        C_b = (1/p.pumpB.Q)*(P_EDi/(3600*(E_NaOH*1000))-(p.pumpED.Q*(kw/h_i)*1000)) # (mol/m3) Base concentration from ED units
-        S1['c_b'][i] = C_b/1000 # (mol/L) Base concentration from ED units
+        p.pumpB.Q = p.pumpED.Q - p.pumpA.Q  # Base flow rate
+        C_b = (1 / p.pumpB.Q) * (
+            P_EDi / (3600 * (E_NaOH * 1000)) - (p.pumpED.Q * (kw / h_i) * 1000)
+        )  # (mol/m3) Base concentration from ED units
+        S1["c_b"][i] = C_b / 1000  # (mol/L) Base concentration from ED units
 
         # Acid Addition
-        p.pumpI.Q = p.pumpO.Q - p.pumpED.Q # Intake remaining after diversion to ED
-        n_a = p.pumpA.Q * C_a # mole rate of acid (mol HCl/s)
-        n_tai = ta_i * 1000 * p.pumpI.Q # mole rate of total alkalinity (mol TA/s)
+        p.pumpI.Q = p.pumpO.Q - p.pumpED.Q  # Intake remaining after diversion to ED
+        n_a = p.pumpA.Q * C_a  # mole rate of acid (mol HCl/s)
+        n_tai = ta_i * 1000 * p.pumpI.Q  # mole rate of total alkalinity (mol TA/s)
 
         if n_a >= n_tai:
-            Q_a1 = n_tai/C_a # flow rate needed to reach equivalence point (m3/s)
-            Q_a2 = p.pumpA.Q - Q_a1 # remaining flow rate (m3/s)
-            H_af = (h_eq2*1000*(p.pumpI.Q + Q_a1) + C_a*Q_a2)/(p.pumpA.Q + p.pumpI.Q) # (mol/m3) concentration after acid addition
+            Q_a1 = n_tai / C_a  # flow rate needed to reach equivalence point (m3/s)
+            Q_a2 = p.pumpA.Q - Q_a1  # remaining flow rate (m3/s)
+            H_af = (h_eq2 * 1000 * (p.pumpI.Q + Q_a1) + C_a * Q_a2) / (
+                p.pumpA.Q + p.pumpI.Q
+            )  # (mol/m3) concentration after acid addition
         elif n_a < n_tai:
-            n_TAaf = n_tai - n_a # (mol/s) remaining mole rate of total alkalinity
-            TA_af = n_TAaf/(p.pumpI.Q + p.pumpA.Q) # (mol/m3) remaining concentration of total alkalinity
+            n_TAaf = n_tai - n_a  # (mol/s) remaining mole rate of total alkalinity
+            TA_af = n_TAaf / (
+                p.pumpI.Q + p.pumpA.Q
+            )  # (mol/m3) remaining concentration of total alkalinity
 
-            H_af = (findH_TA(dic_i,TA_af/1000,pH_eq2,pH_i, 0.01)) * 1000 # (mol/m3) Function result is mol/L need mol/m3
+            H_af = (
+                findH_TA(dic_i, TA_af / 1000, pH_eq2, pH_i, 0.01)
+            ) * 1000  # (mol/m3) Function result is mol/L need mol/m3
 
         # Find CO2 Extracted
-        p.pumpCO2ex.Q = p.pumpI.Q + p.pumpA.Q # Acid addition
-        p.pumpASW.Q = p.pumpCO2ex.Q # post extraction
-        CO2_af = (findCO2(seawater_config,dic_i,H_af/1000)) * 1000 # (mol/m3) Concentration of aqueous CO2 in the acidified seawater
-        n_co2_h2o = CO2_af * p.pumpASW.Q # mole rate of CO2 in the water
-        n_co2_ext = n_co2_h2o * y_ext # mole rate of CO2 extracted (mol/s)
-        S1['mCC'][i] = n_co2_ext * co2_mm*3600/10**6 # tCO2/hr 
+        p.pumpCO2ex.Q = p.pumpI.Q + p.pumpA.Q  # Acid addition
+        p.pumpASW.Q = p.pumpCO2ex.Q  # post extraction
+        CO2_af = (
+            findCO2(seawater_config, dic_i, H_af / 1000)
+        ) * 1000  # (mol/m3) Concentration of aqueous CO2 in the acidified seawater
+        n_co2_h2o = CO2_af * p.pumpASW.Q  # mole rate of CO2 in the water
+        n_co2_ext = n_co2_h2o * y_ext  # mole rate of CO2 extracted (mol/s)
+        S1["mCC"][i] = n_co2_ext * co2_mm * 3600 / 10**6  # tCO2/hr
 
         # Find pH After CO2 Extraction & Before Base Addition
-        CO2_bi = (1-y_ext)*CO2_af # (mol/m3) CO2 conc before base add and after CO2 extraction
-        DIC_f = dic_i * 1000 - (y_ext*CO2_af) # (mol/m3) dic conc before base add and after CO2 extraction
-        S1['dic_f'][i] = DIC_f/1000 # convert final DIC to mol/L
-        
-        H_bi = (findH_CO2(seawater_config,DIC_f/1000, CO2_bi/1000, -np.log10(H_af/1000), pH_i, 0.01)) * 1000 # (mol/m3) acidity after CO2 extraction (note min of search is the acidified seawater pH)
+        CO2_bi = (
+            1 - y_ext
+        ) * CO2_af  # (mol/m3) CO2 conc before base add and after CO2 extraction
+        DIC_f = dic_i * 1000 - (
+            y_ext * CO2_af
+        )  # (mol/m3) dic conc before base add and after CO2 extraction
+        S1["dic_f"][i] = DIC_f / 1000  # convert final DIC to mol/L
+
+        H_bi = (
+            findH_CO2(
+                seawater_config,
+                DIC_f / 1000,
+                CO2_bi / 1000,
+                -np.log10(H_af / 1000),
+                pH_i,
+                0.01,
+            )
+        ) * 1000  # (mol/m3) acidity after CO2 extraction (note min of search is the acidified seawater pH)
 
         # Find TA Before Base Addition
-        TA_bi = (findTA(seawater_config, DIC_f/1000,H_bi/1000)) * 1000 # (mol/m3)
+        TA_bi = (findTA(seawater_config, DIC_f / 1000, H_bi / 1000)) * 1000  # (mol/m3)
 
         # Find TA After Base Addition
-        TA_bf = (TA_bi * p.pumpASW.Q + C_b * p.pumpB.Q)/(p.pumpASW.Q + p.pumpB.Q) # (mol/m3)
+        TA_bf = (TA_bi * p.pumpASW.Q + C_b * p.pumpB.Q) / (
+            p.pumpASW.Q + p.pumpB.Q
+        )  # (mol/m3)
 
         # Find pH After Base Addition
-        H_bf = (findH_TA(seawater_config, DIC_f/1000, TA_bf/1000, -np.log10(H_bi/1000), -np.log10(kw), 0.01)) * 1000 # (mol/m3) acidity after base addition
-        S1['pH_f'][i] = -np.log10(H_bf/1000)
+        H_bf = (
+            findH_TA(
+                seawater_config,
+                DIC_f / 1000,
+                TA_bf / 1000,
+                -np.log10(H_bi / 1000),
+                -np.log10(kw),
+                0.01,
+            )
+        ) * 1000  # (mol/m3) acidity after base addition
+        S1["pH_f"][i] = -np.log10(H_bf / 1000)
 
         # Outtake
-        p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q # (m3/s) Outtake flow rate
-        S1['Qout'][i] = p.pumpF.Q # (m3/s) Outtake
+        p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q  # (m3/s) Outtake flow rate
+        S1["Qout"][i] = p.pumpF.Q  # (m3/s) Outtake
 
-############################### S3: Chem Ranges: ED not active, tanks not zeros ##################
-        P_EDi = 0 # ED Unit is off
-        p.pumpED.Q = 0 # ED Unit is off
-        p.pumpO.Q = 100*(i+N_edMin)*Q_ed1 # Flow rates for intake based on equivalent ED units that would be active
-        S3['Qin'][i] = p.pumpO.Q
-        p.pumpI.Q = p.pumpO.Q # since no flow is going to the ED unit
-        p.pumpA.Q = (i+N_edMin)*Q_ed1/2 # Flow rate for acid pump based on equivalent ED units that would be active
+        ############################### S3: Chem Ranges: ED not active, tanks not zeros ##################
+        P_EDi = 0  # ED Unit is off
+        p.pumpED.Q = 0  # ED Unit is off
+        p.pumpO.Q = (
+            100 * (i + N_edMin) * Q_ed1
+        )  # Flow rates for intake based on equivalent ED units that would be active
+        S3["Qin"][i] = p.pumpO.Q
+        p.pumpI.Q = p.pumpO.Q  # since no flow is going to the ED unit
+        p.pumpA.Q = (
+            (i + N_edMin) * Q_ed1 / 2
+        )  # Flow rate for acid pump based on equivalent ED units that would be active
         p.pumpB.Q = p.pumpA.Q
-        
+
         # Change in volume due to acid and base use
-        S3['volAcid'][i] = -p.pumpA.Q * 3600 # (m3) volume of acid lost by the tank
-        S3['volBase'][i] = -p.pumpB.Q * 3600 # (m3) volume of base lost by the tank
-        
+        S3["volAcid"][i] = -p.pumpA.Q * 3600  # (m3) volume of acid lost by the tank
+        S3["volBase"][i] = -p.pumpB.Q * 3600  # (m3) volume of base lost by the tank
+
         # The concentration of acid and base produced does not vary with flow rate since Q_a = Q_b = Q_ed/2
         # Also does not vary with power since the power for the ED units scale directly with the flow rate
-        C_a = (1/p.pumpA.Q_min)*(P_ed1*N_edMin/(3600*(E_HCl*1000))-(p.pumpED.Q_min*h_i*1000)) # (mol/m3) Acid concentration from ED units
-        S3['c_a'][i] = C_a/1000 # (mol/L) Acid concentration used in S3
-        C_b = (1/p.pumpB.Q_min)*(P_ed1*N_edMin/(3600*(E_NaOH*1000))-(p.pumpED.Q_min*(kw/h_i)*1000)) # (mol/m3) Base concentration from ED units
-        S3['c_b'][i] = C_b/1000 # (mol/L) Base concentration used in S3
-        
+        C_a = (1 / p.pumpA.Q_min) * (
+            P_ed1 * N_edMin / (3600 * (E_HCl * 1000)) - (p.pumpED.Q_min * h_i * 1000)
+        )  # (mol/m3) Acid concentration from ED units
+        S3["c_a"][i] = C_a / 1000  # (mol/L) Acid concentration used in S3
+        C_b = (1 / p.pumpB.Q_min) * (
+            P_ed1 * N_edMin / (3600 * (E_NaOH * 1000))
+            - (p.pumpED.Q_min * (kw / h_i) * 1000)
+        )  # (mol/m3) Base concentration from ED units
+        S3["c_b"][i] = C_b / 1000  # (mol/L) Base concentration used in S3
+
         # Acid addition
-        n_a = p.pumpA.Q * C_a # mole rate of acid (mol HCl/s)
-        n_tai = ta_i * 1000 * p.pumpI.Q # mole rate of total alkalinity (mol TA/s)
+        n_a = p.pumpA.Q * C_a  # mole rate of acid (mol HCl/s)
+        n_tai = ta_i * 1000 * p.pumpI.Q  # mole rate of total alkalinity (mol TA/s)
         if n_a >= n_tai:
-            Q_a1 = n_tai/C_a # flow rate needed to reach equivalence point (m3/s)
-            Q_a2 = p.pumpA.Q - Q_a1 # remaining flow rate (m3/s)
-            H_af = (h_eq2*1000*(p.pumpI.Q + Q_a1) + C_a*Q_a2)/(p.pumpA.Q + p.pumpI.Q) # (mol/m3) concentration after acid addition
+            Q_a1 = n_tai / C_a  # flow rate needed to reach equivalence point (m3/s)
+            Q_a2 = p.pumpA.Q - Q_a1  # remaining flow rate (m3/s)
+            H_af = (h_eq2 * 1000 * (p.pumpI.Q + Q_a1) + C_a * Q_a2) / (
+                p.pumpA.Q + p.pumpI.Q
+            )  # (mol/m3) concentration after acid addition
         elif n_a < n_tai:
-            n_TAaf = n_tai - n_a # (mol/s) remaining mole rate of total alkalinity
-            TA_af = n_TAaf/(p.pumpI.Q + p.pumpA.Q) # (mol/m3) remaining concentration of total alkalinity
-            H_af = (findH_TA(dic_i,TA_af/1000,pH_eq2,pH_i, 0.01)) * 1000 # (mol/m3) Function result is mol/L need mol/m3
-        
+            n_TAaf = n_tai - n_a  # (mol/s) remaining mole rate of total alkalinity
+            TA_af = n_TAaf / (
+                p.pumpI.Q + p.pumpA.Q
+            )  # (mol/m3) remaining concentration of total alkalinity
+            H_af = (
+                findH_TA(dic_i, TA_af / 1000, pH_eq2, pH_i, 0.01)
+            ) * 1000  # (mol/m3) Function result is mol/L need mol/m3
+
         # Find CO2 Extracted
-        p.pumpCO2ex.Q = p.pumpI.Q + p.pumpA.Q # Acid addition
-        p.pumpASW.Q = p.pumpCO2ex.Q # post extraction
-        CO2_af = (findCO2(seawater_config, dic_i,H_af/1000)) * 1000 # (mol/m3) Concentration of aqueous CO2 in the acidified seawater
-        n_co2_h2o = CO2_af * p.pumpASW.Q # mole rate of CO2 in the water
-        n_co2_ext = n_co2_h2o * y_ext # mole rate of CO2 extracted
-        S3['mCC'][i] = n_co2_ext * co2_mm * 3600/10**6 # tCO2/step
+        p.pumpCO2ex.Q = p.pumpI.Q + p.pumpA.Q  # Acid addition
+        p.pumpASW.Q = p.pumpCO2ex.Q  # post extraction
+        CO2_af = (
+            findCO2(seawater_config, dic_i, H_af / 1000)
+        ) * 1000  # (mol/m3) Concentration of aqueous CO2 in the acidified seawater
+        n_co2_h2o = CO2_af * p.pumpASW.Q  # mole rate of CO2 in the water
+        n_co2_ext = n_co2_h2o * y_ext  # mole rate of CO2 extracted
+        S3["mCC"][i] = n_co2_ext * co2_mm * 3600 / 10**6  # tCO2/step
 
         # Find pH After CO2 Extraction & Before Base Addition
-        CO2_bi = (1-y_ext)*CO2_af # (mol/m3) CO2 conc before base add and after CO2 extraction
-        DIC_f = dic_i * 1000 - (y_ext*CO2_af) # (mol/m3) dic conc before base add and after CO2 extraction
-        S3['dic_f'][i] = DIC_f/1000 # (mol/L)
-        H_bi = (findH_CO2(seawater_config,DIC_f/1000, CO2_bi/1000, -np.log10(H_af/1000), pH_i, 0.01)) * 1000 # (mol/m3) acidity after CO2 extraction (note min of search is the acidified seawater pH)
+        CO2_bi = (
+            1 - y_ext
+        ) * CO2_af  # (mol/m3) CO2 conc before base add and after CO2 extraction
+        DIC_f = dic_i * 1000 - (
+            y_ext * CO2_af
+        )  # (mol/m3) dic conc before base add and after CO2 extraction
+        S3["dic_f"][i] = DIC_f / 1000  # (mol/L)
+        H_bi = (
+            findH_CO2(
+                seawater_config,
+                DIC_f / 1000,
+                CO2_bi / 1000,
+                -np.log10(H_af / 1000),
+                pH_i,
+                0.01,
+            )
+        ) * 1000  # (mol/m3) acidity after CO2 extraction (note min of search is the acidified seawater pH)
         # Find TA Before Base Addition
-        TA_bi = (findTA(seawater_config, DIC_f/1000,H_bi/1000)) * 1000 # (mol/m3)
+        TA_bi = (findTA(seawater_config, DIC_f / 1000, H_bi / 1000)) * 1000  # (mol/m3)
         # Find TA After Base Addition
-        TA_bf = (TA_bi * p.pumpASW.Q + C_b * p.pumpB.Q)/(p.pumpASW.Q + p.pumpB.Q) # (mol/m3)
+        TA_bf = (TA_bi * p.pumpASW.Q + C_b * p.pumpB.Q) / (
+            p.pumpASW.Q + p.pumpB.Q
+        )  # (mol/m3)
         # Find pH After Base Addition
-        H_bf = (findH_TA(seawater_config, DIC_f/1000, TA_bf/1000, -np.log10(H_bi/1000), -np.log10(kw), 0.01)) * 1000 # (mol/m3) acidity after base addition
-        S3['pH_f'][i] = -np.log10(H_bf/1000)
-        p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q # Outtake flow rate
-        S3['Qout'][i] = p.pumpF.Q
+        H_bf = (
+            findH_TA(
+                seawater_config,
+                DIC_f / 1000,
+                TA_bf / 1000,
+                -np.log10(H_bi / 1000),
+                -np.log10(kw),
+                0.01,
+            )
+        ) * 1000  # (mol/m3) acidity after base addition
+        S3["pH_f"][i] = -np.log10(H_bf / 1000)
+        p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q  # Outtake flow rate
+        S3["Qout"][i] = p.pumpF.Q
 
-############################### S4: Chem Ranges: ED active, no capture ###########################
-        P_EDi = (i+N_edMin)*P_ed1 # ED unit power requirements
-        p.pumpED.Q = 0 # Regular ED pump is inactive here
-        p.pumpED4.Q = (i+N_edMin)*Q_ed1 # ED pump with filtration pressure
-        
+        ############################### S4: Chem Ranges: ED active, no capture ###########################
+        P_EDi = (i + N_edMin) * P_ed1  # ED unit power requirements
+        p.pumpED.Q = 0  # Regular ED pump is inactive here
+        p.pumpED4.Q = (i + N_edMin) * Q_ed1  # ED pump with filtration pressure
+
         # Acid and base concentrations
-        p.pumpA.Q = p.pumpED4.Q/2 # Acid flow rate
-        p.pumpB.Q = p.pumpED4.Q - p.pumpA.Q # Base flow rate
-        C_a = (1/p.pumpA.Q)*(P_EDi/(3600*(E_HCl*1000))-(p.pumpED4.Q*h_i*1000)) # (mol/m3) Acid concentration from ED units
-        S4['c_a'][i] = C_a/1000 # (mol/L) Acid concentration from ED units
-        C_b = (1/p.pumpB.Q)*(P_EDi/(3600*(E_NaOH*1000))-(p.pumpED4.Q*(kw/h_i)*1000)) # (mol/m3) Base concentration from ED units
-        S4['c_b'][i] = C_b/1000 # (mol/L) Base concentration from ED units
+        p.pumpA.Q = p.pumpED4.Q / 2  # Acid flow rate
+        p.pumpB.Q = p.pumpED4.Q - p.pumpA.Q  # Base flow rate
+        C_a = (1 / p.pumpA.Q) * (
+            P_EDi / (3600 * (E_HCl * 1000)) - (p.pumpED4.Q * h_i * 1000)
+        )  # (mol/m3) Acid concentration from ED units
+        S4["c_a"][i] = C_a / 1000  # (mol/L) Acid concentration from ED units
+        C_b = (1 / p.pumpB.Q) * (
+            P_EDi / (3600 * (E_NaOH * 1000)) - (p.pumpED4.Q * (kw / h_i) * 1000)
+        )  # (mol/m3) Base concentration from ED units
+        S4["c_b"][i] = C_b / 1000  # (mol/L) Base concentration from ED units
 
         # Acid added to the tank
-        n_aT = C_a*p.pumpA.Q # (mol/s) rate of acid moles added to tank
-        S4['volAcid'][i] = p.pumpA.Q * 3600 # volume of acid in tank after time step
+        n_aT = C_a * p.pumpA.Q  # (mol/s) rate of acid moles added to tank
+        S4["volAcid"][i] = p.pumpA.Q * 3600  # volume of acid in tank after time step
 
         # Base added to the tank
-        n_bT = C_b*p.pumpB.Q # (mol/s) rate of base moles added to tank
-        S4['volBase'][i] = p.pumpB.Q * 3600 # volume of base in tank after time step
+        n_bT = C_b * p.pumpB.Q  # (mol/s) rate of base moles added to tank
+        S4["volBase"][i] = p.pumpB.Q * 3600  # volume of base in tank after time step
 
         # Intake (ED4 pump not O pump is used)
-        p.pumpO.Q = 0 # Need intake for ED & min CC
-        S4['Qin'][i] = p.pumpED4.Q # (m3/s) Intake
-        
+        p.pumpO.Q = 0  # Need intake for ED & min CC
+        S4["Qin"][i] = p.pumpED4.Q  # (m3/s) Intake
+
         # Other pumps not used
-        p.pumpI.Q = 0 # Intake remaining after diversion to ED
-        p.pumpCO2ex.Q = 0 # Acid addition
-        p.pumpASW.Q = 0 # post extraction
-        
+        p.pumpI.Q = 0  # Intake remaining after diversion to ED
+        p.pumpCO2ex.Q = 0  # Acid addition
+        p.pumpASW.Q = 0  # post extraction
+
         # Outtake
-        p.pumpF.Q = 0 # Outtake flow rate
-        S4['Qout'][i] = p.pumpF.Q # (m3/s) Outtake
+        p.pumpF.Q = 0  # Outtake flow rate
+        S4["Qout"][i] = p.pumpF.Q  # (m3/s) Outtake
 
         # Since no capture is conducted the final DIC and pH is the same as the initial
-        S4['pH_f'][i] = pH_i 
-        S4['dic_f'][i] = dic_i # (mol/L)
+        S4["pH_f"][i] = pH_i
+        S4["dic_f"][i] = dic_i  # (mol/L)
 
         # Define vacuum pump based on mCC ranges from S1 and S3 (S3 has a slightly higher mCC)
-        vacCO2 = Vacuum(min(np.concatenate([S1['mCC'], S3['mCC']])), max(np.concatenate([S1['mCC'], S3['mCC']])), pump_config.p_co2_min_bar, pump_config.p_co2_max_bar, ed_config.y_vac)
+        vacCO2 = Vacuum(
+            min(np.concatenate([S1["mCC"], S3["mCC"]])),
+            max(np.concatenate([S1["mCC"], S3["mCC"]])),
+            pump_config.p_co2_min_bar,
+            pump_config.p_co2_max_bar,
+            ed_config.y_vac,
+        )
 
-############################### S1: Power Ranges: Tank filled ####################################
-        P_EDi = (i+N_edMin)*P_ed1 # ED unit power requirements
-        p.pumpED.Q = (i+N_edMin)*Q_ed1 # Flow rates for ED Units
-        p.pumpO.Q = 100*p.pumpED.Q # Intake is 100x larger than ED unit
-        p.pumpA.Q = p.pumpED.Q/2 # Acid flow rate
-        p.pumpI.Q = p.pumpO.Q - p.pumpED.Q # Intake remaining after diversion to ED
-        p.pumpCO2ex.Q = p.pumpI.Q + p.pumpA.Q # Acid addition
-        p.pumpASW.Q = p.pumpCO2ex.Q # post extraction
-        p.pumpB.Q = p.pumpED.Q - p.pumpA.Q # Base flow rate
-        p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q # Outtake flow rate
-        vacCO2.mCC = S1['mCC'][i] # mCC rate from the previous calculation
-        S1['pwrRanges'][i] = P_EDi + p.pumpED.power() + p.pumpO.power() + p.pumpA.power() + p.pumpI.power() + p.pumpCO2ex.power() + p.pumpASW.power() + p.pumpB.power() + p.pumpF.power() + vacCO2.power()
+        ############################### S1: Power Ranges: Tank filled ####################################
+        P_EDi = (i + N_edMin) * P_ed1  # ED unit power requirements
+        p.pumpED.Q = (i + N_edMin) * Q_ed1  # Flow rates for ED Units
+        p.pumpO.Q = 100 * p.pumpED.Q  # Intake is 100x larger than ED unit
+        p.pumpA.Q = p.pumpED.Q / 2  # Acid flow rate
+        p.pumpI.Q = p.pumpO.Q - p.pumpED.Q  # Intake remaining after diversion to ED
+        p.pumpCO2ex.Q = p.pumpI.Q + p.pumpA.Q  # Acid addition
+        p.pumpASW.Q = p.pumpCO2ex.Q  # post extraction
+        p.pumpB.Q = p.pumpED.Q - p.pumpA.Q  # Base flow rate
+        p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q  # Outtake flow rate
+        vacCO2.mCC = S1["mCC"][i]  # mCC rate from the previous calculation
+        S1["pwrRanges"][i] = (
+            P_EDi
+            + p.pumpED.power()
+            + p.pumpO.power()
+            + p.pumpA.power()
+            + p.pumpI.power()
+            + p.pumpCO2ex.power()
+            + p.pumpASW.power()
+            + p.pumpB.power()
+            + p.pumpF.power()
+            + vacCO2.power()
+        )
         # Minimum Power Input for Scenario 1 (ED active Tanks inactive)
-        P_minS1_tot = ed_config.P_minED + p.pumpO.P_min + p.pumpED.P_min + p.pumpA.P_min + p.pumpI.P_min + p.pumpCO2ex.P_min + p.pumpASW.P_min + p.pumpB.P_min + p.pumpF.P_min
+        P_minS1_tot = (
+            ed_config.P_minED
+            + p.pumpO.P_min
+            + p.pumpED.P_min
+            + p.pumpA.P_min
+            + p.pumpI.P_min
+            + p.pumpCO2ex.P_min
+            + p.pumpASW.P_min
+            + p.pumpB.P_min
+            + p.pumpF.P_min
+        )
 
-######################## S3: Power Ranges: ED not active, tanks not zeros ########################
-        P_EDi = 0 # ED Unit is off
-        p.pumpED.Q = 0 # ED Unit is off
-        p.pumpO.Q = 100*(i+N_edMin)*Q_ed1 # Flow rates for intake based on equivalent ED units that would be active
-        p.pumpI.Q = p.pumpO.Q # since no flow is going to the ED unit
-        p.pumpA.Q = (i+N_edMin)*Q_ed1/2 # Flow rate for acid pump based on equivalent ED units that would be active
+        ######################## S3: Power Ranges: ED not active, tanks not zeros ########################
+        P_EDi = 0  # ED Unit is off
+        p.pumpED.Q = 0  # ED Unit is off
+        p.pumpO.Q = (
+            100 * (i + N_edMin) * Q_ed1
+        )  # Flow rates for intake based on equivalent ED units that would be active
+        p.pumpI.Q = p.pumpO.Q  # since no flow is going to the ED unit
+        p.pumpA.Q = (
+            (i + N_edMin) * Q_ed1 / 2
+        )  # Flow rate for acid pump based on equivalent ED units that would be active
         p.pumpB.Q = p.pumpA.Q
-        p.pumpCO2ex.Q = p.pumpI.Q + p.pumpA.Q # Acid addition
-        p.pumpASW.Q = p.pumpCO2ex.Q # post extraction
-        p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q # Outtake flow rate
-        vacCO2.mCC = S3['mCC'][i] # mCC rate from the previous calculation
-        S3['pwrRanges'][i] = P_EDi + p.pumpED.power() + p.pumpO.power() + p.pumpA.power() + p.pumpI.power() + p.pumpCO2ex.power() + p.pumpASW.power() + p.pumpB.power() + p.pumpF.power() + vacCO2.power()
-        P_minS3_tot = min(S3['pwrRanges'])
+        p.pumpCO2ex.Q = p.pumpI.Q + p.pumpA.Q  # Acid addition
+        p.pumpASW.Q = p.pumpCO2ex.Q  # post extraction
+        p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q  # Outtake flow rate
+        vacCO2.mCC = S3["mCC"][i]  # mCC rate from the previous calculation
+        S3["pwrRanges"][i] = (
+            P_EDi
+            + p.pumpED.power()
+            + p.pumpO.power()
+            + p.pumpA.power()
+            + p.pumpI.power()
+            + p.pumpCO2ex.power()
+            + p.pumpASW.power()
+            + p.pumpB.power()
+            + p.pumpF.power()
+            + vacCO2.power()
+        )
+        P_minS3_tot = min(S3["pwrRanges"])
 
-######################## S4: Power Ranges: ED active, no capture #################################
-        P_EDi = (i+N_edMin)*P_ed1 # ED unit power requirements
-        p.pumpED.Q = 0 # Regular ED pump is inactive here
-        p.pumpED4.Q = (i+N_edMin)*Q_ed1 # ED pump with filtration pressure
-        p.pumpO.Q = 0 # Need intake for ED & min CC
-        p.pumpA.Q = p.pumpED4.Q/2 # Acid flow rate
-        p.pumpI.Q = 0 # Intake remaining after diversion to ED
-        p.pumpCO2ex.Q = 0 # Acid addition
-        p.pumpASW.Q = 0 # post extraction
-        p.pumpB.Q = p.pumpED4.Q - p.pumpA.Q # Base flow rate
-        p.pumpF.Q = 0 # Outtake flow rate
-        vacCO2.mCC = S4['mCC'][i] # mCC rate from the previous calculation
-        S4['pwrRanges'][i] = P_EDi + p.pumpED4.power() + p.pumpO.power() + p.pumpA.power() + p.pumpI.power() + p.pumpCO2ex.power() + p.pumpASW.power() + p.pumpB.power() + p.pumpF.power() + vacCO2.power()
-        P_minS4_tot = min(S4['pwrRanges'])
+        ######################## S4: Power Ranges: ED active, no capture #################################
+        P_EDi = (i + N_edMin) * P_ed1  # ED unit power requirements
+        p.pumpED.Q = 0  # Regular ED pump is inactive here
+        p.pumpED4.Q = (i + N_edMin) * Q_ed1  # ED pump with filtration pressure
+        p.pumpO.Q = 0  # Need intake for ED & min CC
+        p.pumpA.Q = p.pumpED4.Q / 2  # Acid flow rate
+        p.pumpI.Q = 0  # Intake remaining after diversion to ED
+        p.pumpCO2ex.Q = 0  # Acid addition
+        p.pumpASW.Q = 0  # post extraction
+        p.pumpB.Q = p.pumpED4.Q - p.pumpA.Q  # Base flow rate
+        p.pumpF.Q = 0  # Outtake flow rate
+        vacCO2.mCC = S4["mCC"][i]  # mCC rate from the previous calculation
+        S4["pwrRanges"][i] = (
+            P_EDi
+            + p.pumpED4.power()
+            + p.pumpO.power()
+            + p.pumpA.power()
+            + p.pumpI.power()
+            + p.pumpCO2ex.power()
+            + p.pumpASW.power()
+            + p.pumpB.power()
+            + p.pumpF.power()
+            + vacCO2.power()
+        )
+        P_minS4_tot = min(S4["pwrRanges"])
 
-################################ Chemical & Power Ranges: S2 #####################################
+    ################################ Chemical & Power Ranges: S2 #####################################
     for i in range(S2_tot_range):
-##################### S2: Chem Ranges Avoiding Overflow: Capture CO2 & Fill Tank #################
+        ##################### S2: Chem Ranges Avoiding Overflow: Capture CO2 & Fill Tank #################
         # ED Unit Characteristics
-        N_edi = S2_ranges[i,0] + S2_ranges[i,1] 
-        P_EDi = (N_edi)*P_ed1 # ED unit power requirements
-        p.pumpED.Q = (N_edi)*Q_ed1 # Flow rates for ED Units
-        
+        N_edi = S2_ranges[i, 0] + S2_ranges[i, 1]
+        P_EDi = (N_edi) * P_ed1  # ED unit power requirements
+        p.pumpED.Q = (N_edi) * Q_ed1  # Flow rates for ED Units
+
         # Acid and Base Creation
-        p.pumpA.Q = p.pumpED.Q/2 # Acid flow rate
-        p.pumpB.Q = p.pumpED.Q - p.pumpA.Q # Base flow rate
-        C_a = (1/p.pumpA.Q)*(P_EDi/(3600*(E_HCl*1000))-(p.pumpED.Q*h_i*1000)) # (mol/m3) Acid concentration from ED units
-        S2['c_a'][i] = C_a/1000 # (mol/L) Acid concentration from ED units
-        C_b = (1/p.pumpB.Q)*(P_EDi/(3600*(E_NaOH*1000))-(p.pumpED.Q*(kw/h_i)*1000)) # (mol/m3) Base concentration from ED units
-        S2['c_b'][i] = C_b/1000 # (mol/L) Base concentration from ED units
+        p.pumpA.Q = p.pumpED.Q / 2  # Acid flow rate
+        p.pumpB.Q = p.pumpED.Q - p.pumpA.Q  # Base flow rate
+        C_a = (1 / p.pumpA.Q) * (
+            P_EDi / (3600 * (E_HCl * 1000)) - (p.pumpED.Q * h_i * 1000)
+        )  # (mol/m3) Acid concentration from ED units
+        S2["c_a"][i] = C_a / 1000  # (mol/L) Acid concentration from ED units
+        C_b = (1 / p.pumpB.Q) * (
+            P_EDi / (3600 * (E_NaOH * 1000)) - (p.pumpED.Q * (kw / h_i) * 1000)
+        )  # (mol/m3) Base concentration from ED units
+        S2["c_b"][i] = C_b / 1000  # (mol/L) Base concentration from ED units
 
         # Amount of acid added for mCC
-        Q_aMCC = S2_ranges[i,0] * Q_ed1/2 # flow rate used for mCC
+        Q_aMCC = S2_ranges[i, 0] * Q_ed1 / 2  # flow rate used for mCC
 
         # Acid addition to tank (base volume will be the same)
-        Q_aT = p.pumpA.Q - Q_aMCC # (m3/s) flow rate of acid to tank
-        n_aT = C_a*Q_aT # (mol/s) rate of acid moles added to tank
-        S2['volAcid'][i] = Q_aT * 3600 # (m3) acid added to tank
+        Q_aT = p.pumpA.Q - Q_aMCC  # (m3/s) flow rate of acid to tank
+        n_aT = C_a * Q_aT  # (mol/s) rate of acid moles added to tank
+        S2["volAcid"][i] = Q_aT * 3600  # (m3) acid added to tank
 
         # Seawater Intake
-        p.pumpO.Q = Q_aMCC * 2 * 100 + (p.pumpED.Q - (Q_aMCC * 2)) # total seawater intake
-        S2['Qin'][i] = p.pumpO.Q # (m3/s) intake
-        
+        p.pumpO.Q = Q_aMCC * 2 * 100 + (
+            p.pumpED.Q - (Q_aMCC * 2)
+        )  # total seawater intake
+        S2["Qin"][i] = p.pumpO.Q  # (m3/s) intake
+
         # Acid addition to seawater
-        p.pumpI.Q = p.pumpO.Q - p.pumpED.Q # seawater that will recieve acid
+        p.pumpI.Q = p.pumpO.Q - p.pumpED.Q  # seawater that will recieve acid
 
         # Acid Flow Rate for mCC Chemistry Calcs
-        p.pumpA.Q = Q_aMCC # flow rate remaining after adding acid to tank
-        n_a = p.pumpA.Q * C_a # mole rate of acid (mol HCl/s)
-        n_tai = ta_i * 1000 * p.pumpI.Q # mole rate of total alkalinity (mol TA/s)
+        p.pumpA.Q = Q_aMCC  # flow rate remaining after adding acid to tank
+        n_a = p.pumpA.Q * C_a  # mole rate of acid (mol HCl/s)
+        n_tai = ta_i * 1000 * p.pumpI.Q  # mole rate of total alkalinity (mol TA/s)
         if n_a >= n_tai:
-            Q_a1 = n_tai/C_a # flow rate needed to reach equivalence point (m3/s)
-            Q_a2 = p.pumpA.Q - Q_a1 # remaining flow rate (m3/s)
-            H_af = (h_eq2*1000*(p.pumpI.Q + Q_a1) + C_a*Q_a2)/(p.pumpA.Q + p.pumpI.Q) # (mol/m3) concentration after acid addition
-        
-        elif n_a < n_tai:
-            n_TAaf = n_tai - n_a # (mol/s) remaining mole rate of total alkalinity
-            TA_af = n_TAaf/(p.pumpI.Q + p.pumpA.Q) # (mol/m3) remaining concentration of total alkalinity
+            Q_a1 = n_tai / C_a  # flow rate needed to reach equivalence point (m3/s)
+            Q_a2 = p.pumpA.Q - Q_a1  # remaining flow rate (m3/s)
+            H_af = (h_eq2 * 1000 * (p.pumpI.Q + Q_a1) + C_a * Q_a2) / (
+                p.pumpA.Q + p.pumpI.Q
+            )  # (mol/m3) concentration after acid addition
 
-            H_af = (findH_TA(dic_i,TA_af/1000,pH_eq2,pH_i, 0.01)) * 1000 # (mol/m3) Function result is mol/L need mol/m3
-            
+        elif n_a < n_tai:
+            n_TAaf = n_tai - n_a  # (mol/s) remaining mole rate of total alkalinity
+            TA_af = n_TAaf / (
+                p.pumpI.Q + p.pumpA.Q
+            )  # (mol/m3) remaining concentration of total alkalinity
+
+            H_af = (
+                findH_TA(dic_i, TA_af / 1000, pH_eq2, pH_i, 0.01)
+            ) * 1000  # (mol/m3) Function result is mol/L need mol/m3
+
         # Find CO2 Extracted
-        p.pumpCO2ex.Q = p.pumpI.Q + p.pumpA.Q # Acid addition
-        p.pumpASW.Q = p.pumpCO2ex.Q # post extraction
-        CO2_af = (findCO2(seawater_config, dic_i,H_af/1000)) * 1000 # (mol/m3) Concentration of aqueous CO2 in the acidified seawater
-        n_co2_h2o = CO2_af * p.pumpASW.Q # mole rate of CO2 in the water
-        n_co2_ext = n_co2_h2o * y_ext # mole rate of CO2 extracted
-        S2['mCC'][i] = n_co2_ext * co2_mm * 3600/10**6 # tCO2/step
+        p.pumpCO2ex.Q = p.pumpI.Q + p.pumpA.Q  # Acid addition
+        p.pumpASW.Q = p.pumpCO2ex.Q  # post extraction
+        CO2_af = (
+            findCO2(seawater_config, dic_i, H_af / 1000)
+        ) * 1000  # (mol/m3) Concentration of aqueous CO2 in the acidified seawater
+        n_co2_h2o = CO2_af * p.pumpASW.Q  # mole rate of CO2 in the water
+        n_co2_ext = n_co2_h2o * y_ext  # mole rate of CO2 extracted
+        S2["mCC"][i] = n_co2_ext * co2_mm * 3600 / 10**6  # tCO2/step
 
         # Find pH After CO2 Extraction & Before Base Addition
-        CO2_bi = (1-y_ext)*CO2_af # (mol/m3) CO2 conc before base add and after CO2 extraction
-        DIC_f = dic_i * 1000 - (y_ext*CO2_af) # (mol/m3) dic conc before base add and after CO2 extraction
-        S2['dic_f'][i] = DIC_f/1000 # convert final DIC to mol/L
-        H_bi = (findH_CO2(seawater_config, DIC_f/1000, CO2_bi/1000, -np.log10(H_af/1000), pH_i, 0.01)) * 1000 # (mol/m3) acidity after CO2 extraction (note min of search is the acidified seawater pH)
-        
+        CO2_bi = (
+            1 - y_ext
+        ) * CO2_af  # (mol/m3) CO2 conc before base add and after CO2 extraction
+        DIC_f = dic_i * 1000 - (
+            y_ext * CO2_af
+        )  # (mol/m3) dic conc before base add and after CO2 extraction
+        S2["dic_f"][i] = DIC_f / 1000  # convert final DIC to mol/L
+        H_bi = (
+            findH_CO2(
+                seawater_config,
+                DIC_f / 1000,
+                CO2_bi / 1000,
+                -np.log10(H_af / 1000),
+                pH_i,
+                0.01,
+            )
+        ) * 1000  # (mol/m3) acidity after CO2 extraction (note min of search is the acidified seawater pH)
+
         # Find TA Before Base Addition
-        TA_bi = (findTA(seawater_config, DIC_f/1000,H_bi/1000)) * 1000 # (mol/m3)
-        
+        TA_bi = (findTA(seawater_config, DIC_f / 1000, H_bi / 1000)) * 1000  # (mol/m3)
+
         # Add Additional Base to Tank
         # Amount of base added for mCC
-        Q_bMCC = Q_aMCC # flow rate used for minimal mCC
+        Q_bMCC = Q_aMCC  # flow rate used for minimal mCC
 
         # Base addition to tank
-        Q_bT = p.pumpB.Q - Q_bMCC # (m3/s) flow rate of base to tank
-        n_bT = C_b*Q_bT # (mol/s) rate of base moles added to tank
-        S2['volBase'][i] = Q_bT * 3600 # (m3) base added to tank
+        Q_bT = p.pumpB.Q - Q_bMCC  # (m3/s) flow rate of base to tank
+        n_bT = C_b * Q_bT  # (mol/s) rate of base moles added to tank
+        S2["volBase"][i] = Q_bT * 3600  # (m3) base added to tank
 
         # Base Flow Rate Adjusted to Minimum for Chemistry Calcs
-        p.pumpB.Q = Q_bMCC # flow rate remaining after adding base to tank
+        p.pumpB.Q = Q_bMCC  # flow rate remaining after adding base to tank
 
         # Find TA After Base Addition
-        TA_bf = (TA_bi * p.pumpASW.Q + C_b * p.pumpB.Q)/(p.pumpASW.Q + p.pumpB.Q) # (mol/m3)
+        TA_bf = (TA_bi * p.pumpASW.Q + C_b * p.pumpB.Q) / (
+            p.pumpASW.Q + p.pumpB.Q
+        )  # (mol/m3)
 
         # Find pH After Base Addition
-        H_bf = (findH_TA(seawater_config, DIC_f/1000, TA_bf/1000, -np.log10(H_bi/1000), -np.log10(kw), 0.01)) * 1000 # (mol/m3) acidity after base addition
-        S2['pH_f'][i] = -np.log10(H_bf/1000)
+        H_bf = (
+            findH_TA(
+                seawater_config,
+                DIC_f / 1000,
+                TA_bf / 1000,
+                -np.log10(H_bi / 1000),
+                -np.log10(kw),
+                0.01,
+            )
+        ) * 1000  # (mol/m3) acidity after base addition
+        S2["pH_f"][i] = -np.log10(H_bf / 1000)
 
         # Seawater Outtake
-        p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q # Outtake flow rate
-        S2['Qout'][i] = p.pumpF.Q # (m3/s) Outtake 
+        p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q  # Outtake flow rate
+        S2["Qout"][i] = p.pumpF.Q  # (m3/s) Outtake
 
-##################### S2: Power Ranges: Capture CO2 & Fill Tank ##################################
-        N_edi = S2_ranges[i,0] + S2_ranges[i,1] 
-        P_EDi = (N_edi)*P_ed1 # ED unit power requirements
-        p.pumpED.Q = (N_edi)*Q_ed1 # Flow rates for ED Units
+        ##################### S2: Power Ranges: Capture CO2 & Fill Tank ##################################
+        N_edi = S2_ranges[i, 0] + S2_ranges[i, 1]
+        P_EDi = (N_edi) * P_ed1  # ED unit power requirements
+        p.pumpED.Q = (N_edi) * Q_ed1  # Flow rates for ED Units
         # Amount of acid added for mCC
-        Q_aMCC = S2_ranges[i,0] * Q_ed1/2 # flow rate used for mCC
-        p.pumpO.Q = Q_aMCC * 2 * 100 + (p.pumpED.Q - (Q_aMCC * 2)) # total seawater intake
-        p.pumpA.Q = p.pumpED.Q/2 # Acid flow rate
-        p.pumpI.Q = p.pumpO.Q - p.pumpED.Q # Intake remaining after diversion to ED
-        p.pumpCO2ex.Q = p.pumpI.Q + p.pumpA.Q # Acid addition
-        p.pumpASW.Q = p.pumpCO2ex.Q # post extraction
-        p.pumpB.Q = p.pumpED.Q - p.pumpA.Q # Base flow rate
-        p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q # Outtake flow rate
-        vacCO2.mCC = S2['mCC'][i] # mCC rate from the previous calculation
-        S2['pwrRanges'][i] = P_EDi + p.pumpED.power() + p.pumpO.power() + p.pumpA.power() + p.pumpI.power() + p.pumpCO2ex.power() + p.pumpASW.power() + p.pumpB.power() + p.pumpF.power() + vacCO2.power()
-        P_minS2_tot = min(S2['pwrRanges'])
+        Q_aMCC = S2_ranges[i, 0] * Q_ed1 / 2  # flow rate used for mCC
+        p.pumpO.Q = Q_aMCC * 2 * 100 + (
+            p.pumpED.Q - (Q_aMCC * 2)
+        )  # total seawater intake
+        p.pumpA.Q = p.pumpED.Q / 2  # Acid flow rate
+        p.pumpI.Q = p.pumpO.Q - p.pumpED.Q  # Intake remaining after diversion to ED
+        p.pumpCO2ex.Q = p.pumpI.Q + p.pumpA.Q  # Acid addition
+        p.pumpASW.Q = p.pumpCO2ex.Q  # post extraction
+        p.pumpB.Q = p.pumpED.Q - p.pumpA.Q  # Base flow rate
+        p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q  # Outtake flow rate
+        vacCO2.mCC = S2["mCC"][i]  # mCC rate from the previous calculation
+        S2["pwrRanges"][i] = (
+            P_EDi
+            + p.pumpED.power()
+            + p.pumpO.power()
+            + p.pumpA.power()
+            + p.pumpI.power()
+            + p.pumpCO2ex.power()
+            + p.pumpASW.power()
+            + p.pumpB.power()
+            + p.pumpF.power()
+            + vacCO2.power()
+        )
+        P_minS2_tot = min(S2["pwrRanges"])
 
-##################### S5: Chem Ranges: When all input power is excess ############################
-    S5['volAcid'] = 0 # No acid generated
-    S5['volBase'] = 0 # No base generated
-    S5['mCC'] = 0 # No CO2 capture
-    S5['pH_f'] = pH_i # No changes in sea pH
-    S5['dic_f'] = dic_i # (mol/L) No changes in sea DIC
-    S5['c_a'] = h_i # (mol/L) No acid generated so acid concentration is the same as that of seawater
-    S5['c_b'] = kw/h_i # (mol/L) No base generated so base concentration is the same as that of seawater
-    S5['Qin'] = 0 # (m3/s) No intake
-    S5['Qout'] = 0 # (m3/s) No outtake
+    ##################### S5: Chem Ranges: When all input power is excess ############################
+    S5["volAcid"] = 0  # No acid generated
+    S5["volBase"] = 0  # No base generated
+    S5["mCC"] = 0  # No CO2 capture
+    S5["pH_f"] = pH_i  # No changes in sea pH
+    S5["dic_f"] = dic_i  # (mol/L) No changes in sea DIC
+    S5["c_a"] = (
+        h_i  # (mol/L) No acid generated so acid concentration is the same as that of seawater
+    )
+    S5["c_b"] = (
+        kw / h_i
+    )  # (mol/L) No base generated so base concentration is the same as that of seawater
+    S5["Qin"] = 0  # (m3/s) No intake
+    S5["Qout"] = 0  # (m3/s) No outtake
 
     # Define Tank Max Volumes (note there are two but they have the same volume)
-    V_aT_max = p.pumpED.Q_min/2 * ed_config.store_hours * 3600 # enables enough storage for 1 day or the hours from storeTime
-    V_bT_max = V_aT_max # tanks have the same volume
+    V_aT_max = (
+        p.pumpED.Q_min / 2 * ed_config.store_hours * 3600
+    )  # enables enough storage for 1 day or the hours from storeTime
+    V_bT_max = V_aT_max  # tanks have the same volume
 
     # Volume needed for S3
-    V_a3_min = p.pumpED.Q_min/2 * 3600 # enables minimum mCC for 1 timestep
-    V_b3_min = V_a3_min # same volume needed for base
+    V_a3_min = p.pumpED.Q_min / 2 * 3600  # enables minimum mCC for 1 timestep
+    V_b3_min = V_a3_min  # same volume needed for base
 
     # Pump Power Ranges
-    pumpPwr_min = (p.pumpO.P_min+p.pumpI.P_min+p.pumpED.P_min+p.pumpA.P_min+p.pumpB.P_min+p.pumpCO2ex.P_min+p.pumpASW.P_min+p.pumpF.P_min)/1E6
-    pumpPwr_max = (p.pumpO.P_max+p.pumpI.P_max+p.pumpED.P_max+p.pumpA.P_max+p.pumpB.P_max+p.pumpCO2ex.P_max+p.pumpASW.P_max+p.pumpF.P_max)/1E6
-
+    pumpPwr_min = (
+        p.pumpO.P_min
+        + p.pumpI.P_min
+        + p.pumpED.P_min
+        + p.pumpA.P_min
+        + p.pumpB.P_min
+        + p.pumpCO2ex.P_min
+        + p.pumpASW.P_min
+        + p.pumpF.P_min
+    ) / 1e6
+    pumpPwr_max = (
+        p.pumpO.P_max
+        + p.pumpI.P_max
+        + p.pumpED.P_max
+        + p.pumpA.P_max
+        + p.pumpB.P_max
+        + p.pumpCO2ex.P_max
+        + p.pumpASW.P_max
+        + p.pumpF.P_max
+    ) / 1e6
 
     return ElectrodialysisRangeOutputs(
         S1=S1,
@@ -1019,14 +1233,15 @@ def initialize_power_chemical_ranges(
         V_bT_max=V_bT_max,
         V_a3_min=V_a3_min,
         V_b3_min=V_b3_min,
-        N_range = N_range,
+        N_range=N_range,
         S2_tot_range=S2_tot_range,
         S2_ranges=S2_ranges,
-        pump_power_min = pumpPwr_min,
-        pump_power_max = pumpPwr_max,
-        vacuum_power_min=vacCO2.P_min/10E6,
-        vacuum_power_max=vacCO2.P_max/10E6
+        pump_power_min=pumpPwr_min,
+        pump_power_max=pumpPwr_max,
+        vacuum_power_min=vacCO2.P_min / 10e6,
+        vacuum_power_max=vacCO2.P_max / 10e6,
     )
+
 
 @define
 class ElectrodialysisOutputs:
@@ -1051,19 +1266,20 @@ class ElectrodialysisOutputs:
         mCC_yr (float): Average yearly CO2 capture.
         mCC_yr_MaxPwr (float): Yearly CO2 capture under constant maximum power conditions.
     """
+
     ED_outputs: dict
-    mCC_total: float 
+    mCC_total: float
     capacity_factor: float
     mCC_yr: float
     mCC_yr_MaxPwr: float
 
 
 def simulate_electrodialysis(
-        ranges: ElectrodialysisRangeOutputs,
-        ed_config: ElectrodialysisInputs,
-        power_profile,
-        initial_tank_volume_m3
-        ):
+    ranges: ElectrodialysisRangeOutputs,
+    ed_config: ElectrodialysisInputs,
+    power_profile,
+    initial_tank_volume_m3,
+):
     """
     Simulates the operation of an electrodialysis (ED) system over time, given power availability and initial tank volumes.
     The simulation considers various scenarios based on the power profile and tank volumes, updating the state of the system
@@ -1086,254 +1302,287 @@ def simulate_electrodialysis(
     """
     N_edMin = ed_config.N_edMin
 
-    tank_vol_a = np.zeros(len(power_profile)+1)
+    tank_vol_a = np.zeros(len(power_profile) + 1)
     tank_vol_b = tank_vol_a
     tank_vol_a[0] = initial_tank_volume_m3
     tank_vol_b[0] = tank_vol_a[0]
 
-
     # Define the array names
     keys = [
-        "N_ed", # Number of ED units active
-        "P_xs", # (W) Excess power at each time 
+        "N_ed",  # Number of ED units active
+        "P_xs",  # (W) Excess power at each time
         "volAcid",  # (m³) Volume of acid added/removed to/from tanks at each time
-        "volBase", # (m³) Volume of base added/removed to/from tanks at each time
-        "mCC", # (tCO2/hr) Amount CO2 captured at each time
-        "pH_f", # Final pH at each time
-        "dic_f", # (mol/L) Final DIC at each time
+        "volBase",  # (m³) Volume of base added/removed to/from tanks at each time
+        "mCC",  # (tCO2/hr) Amount CO2 captured at each time
+        "pH_f",  # Final pH at each time
+        "dic_f",  # (mol/L) Final DIC at each time
         "c_a",  # (mol/L) Acid concentration at each time step
         "c_b",  # (mol/L) Base concentration at each time step
         "Qin",  # (m³/s) Intake flow rate at each time step
-        "Qout"  # (m³/s) Outtake flow rate at each time step
+        "Qout",  # (m³/s) Outtake flow rate at each time step
     ]
 
     # Initialize the dictionaries
     ED_outputs = {key: np.zeros(len(power_profile)) for key in keys}
 
-    nON = 0 # Timesteps when capture occurs (S1-3) used to determine capacity factor
-    S_t = [] # Scenario for each time step
+    nON = 0  # Timesteps when capture occurs (S1-3) used to determine capacity factor
+    S_t = []  # Scenario for each time step
 
     for i in range(len(power_profile)):
-        if power_profile[i] >= ranges.P_minS1_tot and tank_vol_a[i] == ranges.V_aT_max: 
+        if power_profile[i] >= ranges.P_minS1_tot and tank_vol_a[i] == ranges.V_aT_max:
             # Note Scenario 1 is active
-            S_t.append('S1')
+            S_t.append("S1")
 
             # Find number of active units based on power
             for j in range(ranges.N_range):
-                if power_profile[i] >= ranges.S1['pwrRanges'][j]:
-                    i_ed = j # determine how many ED units can be used
-            ED_outputs['N_ed'][i] = N_edMin + i_ed # number of ED units active
+                if power_profile[i] >= ranges.S1["pwrRanges"][j]:
+                    i_ed = j  # determine how many ED units can be used
+            ED_outputs["N_ed"][i] = N_edMin + i_ed  # number of ED units active
 
             # Update recorded values based on number of ED units active
-            ED_outputs['volAcid'][i] = ranges.S1['volAcid'][i_ed]
-            ED_outputs['volBase'][i] = ranges.S1['volBase'][i_ed]
-            ED_outputs['mCC'][i] = ranges.S1['mCC'][i_ed] 
-            ED_outputs['pH_f'][i] = ranges.S1['pH_f'][i_ed]
-            ED_outputs['dic_f'][i] = ranges.S1['dic_f'][i_ed]
-            ED_outputs['c_a'][i] = ranges.S1['c_a'][i_ed]
-            ED_outputs['c_b'][i] = ranges.S1['c_b'][i_ed] 
-            ED_outputs['Qin'][i] = ranges.S1['Qin'][i_ed] 
-            ED_outputs['Qout'][i] = ranges.S1['Qout'][i_ed]
+            ED_outputs["volAcid"][i] = ranges.S1["volAcid"][i_ed]
+            ED_outputs["volBase"][i] = ranges.S1["volBase"][i_ed]
+            ED_outputs["mCC"][i] = ranges.S1["mCC"][i_ed]
+            ED_outputs["pH_f"][i] = ranges.S1["pH_f"][i_ed]
+            ED_outputs["dic_f"][i] = ranges.S1["dic_f"][i_ed]
+            ED_outputs["c_a"][i] = ranges.S1["c_a"][i_ed]
+            ED_outputs["c_b"][i] = ranges.S1["c_b"][i_ed]
+            ED_outputs["Qin"][i] = ranges.S1["Qin"][i_ed]
+            ED_outputs["Qout"][i] = ranges.S1["Qout"][i_ed]
 
             # Update Tank Volumes
-            tank_vol_a[i+1] = tank_vol_a[i] + ED_outputs['volAcid'][i]
-            tank_vol_b[i+1] = tank_vol_b[i] + ED_outputs['volBase'][i]
-            
+            tank_vol_a[i + 1] = tank_vol_a[i] + ED_outputs["volAcid"][i]
+            tank_vol_b[i + 1] = tank_vol_b[i] + ED_outputs["volBase"][i]
+
             # Ensure Tank Volume Can't be More Than Max
-            if tank_vol_a[i+1] > ranges.V_aT_max:
-                tank_vol_a[i+1] = ranges.V_aT_max
-            if tank_vol_b[i+1] > ranges.V_bT_max:
-                tank_vol_b[i+1] = ranges.V_bT_max
+            if tank_vol_a[i + 1] > ranges.V_aT_max:
+                tank_vol_a[i + 1] = ranges.V_aT_max
+            if tank_vol_b[i + 1] > ranges.V_bT_max:
+                tank_vol_b[i + 1] = ranges.V_bT_max
 
             # Excess Power
-            P_mCC = ranges.S1['pwrRanges'][i_ed] # power needed for mCC given the available power
-            ED_outputs['P_xs'][i] = power_profile[i] - P_mCC # Remaining power available for batteries
-            
+            P_mCC = ranges.S1["pwrRanges"][
+                i_ed
+            ]  # power needed for mCC given the available power
+            ED_outputs["P_xs"][i] = (
+                power_profile[i] - P_mCC
+            )  # Remaining power available for batteries
+
             # Number of times system is on
-            nON = nON + 1 # Used to determine Capacity Factor
+            nON = nON + 1  # Used to determine Capacity Factor
 
         # Scenario 2: Capture CO2 and Fill Tanks
-        elif power_profile[i] >= ranges.P_minS2_tot and tank_vol_a[i] < ranges.V_aT_max: 
+        elif power_profile[i] >= ranges.P_minS2_tot and tank_vol_a[i] < ranges.V_aT_max:
             # Note Scenario 2 is active
-            S_t.append('S2')
+            S_t.append("S2")
 
             # Find number of units that can be active based on power and volume
             # Determine number of scenarios that meet the qualifications
             v = 0
             for j in range(ranges.S2_tot_range):
-                if power_profile[i] >= ranges.S2['pwrRanges'][j] and ranges.V_aT_max >= tank_vol_a[i] + ranges.S2['volAcid'][j]:
-                    v = v + 1 # determine size of matrix for qualifying scenarios
-            S2_viableRanges = np.zeros((v,2))
+                if (
+                    power_profile[i] >= ranges.S2["pwrRanges"][j]
+                    and ranges.V_aT_max >= tank_vol_a[i] + ranges.S2["volAcid"][j]
+                ):
+                    v = v + 1  # determine size of matrix for qualifying scenarios
+            S2_viableRanges = np.zeros((v, 2))
             i_v = 0
             for j in range(ranges.S2_tot_range):
-                if power_profile[i] >= ranges.S2['pwrRanges'][j] and ranges.V_aT_max >= tank_vol_a[i] + ranges.S2['volAcid'][j]:
-                    S2_viableRanges[i_v,0] = j # index in the scenarios
-                    S2_viableRanges[i_v,1] = ranges.S2['volAcid'][j] # adding volume to the tanks is prioritized
-                    i_v = i_v+1
+                if (
+                    power_profile[i] >= ranges.S2["pwrRanges"][j]
+                    and ranges.V_aT_max >= tank_vol_a[i] + ranges.S2["volAcid"][j]
+                ):
+                    S2_viableRanges[i_v, 0] = j  # index in the scenarios
+                    S2_viableRanges[i_v, 1] = ranges.S2["volAcid"][
+                        j
+                    ]  # adding volume to the tanks is prioritized
+                    i_v = i_v + 1
             # Select the viable scenario that fills the tank the most
-            for j in range(len(S2_viableRanges[:,1])): 
-                if S2_viableRanges[j,1] == max(S2_viableRanges[:,1]):
-                    i_s2 = int(S2_viableRanges[j,0])
-            
-            # Number of ED Units Active
-            ED_outputs['N_ed'][i] = ranges.S2_ranges[i_s2,0] + ranges.S2_ranges[i_s2,1] # number of ED units active
-            
-            # Update recorded values based on the case within S2
-            ED_outputs['volAcid'][i] = ranges.S2['volAcid'][i_s2]
-            ED_outputs['volBase'][i] = ranges.S2['volBase'][i_s2]
-            ED_outputs['mCC'][i] = ranges.S2['mCC'][i_s2] 
-            ED_outputs['pH_f'][i] = ranges.S2['pH_f'][i_s2]
-            ED_outputs['dic_f'][i] = ranges.S2['dic_f'][i_s2]
-            ED_outputs['c_a'][i] = ranges.S2['c_a'][i_s2]
-            ED_outputs['c_b'][i] = ranges.S2['c_b'][i_s2] 
-            ED_outputs['Qin'][i] = ranges.S2['Qin'][i_s2] 
-            ED_outputs['Qout'][i] = ranges.S2['Qout'][i_s2]
+            for j in range(len(S2_viableRanges[:, 1])):
+                if S2_viableRanges[j, 1] == max(S2_viableRanges[:, 1]):
+                    i_s2 = int(S2_viableRanges[j, 0])
 
+            # Number of ED Units Active
+            ED_outputs["N_ed"][i] = (
+                ranges.S2_ranges[i_s2, 0] + ranges.S2_ranges[i_s2, 1]
+            )  # number of ED units active
+
+            # Update recorded values based on the case within S2
+            ED_outputs["volAcid"][i] = ranges.S2["volAcid"][i_s2]
+            ED_outputs["volBase"][i] = ranges.S2["volBase"][i_s2]
+            ED_outputs["mCC"][i] = ranges.S2["mCC"][i_s2]
+            ED_outputs["pH_f"][i] = ranges.S2["pH_f"][i_s2]
+            ED_outputs["dic_f"][i] = ranges.S2["dic_f"][i_s2]
+            ED_outputs["c_a"][i] = ranges.S2["c_a"][i_s2]
+            ED_outputs["c_b"][i] = ranges.S2["c_b"][i_s2]
+            ED_outputs["Qin"][i] = ranges.S2["Qin"][i_s2]
+            ED_outputs["Qout"][i] = ranges.S2["Qout"][i_s2]
 
             # Update Tank Volumes
-            tank_vol_a[i+1] = tank_vol_a[i] + ED_outputs['volAcid'][i]
-            tank_vol_b[i+1] = tank_vol_b[i] + ED_outputs['volBase'][i]
+            tank_vol_a[i + 1] = tank_vol_a[i] + ED_outputs["volAcid"][i]
+            tank_vol_b[i + 1] = tank_vol_b[i] + ED_outputs["volBase"][i]
 
             # Ensure Tank Volume Can't be More Than Max
-            if tank_vol_a[i+1] > ranges.V_aT_max:
-                tank_vol_a[i+1] = ranges.V_aT_max
-            if tank_vol_b[i+1] > ranges.V_bT_max:
-                tank_vol_b[i+1] = ranges.V_bT_max
+            if tank_vol_a[i + 1] > ranges.V_aT_max:
+                tank_vol_a[i + 1] = ranges.V_aT_max
+            if tank_vol_b[i + 1] > ranges.V_bT_max:
+                tank_vol_b[i + 1] = ranges.V_bT_max
 
             # Find excess power
-            P_mCC = ranges.S2['pwrRanges'][i_s2] # power needed for mCC given the available power        
-            ED_outputs['P_xs'][i] = power_profile[i] - P_mCC # Remaining power available for batteries
+            P_mCC = ranges.S2["pwrRanges"][
+                i_s2
+            ]  # power needed for mCC given the available power
+            ED_outputs["P_xs"][i] = (
+                power_profile[i] - P_mCC
+            )  # Remaining power available for batteries
 
             # Number of times system is on
-            nON = nON + 1 # Used to determine Capacity Factor
+            nON = nON + 1  # Used to determine Capacity Factor
 
         # Scenario 3: Tanks Used for CO2 Capture
-        elif power_profile[i] >= ranges.P_minS3_tot and tank_vol_a[i] >= ranges.V_a3_min: 
+        elif (
+            power_profile[i] >= ranges.P_minS3_tot and tank_vol_a[i] >= ranges.V_a3_min
+        ):
             # Note Scenario 3 is active
-            S_t.append('S3')
+            S_t.append("S3")
 
             # Find number of equivalent units active based on power
             for j in range(ranges.N_range):
-                if power_profile[i] >= ranges.S3['pwrRanges'][j] and tank_vol_a[i] >= ranges.S3['volAcid'][j]:
-                    i_ed = j # determine how many ED units can be used
-            ED_outputs['N_ed'][i] = N_edMin + i_ed # number of ED units active
-            
+                if (
+                    power_profile[i] >= ranges.S3["pwrRanges"][j]
+                    and tank_vol_a[i] >= ranges.S3["volAcid"][j]
+                ):
+                    i_ed = j  # determine how many ED units can be used
+            ED_outputs["N_ed"][i] = N_edMin + i_ed  # number of ED units active
+
             # Update recorded values based on number of ED units active
-            ED_outputs['volAcid'][i] = ranges.S3['volAcid'][i_ed]
-            ED_outputs['volBase'][i] = ranges.S3['volBase'][i_ed]
-            ED_outputs['mCC'][i] = ranges.S3['mCC'][i_ed]
-            ED_outputs['pH_f'][i] = ranges.S3['pH_f'][i_ed]
-            ED_outputs['dic_f'][i] = ranges.S3['dic_f'][i_ed]
-            ED_outputs['c_a'][i] = ranges.S3['c_a'][i_ed]
-            ED_outputs['c_b'][i] = ranges.S3['c_b'][i_ed]
-            ED_outputs['Qin'][i] = ranges.S3['Qin'][i_ed]
-            ED_outputs['Qout'][i] = ranges.S3['Qout'][i_ed]
+            ED_outputs["volAcid"][i] = ranges.S3["volAcid"][i_ed]
+            ED_outputs["volBase"][i] = ranges.S3["volBase"][i_ed]
+            ED_outputs["mCC"][i] = ranges.S3["mCC"][i_ed]
+            ED_outputs["pH_f"][i] = ranges.S3["pH_f"][i_ed]
+            ED_outputs["dic_f"][i] = ranges.S3["dic_f"][i_ed]
+            ED_outputs["c_a"][i] = ranges.S3["c_a"][i_ed]
+            ED_outputs["c_b"][i] = ranges.S3["c_b"][i_ed]
+            ED_outputs["Qin"][i] = ranges.S3["Qin"][i_ed]
+            ED_outputs["Qout"][i] = ranges.S3["Qout"][i_ed]
 
             # Update Tank Volumes
-            tank_vol_a[i+1] = tank_vol_a[i] + ED_outputs['volAcid'][i]
-            tank_vol_b[i+1] = tank_vol_b[i] + ED_outputs['volBase'][i]
+            tank_vol_a[i + 1] = tank_vol_a[i] + ED_outputs["volAcid"][i]
+            tank_vol_b[i + 1] = tank_vol_b[i] + ED_outputs["volBase"][i]
 
             # Ensure Tank Volume Can't be More Than Max
-            if tank_vol_a[i+1] > ranges.V_aT_max:
-                tank_vol_a[i+1] = ranges.V_aT_max
-            if tank_vol_b[i+1] > ranges.V_bT_max:
-                tank_vol_b[i+1] = ranges.V_bT_max
-            
+            if tank_vol_a[i + 1] > ranges.V_aT_max:
+                tank_vol_a[i + 1] = ranges.V_aT_max
+            if tank_vol_b[i + 1] > ranges.V_bT_max:
+                tank_vol_b[i + 1] = ranges.V_bT_max
+
             # Find excess power
-            P_mCC = ranges.S3['pwrRanges'][i_ed] # Power needed for mCC      
-            ED_outputs['P_xs'][i] = power_profile[i] - P_mCC # Excess Power to Batteries
+            P_mCC = ranges.S3["pwrRanges"][i_ed]  # Power needed for mCC
+            ED_outputs["P_xs"][i] = (
+                power_profile[i] - P_mCC
+            )  # Excess Power to Batteries
 
             # Number of times system is on
-            nON = nON + 1 # Used to determine Capacity Factor
-        
+            nON = nON + 1  # Used to determine Capacity Factor
+
         # Scenario 4: No Capture, Tanks Filled by ED Units
         elif power_profile[i] >= ranges.P_minS4_tot and tank_vol_a[i] < ranges.V_a3_min:
             # Note Scenario 4 is active
-            S_t.append('S4')
+            S_t.append("S4")
 
             # Determine number of ED units active
             for j in range(ranges.N_range):
-                if exPwr[i] >= ranges.S4['pwrRanges'][j] and ranges.V_aT_max >= tank_vol_a[i] + ranges.S4['volAcid'][j]:
-                    i_ed = j # determine how many ED units can be used
-            ED_outputs['N_ed'][i] = N_edMin + i_ed # number of ED units active
+                if (
+                    exPwr[i] >= ranges.S4["pwrRanges"][j]
+                    and ranges.V_aT_max >= tank_vol_a[i] + ranges.S4["volAcid"][j]
+                ):
+                    i_ed = j  # determine how many ED units can be used
+            ED_outputs["N_ed"][i] = N_edMin + i_ed  # number of ED units active
 
             # Update recorded values based on number of ED units active
-            ED_outputs['volAcid'][i] = ranges.S4['volAcid'][i_ed]
-            ED_outputs['volBase'][i] = ranges.S4['volBase'][i_ed]
-            ED_outputs['mCC'][i] = ranges.S4['mCC'][i_ed]
-            ED_outputs['pH_f'][i] = ranges.S4['pH_f'][i_ed]
-            ED_outputs['dic_f'][i] = ranges.S4['dic_f'][i_ed]
-            ED_outputs['c_a'][i] = ranges.S4['c_a'][i_ed]
-            ED_outputs['c_b'][i] = ranges.S4['c_b'][i_ed]
-            ED_outputs['Qin'][i] = ranges.S4['Qin'][i_ed]
-            ED_outputs['Qout'][i] = ranges.S4['Qout'][i_ed]
+            ED_outputs["volAcid"][i] = ranges.S4["volAcid"][i_ed]
+            ED_outputs["volBase"][i] = ranges.S4["volBase"][i_ed]
+            ED_outputs["mCC"][i] = ranges.S4["mCC"][i_ed]
+            ED_outputs["pH_f"][i] = ranges.S4["pH_f"][i_ed]
+            ED_outputs["dic_f"][i] = ranges.S4["dic_f"][i_ed]
+            ED_outputs["c_a"][i] = ranges.S4["c_a"][i_ed]
+            ED_outputs["c_b"][i] = ranges.S4["c_b"][i_ed]
+            ED_outputs["Qin"][i] = ranges.S4["Qin"][i_ed]
+            ED_outputs["Qout"][i] = ranges.S4["Qout"][i_ed]
 
             # Update Tank Volumes
-            tank_vol_a[i+1] = tank_vol_a[i] + ED_outputs['volAddAcid'][i]
-            tank_vol_b[i+1] = tank_vol_b[i] + ED_outputs['volAddBase'][i]
+            tank_vol_a[i + 1] = tank_vol_a[i] + ED_outputs["volAddAcid"][i]
+            tank_vol_b[i + 1] = tank_vol_b[i] + ED_outputs["volAddBase"][i]
 
             # Ensure Tank Volume Can't be More Than Max
-            if tank_vol_a[i+1] > ranges.V_aT_max:
-                tank_vol_a[i+1] = ranges.V_aT_max
-            if tank_vol_b[i+1] > ranges.V_bT_max:
-                tank_vol_b[i+1] = ranges.V_bT_max
+            if tank_vol_a[i + 1] > ranges.V_aT_max:
+                tank_vol_a[i + 1] = ranges.V_aT_max
+            if tank_vol_b[i + 1] > ranges.V_bT_max:
+                tank_vol_b[i + 1] = ranges.V_bT_max
 
             # Find excess power
-            P_mCC = ranges.S4['pwrRanges'][i_ed] # power needed for mCC system given the available power
-            ED_outputs['P_xs'][i] = power_profile[i] - P_mCC # Remaining power available for batteries
+            P_mCC = ranges.S4["pwrRanges"][
+                i_ed
+            ]  # power needed for mCC system given the available power
+            ED_outputs["P_xs"][i] = (
+                power_profile[i] - P_mCC
+            )  # Remaining power available for batteries
 
             # No change to nON since no capture is done
 
         # Scenario 5: When all Input Power is Excess
-        else: 
+        else:
             # Note Scenario 5 is active
-            S_t.append('S5')
+            S_t.append("S5")
 
             # Determine number of ED units active
-            ED_outputs['N_ed'][i] = 0 # None are used in this case
-            
+            ED_outputs["N_ed"][i] = 0  # None are used in this case
+
             # Update recorded values based on number of ED units active
-            ED_outputs['volAcid'][i] = ranges.S5['volAcid']
-            ED_outputs['volBase'][i] = ranges.S5['volBase']
-            ED_outputs['mCC'][i] = ranges.S5['mCC']
-            ED_outputs['pH_f'][i] = ranges.S5['pH_f']
-            ED_outputs['dic_f'][i] = ranges.S5['dic_f']
-            ED_outputs['c_a'][i] = ranges.S5['c_a']
-            ED_outputs['c_b'][i] = ranges.S5['c_b']
-            ED_outputs['Qin'][i] = ranges.S5['Qin']
-            ED_outputs['Qout'][i] = ranges.S5['Qout']
+            ED_outputs["volAcid"][i] = ranges.S5["volAcid"]
+            ED_outputs["volBase"][i] = ranges.S5["volBase"]
+            ED_outputs["mCC"][i] = ranges.S5["mCC"]
+            ED_outputs["pH_f"][i] = ranges.S5["pH_f"]
+            ED_outputs["dic_f"][i] = ranges.S5["dic_f"]
+            ED_outputs["c_a"][i] = ranges.S5["c_a"]
+            ED_outputs["c_b"][i] = ranges.S5["c_b"]
+            ED_outputs["Qin"][i] = ranges.S5["Qin"]
+            ED_outputs["Qout"][i] = ranges.S5["Qout"]
 
             # Update Tank Volumes
-            tank_vol_a[i+1] = tank_vol_a[i] + ED_outputs['volAcid'][i]
-            tank_vol_b[i+1] = tank_vol_b[i] + ED_outputs['volBase'][i]
+            tank_vol_a[i + 1] = tank_vol_a[i] + ED_outputs["volAcid"][i]
+            tank_vol_b[i + 1] = tank_vol_b[i] + ED_outputs["volBase"][i]
 
             # Ensure Tank Volume Can't be More Than Max
-            if tank_vol_a[i+1] > ranges.V_aT_max:
-                tank_vol_a[i+1] = ranges.V_aT_max
-            if tank_vol_b[i+1] > ranges.V_bT_max:
-                tank_vol_b[i+1] = ranges.V_bT_max
-            
+            if tank_vol_a[i + 1] > ranges.V_aT_max:
+                tank_vol_a[i + 1] = ranges.V_aT_max
+            if tank_vol_b[i + 1] > ranges.V_bT_max:
+                tank_vol_b[i + 1] = ranges.V_bT_max
+
             # Find excess power
-            ED_outputs['P_xs'][i] = power_profile[i] # Otherwise the input power goes directly to the batteries
-            
+            ED_outputs["P_xs"][i] = power_profile[
+                i
+            ]  # Otherwise the input power goes directly to the batteries
+
             # No change to nON since no capture is done
 
-    mCC_total = sum(ED_outputs['mCC']) #total amount of CO2 captured
-    capacity_factor = nON/len(ED_outputs['N_ed']) # overall capcity factor
+    mCC_total = sum(ED_outputs["mCC"])  # total amount of CO2 captured
+    capacity_factor = nON / len(ED_outputs["N_ed"])  # overall capcity factor
 
     # Average yearly CO2 capture
-    mCC_yr = sum(ED_outputs['mCC'][0:8760])
+    mCC_yr = sum(ED_outputs["mCC"][0:8760])
 
     # Yearly CO2 capture under constant max power
-    mCC_yr_MaxPwr = max(ranges.S1['mCC']) * 8760
+    mCC_yr_MaxPwr = max(ranges.S1["mCC"]) * 8760
 
     return ElectrodialysisOutputs(
         ED_outputs=ED_outputs,
         mCC_total=mCC_total,
         capacity_factor=capacity_factor,
         mCC_yr=mCC_yr,
-        mCC_yr_MaxPwr=mCC_yr_MaxPwr
+        mCC_yr_MaxPwr=mCC_yr_MaxPwr,
     )
+
 
 @define
 class ElectrodialysisCostInputs:
@@ -1365,11 +1614,12 @@ class ElectrodialysisCostInputs:
         yearly_ed_operational_cost (float, optional): Yearly ED operational cost provided by the user if `user_costs` is True.
                                                       Initializes to zero if `user_costs` is True. Defaults to None.
     """
-    electrodialysis_inputs:ElectrodialysisInputs
+
+    electrodialysis_inputs: ElectrodialysisInputs
     mCC_yr: float
     max_theoretical_mCC: float
     infrastructure_type: str = "new"
-    user_costs:bool = False
+    user_costs: bool = False
 
     initial_capital_cost: float = field(default=None, init=False)
     yearly_capital_cost: float = field(default=None, init=False)
@@ -1383,15 +1633,16 @@ class ElectrodialysisCostInputs:
 
     def __post_init__(self):
         if self.user_costs:
-            self.initial_capital_cost = 0.0  
+            self.initial_capital_cost = 0.0
             self.yearly_capital_cost = 0.0
-            self.yearly_operational_cost = 0.0 
-            self.initial_bop_capital_cost = 0.0 
-            self.yearly_bop_capital_cost = 0.0 
+            self.yearly_operational_cost = 0.0
+            self.initial_bop_capital_cost = 0.0
+            self.yearly_bop_capital_cost = 0.0
             self.yearly_bop_operational_cost = 0.0
             self.initial_ed_capital_cost = 0.0
             self.yearly_ed_capital_cost = 0.0
             self.yearly_ed_operational_cost = 0.0
+
 
 @define
 class ElectrodialysisCostOutputs:
@@ -1409,6 +1660,7 @@ class ElectrodialysisCostOutputs:
         yearly_ed_capital_cost (float): Yearly capital cost for the electrodialysis unit.
         yearly_ed_operational_cost (float): Yearly operational cost for the electrodialysis unit, excluding energy costs.
     """
+
     initial_capital_cost: float
     yearly_capital_cost: float
     yearly_operational_cost: float
@@ -1419,24 +1671,27 @@ class ElectrodialysisCostOutputs:
     yearly_ed_capital_cost: float
     yearly_ed_operational_cost: float
 
-def electrodialysis_cost_model(cost_config: ElectrodialysisCostInputs) -> ElectrodialysisCostOutputs:
+
+def electrodialysis_cost_model(
+    cost_config: ElectrodialysisCostInputs,
+) -> ElectrodialysisCostOutputs:
     """
     Calculates the costs associated with electrodialysis based on user inputs or default literature values.
 
     Args:
-        cost_config (ElectrodialysisCostInputs): Configuration object containing user-defined or default inputs 
-                                                 for the electrodialysis cost model. Includes infrastructure type, 
+        cost_config (ElectrodialysisCostInputs): Configuration object containing user-defined or default inputs
+                                                 for the electrodialysis cost model. Includes infrastructure type,
                                                  yearly CO2 capture, and cost settings.
 
     Returns:
-        ElectrodialysisCostOutputs: Object containing calculated capital and operational costs, 
+        ElectrodialysisCostOutputs: Object containing calculated capital and operational costs,
                                     both initial and yearly, for the electrodialysis system.
 
     Calculation Logic:
         - If `user_costs` is True, the model directly uses the costs provided by the user.
         - If `user_costs` is False, the model calculates costs using default values from literature,
           applying learning rates and amortization as necessary.
-        - The infrastructure type ('desal', 'swCool', or 'new') determines the baseline costs, which 
+        - The infrastructure type ('desal', 'swCool', or 'new') determines the baseline costs, which
           are then adjusted based on the modeled CO2 capture capacity.
 
     Raises:
@@ -1457,18 +1712,24 @@ def electrodialysis_cost_model(cost_config: ElectrodialysisCostInputs) -> Electr
         EDcapI = cost_config.initial_ed_capital_cost
     else:
         infra_costs = {
-                    "desal": (253, 197, 204, 159, 48, 39),
-                    "swCool": (512, 263, 466, 228, 46, 35),
-                    "new": (1484, 530, 1434, 509, 49, 21)
+            "desal": (253, 197, 204, 159, 48, 39),
+            "swCool": (512, 263, 466, 228, 46, 35),
+            "new": (1484, 530, 1434, 509, 49, 21),
         }
         if cost_config.infrastructure_type not in infra_costs:
-            raise ValueError("`infrastructure_type` must be 'desal', 'swCool', or 'new'")
-        
-        CEco2, OEnoEco2, BOPcapCo2, BOPopNoEco2, EDcapCo2, EDopNoEco2 = infra_costs[cost_config.infrastructure_type]
-        
+            raise ValueError(
+                "`infrastructure_type` must be 'desal', 'swCool', or 'new'"
+            )
+
+        CEco2, OEnoEco2, BOPcapCo2, BOPopNoEco2, EDcapCo2, EDopNoEco2 = infra_costs[
+            cost_config.infrastructure_type
+        ]
+
         # Apply learning rate
         lr = 0.15
-        capFactLit = 0.934 # Capacity factor from literature needed for capital cost (93.4%)
+        capFactLit = (
+            0.934  # Capacity factor from literature needed for capital cost (93.4%)
+        )
         mCC_yr_lit = 20 * ed.co2_mm / 1000 * capFactLit * 24 * 365
         mCC_yr_mod = cost_config.max_theoretical_mCC * capFactLit * 24 * 365
         print("theoretical max", cost_config.max_theoretical_mCC)
@@ -1486,9 +1747,9 @@ def electrodialysis_cost_model(cost_config: ElectrodialysisCostInputs) -> Electr
         EDopNoEyr = EDopNoEco2 * cost_config.mCC_yr
 
         # Calculate Initial CapEx
-        r_int = 0.05 # Rate of interest or return (5%)
-        n_pay = 12 # Number of monthly payments in a year (12)
-        t_amor = 20 # (years) Amortization time (20 years)
+        r_int = 0.05  # Rate of interest or return (5%)
+        n_pay = 12  # Number of monthly payments in a year (12)
+        t_amor = 20  # (years) Amortization time (20 years)
         amort_factor = (1 - (1 + r_int / n_pay) ** (-n_pay * t_amor)) / r_int
         CEi = CEyr * amort_factor
         BOPcapI = BOPcapYr * amort_factor
@@ -1503,8 +1764,9 @@ def electrodialysis_cost_model(cost_config: ElectrodialysisCostInputs) -> Electr
         yearly_bop_operational_cost=BOPopNoEyr,
         initial_ed_capital_cost=EDcapI,
         yearly_ed_capital_cost=EDcapYr,
-        yearly_ed_operational_cost=EDopNoEyr
+        yearly_ed_operational_cost=EDopNoEyr,
     )
+
 
 if __name__ == "__main__":
     pumps = initialize_pumps(
@@ -1512,11 +1774,10 @@ if __name__ == "__main__":
     )
 
     res1 = initialize_power_chemical_ranges(
-        ed_config = ElectrodialysisInputs(), 
-        pump_config= PumpInputs(), 
-        seawater_config= SeaWaterInputs()
-        )
-    
+        ed_config=ElectrodialysisInputs(),
+        pump_config=PumpInputs(),
+        seawater_config=SeaWaterInputs(),
+    )
 
     exTime = 8760  # Number of time steps (typically hours in a year)
     maxPwr = 500 * 10**6  # Maximum power in watts
@@ -1531,16 +1792,18 @@ if __name__ == "__main__":
         exPwr[i] = Amp * math.sin(2 * math.pi / periodT * i + movSide) + movUp
 
     res = simulate_electrodialysis(
-        ranges= res1,
-        ed_config= ElectrodialysisInputs(),
-        power_profile = exPwr,
-        initial_tank_volume_m3=0
+        ranges=res1,
+        ed_config=ElectrodialysisInputs(),
+        power_profile=exPwr,
+        initial_tank_volume_m3=0,
+    )
+
+    costs = electrodialysis_cost_model(
+        ElectrodialysisCostInputs(
+            electrodialysis_inputs=ElectrodialysisInputs(),
+            mCC_yr=res.mCC_yr,
+            max_theoretical_mCC=max(res1.S1["mCC"]),
         )
-    
-    costs = electrodialysis_cost_model(ElectrodialysisCostInputs(
-        electrodialysis_inputs=ElectrodialysisInputs(),
-        mCC_yr=res.mCC_yr,
-        max_theoretical_mCC=max(res1.S1['mCC'])
-    ))
+    )
 
     print(costs)
