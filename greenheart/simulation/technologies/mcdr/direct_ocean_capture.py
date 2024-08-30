@@ -14,21 +14,24 @@ from numpy import ndarray
 
 
 @define
-class ElectroDialysisInputs:
+class ElectrodialysisInputs:
     """
-    A class to represent the inputs for an Electrodialysis (ED) unit.
+    A class to represent the inputs for an Electrodialysis (ED) marine carbon capture unit.
 
     Attributes:
-        P_ed1 (float): Power needed for one ED unit in watts (W). Default is 50e6.
-        Q_ed1 (float): Flow rate for one ED unit in cubic meters per second (m^3/s). Default is 1.
+        P_ed1 (float): Power needed for one ED unit in watts (W). Default is 50e6 (50 MW).
+        Q_ed1 (float): Flow rate for one ED unit in cubic meters per second (m³/s). Default is 1.
         N_edMin (int): Minimum number of ED units. Default is 1.
         N_edMax (int): Maximum number of ED units. Default is 5.
         E_HCl (float): Energy required by the ED unit to process HCl in kilowatt-hours per mole (kWh/mol). Default is 0.05.
         E_NaOH (float): Energy required by the ED unit to process NaOH in kilowatt-hours per mole (kWh/mol). Default is 0.05.
-        y_ext (float): CO2 extraction efficiency (%). Default is 0.9.
-        y_vac (float): Vacuum efficiency (%). Default is 0.3.
+        y_ext (float): CO2 extraction efficiency as a percentage. Default is 90% (0.9).
+        y_vac (float): Vacuum efficiency as a percentage. Default is 30% (0.3).
         store_hours (float): Hours the tanks can provide minimum flow rate for capture. Default is 6.
         co2_mm (float): Molar mass of CO2 in grams per mole (g/mol). Default is 44.01.
+
+    Attributes (calculated):
+        P_minED (float): Minimum power required for the ED units, calculated as the product of P_ed1 and N_edMin.
     """
 
     P_ed1: float = 50 * 10**6
@@ -53,8 +56,8 @@ class SeaWaterInputs:
     A class to represent the initial inputs for seawater chemistry.
 
     Attributes:
-        dic_i (float): Initial concentration of dissolved inorganic carbon in mol/L.
-            Default is 2.2e-3. (3.12 mM in Instant Ocean, 2.2 mM in seawater)
+        dic_i (float): Initial concentration of dissolved inorganic carbon (DIC) in mol/L.
+            Default is 2.2e-3 (2.2 mM, typical for seawater; 3.12 mM in Instant Ocean).
         pH_i (float): Initial pH of seawater. Default is 8.1.
         pH_eq2 (float): Second equivalence point of seawater pH. Default is 4.3.
         k1 (float): First dissociation constant of carbonic acid in mol/L.
@@ -63,6 +66,11 @@ class SeaWaterInputs:
             Default is 1.2e-9 (10^-8.92).
         kw (float): Water dissociation constant at 25°C and a salinity of 3 in mol/L.
             Default is 6.02e-14 (10^-13.22).
+
+    Attributes (calculated):
+        h_i (float): Initial concentration of hydrogen ions (H+) in mol/L, calculated from the initial pH.
+        h_eq2 (float): Concentration of hydrogen ions (H+) at the second equivalence point in mol/L, calculated from pH_eq2.
+        ta_i (float): Initial total alkalinity concentration (TA) in mol/L, calculated using DIC and h_i.
     """
 
     dic_i: float = 2.2 * 10**-3
@@ -84,14 +92,45 @@ class SeaWaterInputs:
         self.ta_i = findTA(self, self.dic_i,self.h_i)
 
 def findTA(seawater: SeaWaterInputs, dic, h):
+    """
+    Calculate the total alkalinity (TA) of seawater.
+
+    This function computes the total alkalinity based on the initial concentration of dissolved inorganic carbon (DIC),
+    the hydrogen ion concentration (H+), and the seawater dissociation constants (k1, k2, kw).
+
+    Args:
+        seawater (SeaWaterInputs): An instance of the SeaWaterInputs class containing seawater chemistry constants.
+        dic (float): The concentration of dissolved inorganic carbon (DIC) in mol/L.
+        h (float): The concentration of hydrogen ions (H+) in mol/L.
+
+    Returns:
+        float: The total alkalinity (TA) in mol/L.
+    """
+
     k1 = seawater.k1
     k2 = seawater.k2
     kw = seawater.kw
     ta = (dic/(1+(h/k1)+(k2/h))) + (2*dic/(1+(h/k2)+((h**2)/(k1*k2)))) + kw/h - h
     return ta
 
-# Find H+ from TA and DIC (mol/L)
 def findH_TA(seawater: SeaWaterInputs, dic, ta, ph_min, ph_max, step):
+    """
+    Estimate the hydrogen ion concentration (H+) that corresponds to a given total alkalinity (TA).
+
+    This function iteratively calculates the total alkalinity over a range of pH values to find the hydrogen ion
+    concentration that minimizes the difference between the estimated and the provided total alkalinity.
+
+    Args:
+        seawater (SeaWaterInputs): An instance of the SeaWaterInputs class containing seawater chemistry constants.
+        dic (float): The concentration of dissolved inorganic carbon (DIC) in mol/L.
+        ta (float): The target total alkalinity (TA) in mol/L.
+        ph_min (float): The minimum pH value in the search range.
+        ph_max (float): The maximum pH value in the search range.
+        step (float): The step size for the pH values in the search range.
+
+    Returns:
+        float: The hydrogen ion concentration (H+) in mol/L that corresponds to the target total alkalinity.
+    """
     ph_range = np.arange(ph_min, ph_max + step, step)
     ta_error = np.zeros(len(ph_range))
     for i in range(len(ph_range)):
@@ -105,15 +144,46 @@ def findH_TA(seawater: SeaWaterInputs, dic, ta, ph_min, ph_max, step):
     h_f = 10**-ph_f
     return h_f
 
-# Find CO2 conc from DIC and H+ Function (mol/L)
+
 def findCO2(seawater: SeaWaterInputs, dic,h):
+    """
+    Calculate the concentration of dissolved carbon dioxide (CO2) from the dissolved inorganic carbon (DIC) 
+    and hydrogen ion concentration (H+).
+
+    This function computes the concentration of CO2 based on the provided DIC, the hydrogen ion concentration,
+    and the dissociation constants of carbonic acid.
+
+    Args:
+        seawater (SeaWaterInputs): An instance of the SeaWaterInputs class containing seawater chemistry constants.
+        dic (float): The concentration of dissolved inorganic carbon (DIC) in mol/L.
+        h (float): The concentration of hydrogen ions (H+) in mol/L.
+
+    Returns:
+        float: The concentration of dissolved carbon dioxide (CO2) in mol/L.
+    """
     k1 = seawater.k1
     k2 = seawater.k2
     co2 = dic/(1+(k1/h)+((k1*k2)/(h**2)))
     return co2
 
-# Find H+ from CO2 conc and DIC (mol/L)
 def findH_CO2(seawater: SeaWaterInputs, dic, co2, ph_min, ph_max, step):
+    """
+    Estimate the hydrogen ion concentration (H+) that corresponds to a given concentration of dissolved carbon dioxide (CO2).
+
+    This function iteratively calculates the CO2 concentration over a range of pH values to find the hydrogen ion concentration
+    that minimizes the difference between the estimated and the provided CO2 concentration.
+
+    Args:
+        seawater (SeaWaterInputs): An instance of the SeaWaterInputs class containing seawater chemistry constants.
+        dic (float): The concentration of dissolved inorganic carbon (DIC) in mol/L.
+        co2 (float): The target concentration of dissolved carbon dioxide (CO2) in mol/L.
+        ph_min (float): The minimum pH value in the search range.
+        ph_max (float): The maximum pH value in the search range.
+        step (float): The step size for the pH values in the search range.
+
+    Returns:
+        float: The hydrogen ion concentration (H+) in mol/L that corresponds to the target CO2 concentration.
+    """
     ph_range = np.arange(ph_min, ph_max + step, step)
     co2_error = np.zeros(len(ph_range))
     for i in range(len(ph_range)):
@@ -185,12 +255,12 @@ class Pump:
         Q (float): Instantaneous flow rate (m³/s), initially set to zero.
     """
 
-    Q_min: float  # Minimum flow rate (m³/s)
-    Q_max: float  # Maximum flow rate (m³/s)
-    p_min_bar: float  # Minimum pressure (bar)
-    p_max_bar: float  # Maximum pressure (bar)
-    eff: float  # Efficiency
-    Q: float = field(default=0)  # Instantaneous flow rate (m³/s), initially set to zero
+    Q_min: float
+    Q_max: float
+    p_min_bar: float
+    p_max_bar: float
+    eff: float
+    Q: float = field(default=0)
 
     def pumpPower(self, Q):
         """
@@ -285,12 +355,12 @@ class PumpOutputs:
 
 
 def initialize_pumps(
-    ed_config: ElectroDialysisInputs, pump_config: PumpInputs
+    ed_config: ElectrodialysisInputs, pump_config: PumpInputs
 ) -> PumpOutputs:
     """Initialize a list of Pump instances based on the provided configurations.
 
     Args:
-        ed_config (ElectroDialysisInputs): The electro-dialysis inputs.
+        ed_config (ElectrodialysisInputs): The electro-dialysis inputs.
         pump_config (PumpInputs): The pump inputs.
 
     Returns:
@@ -371,15 +441,13 @@ class Vacuum:
         co2_mm (float): Molar mass of CO2 (g/mol), default is 44.01.
     """
 
-    mCC_min: float  # Minimum flow rate (m³/s)
-    mCC_max: float  # Maximum flow rate (m³/s)
-    p_min_bar: float  # Minimum pressure (bar)
-    p_max_bar: float  # Maximum pressure (bar)
-    eff: float  # Efficiency
-    mCC: float = field(
-        default=0
-    )  # Instantaneous flow rate (m³/s), initially set to zero
-    co2_mm: float = field(init=False, default=44.01)  # g/mol molar mass of CO2
+    mCC_min: float
+    mCC_max: float
+    p_min_bar: float
+    p_max_bar: float
+    eff: float
+    mCC: float = field(default=0)
+    co2_mm: float = field(init=False, default=44.01)
 
     def vacPower(self, mCC: float) -> float:
         """
@@ -462,10 +530,29 @@ class ElectrodialysisRangeOutputs:
 
     Attributes:
         S1 (dict): Chemical and power ranges for scenario 1 (e.g., tank filled).
+            - "volAcid": Volume of acid (L).
+            - "volBase": Volume of base (L).
+            - "mCC": Molarity of carbon capture solution (mol/L).
+            - "pH_f": Final pH of the solution.
+            - "dic_f": Final dissolved inorganic carbon concentration (mol/L).
+            - "c_a": Concentration of acid (mol/L).
+            - "c_b": Concentration of base (mol/L).
+            - "Qin": Flow rate into the system (m³/s).
+            - "Qout": Flow rate out of the system (m³/s).
+            - "pwrRanges": Power range for the scenario (MW).
+
         S2 (dict): Chemical and power ranges for scenario 2 (e.g., variable power and chemical ranges).
+            - Same keys as in S1.
+
         S3 (dict): Chemical and power ranges for scenario 3 (e.g., ED not active, tanks not zeros).
+            - Same keys as in S1.
+
         S4 (dict): Chemical and power ranges for scenario 4 (e.g., ED active, no capture).
+            - Same keys as in S1.
+
         S5 (dict): Chemical and power ranges for scenario 5 (reserved for special cases).
+            - Same keys as in S1.
+
         P_minS1_tot (float): Minimum power for scenario 1.
         P_minS2_tot (float): Minimum power for scenario 2.
         P_minS3_tot (float): Minimum power for scenario 3.
@@ -504,7 +591,7 @@ class ElectrodialysisRangeOutputs:
 
 
 def initialize_power_chemical_ranges(
-        ed_config: ElectroDialysisInputs, 
+        ed_config: ElectrodialysisInputs, 
         pump_config: PumpInputs, 
         seawater_config: SeaWaterInputs
         ) -> ElectrodialysisRangeOutputs:
@@ -973,10 +1060,30 @@ class ElectrodialysisOutputs:
 
 def simulate_electrodialysis(
         ranges: ElectrodialysisRangeOutputs,
-        ed_config: ElectroDialysisInputs,
+        ed_config: ElectrodialysisInputs,
         power_profile,
         initial_tank_volume_m3
         ):
+    """
+    Simulates the operation of an electrodialysis (ED) system over time, given power availability and initial tank volumes.
+    The simulation considers various scenarios based on the power profile and tank volumes, updating the state of the system
+    at each time step.
+
+    Parameters:
+        ranges (ElectrodialysisRangeOutputs): The power and chemical ranges for different scenarios of ED operation.
+        ed_config (ElectrodialysisInputs): Configuration inputs for the electrodialysis system.
+        power_profile (np.ndarray): Array representing the available power at each time step (W).
+        initial_tank_volume_m3 (float): The initial volume of acid and base in the tanks (m³).
+
+    Returns:
+        ElectrodialysisOutputs: A data class containing the simulation results, including the total CO2 captured,
+        capacity factor, and yearly CO2 capture under actual and maximum power conditions.
+
+    Notes:
+        - The function evaluates five scenarios based on the available power and tank volumes, prioritizing CO2 capture and
+          tank filling in the most effective way possible.
+        - Scenario 5 is considered when all input power is excess, meaning no ED units are used.
+    """
     N_edMin = ed_config.N_edMin
 
     tank_vol_a = np.zeros(len(power_profile)+1)
@@ -1233,7 +1340,7 @@ class ElectrodialysisCostInputs:
     """Inputs for the electrodialysis cost model.
 
     Attributes:
-        electrodialysis_inputs (ElectroDialysisInputs): Inputs related to the electrodialysis process.
+        electrodialysis_inputs (ElectrodialysisInputs): Inputs related to the electrodialysis process.
         mCC_yr (float): Average yearly CO2 capture.
         max_theoretical_mCC (float): Maximum theoretical CO2 capture TODO: add units.
         infrastructure_type (str): Infrastructure type, with options "desal", "swCool", or "new". Defaults to "new".
@@ -1258,7 +1365,7 @@ class ElectrodialysisCostInputs:
         yearly_ed_operational_cost (float, optional): Yearly ED operational cost provided by the user if `user_costs` is True.
                                                       Initializes to zero if `user_costs` is True. Defaults to None.
     """
-    electrodialysis_inputs:ElectroDialysisInputs
+    electrodialysis_inputs:ElectrodialysisInputs
     mCC_yr: float
     max_theoretical_mCC: float
     infrastructure_type: str = "new"
@@ -1401,11 +1508,11 @@ def electrodialysis_cost_model(cost_config: ElectrodialysisCostInputs) -> Electr
 
 if __name__ == "__main__":
     pumps = initialize_pumps(
-        ed_config=ElectroDialysisInputs(), pump_config=PumpInputs()
+        ed_config=ElectrodialysisInputs(), pump_config=PumpInputs()
     )
 
     res1 = initialize_power_chemical_ranges(
-        ed_config = ElectroDialysisInputs(), 
+        ed_config = ElectrodialysisInputs(), 
         pump_config= PumpInputs(), 
         seawater_config= SeaWaterInputs()
         )
@@ -1425,13 +1532,13 @@ if __name__ == "__main__":
 
     res = simulate_electrodialysis(
         ranges= res1,
-        ed_config= ElectroDialysisInputs(),
+        ed_config= ElectrodialysisInputs(),
         power_profile = exPwr,
         initial_tank_volume_m3=0
         )
     
     costs = electrodialysis_cost_model(ElectrodialysisCostInputs(
-        electrodialysis_inputs=ElectroDialysisInputs(),
+        electrodialysis_inputs=ElectrodialysisInputs(),
         mCC_yr=res.mCC_yr,
         max_theoretical_mCC=max(res1.S1['mCC'])
     ))
