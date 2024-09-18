@@ -8,17 +8,21 @@ from greenheart.simulation.technologies.mcdr.echem_mcc import Pump
 
 @fixture
 def power_profile():
-    exTime = 8760  # Number of time steps (typically hours in a year)
-    maxPwr = 500 * 10**6  # Maximum power in watts
-    Amp = maxPwr / 2  # Amplitude
-    periodT = 24  # Period of the sine wave (e.g., 24 hours)
-    movUp = Amp  # Vertical shift
-    movSide = -1 * math.pi / 2  # Phase shift
-    exPwr = np.zeros(exTime)  # Initialize the power array
-
-    # Corrected loop: Use range and sine wave computation
-    for i in range(exTime):
-        exPwr[i] = Amp * math.sin(2 * math.pi / periodT * i + movSide) + movUp
+    # EXAMPLE: Sin function for power input
+    days = 365
+    exTime = np.zeros(24*days) # Example time in hours
+    for i in range(len(exTime)):
+        exTime[i] = i+1
+    maxPwr = 500 * 10**6 # W
+    Amp = maxPwr/2
+    periodT = 24 
+    movUp = Amp
+    movSide = -1*math.pi/2
+    exPwr = np.zeros(len(exTime))
+    for i in range(len(exTime)):
+        exPwr[i] = Amp*math.sin(2*math.pi/periodT*exTime[i] + movSide) + movUp
+        if int(exTime[i]/24) % 5 == 0:
+            exPwr[i] = exPwr[i] * 0.25
     return exPwr
 
 
@@ -39,17 +43,21 @@ def assert_dict_equal(actual, expected, subtests):
             else:
                 # For other types, use simple equality
                 assert (
-                    actual_value == expected_value
+                    actual_value == approx(expected_value,rel=1e-3)
                 ), f"Mismatch found in key '{key}': {actual_value} != {expected_value}"
 
 
 def test_power_chemical_ranges(subtests):
     # Run the function to get actual outputs
+    co2_outputs = echem_mcc.co2_purification(
+        ed_config=echem_mcc.ElectrodialysisInputs(N_edMax=3)
+    )
     actual_data: echem_mcc.ElectrodialysisRangeOutputs = (
         echem_mcc.initialize_power_chemical_ranges(
-            ed_config=echem_mcc.ElectrodialysisInputs(),
+            ed_config=echem_mcc.ElectrodialysisInputs(N_edMax=3),
             pump_config=echem_mcc.PumpInputs(),
             seawater_config=echem_mcc.SeaWaterInputs(),
+            co2_config=co2_outputs,
         )
     )
 
@@ -58,280 +66,78 @@ def test_power_chemical_ranges(subtests):
     # Define expected outputs
     expected_data = {
         "S1": {
-            "volAcid": np.array([0.0, 0.0, 0.0, 0.0, 0.0]),
-            "volBase": np.array([0.0, 0.0, 0.0, 0.0, 0.0]),
-            "mCC": np.array(
-                [31.09742798, 62.19485597, 93.29228395, 124.38971194, 155.48713992]
-            ),
-            "pH_f": np.array(
-                [10.58191318, 10.58191318, 10.58191318, 10.58191318, 10.58191318]
-            ),
-            "dic_f": np.array(
-                [0.00022736, 0.00022736, 0.00022736, 0.00022736, 0.00022736]
-            ),
-            "c_a": np.array(
-                [0.55555554, 0.55555554, 0.55555554, 0.55555554, 0.55555554]
-            ),
-            "c_b": np.array(
-                [0.55554038, 0.55554038, 0.55554038, 0.55554038, 0.55554038]
-            ),
-            "Qin": np.array([100.0, 200.0, 300.0, 400.0, 500.0]),
-            "Qout": np.array([100.0, 200.0, 300.0, 400.0, 500.0]),
-            "pwrRanges": np.array(
-                [
-                    6.75585262e07,
-                    1.43457761e08,
-                    2.27697704e08,
-                    3.20278356e08,
-                    4.21197289e08,
-                ]
-            ),
+            "volAcid": np.array([0.0, 0.0, 0.0]),
+            "volBase": np.array([0.0, 0.0, 0.0]),
+            "mCC": np.array([55.39335485, 110.7867097, 166.18006455]),
+            "pH_f": np.array([10.42, 10.42, 10.42]),
+            "dic_f": np.array([0.00044309, 0.00044309, 0.00044309]),
+            "c_a": np.array([0.44444443, 0.44444443, 0.44444443]),
+            "c_b": np.array([0.44442918, 0.44442918, 0.44442918]),
+            "Qin": np.array([200.0, 400.0, 600.0]),
+            "Qout": np.array([200.0, 400.0, 600.0]),
+            "pwrRanges": np.array([9.87450524e07, 2.07127144e08, 3.25075006e08]),
         },
         "S2": {
-            "volAcid": np.array(
-                [
-                    0.0,
-                    1800.0,
-                    3600.0,
-                    5400.0,
-                    7200.0,
-                    0.0,
-                    1800.0,
-                    3600.0,
-                    5400.0,
-                    0.0,
-                    1800.0,
-                    3600.0,
-                    0.0,
-                    1800.0,
-                    0.0,
-                ]
-            ),
-            "volBase": np.array(
-                [
-                    0.0,
-                    1800.0,
-                    3600.0,
-                    5400.0,
-                    7200.0,
-                    0.0,
-                    1800.0,
-                    3600.0,
-                    5400.0,
-                    0.0,
-                    1800.0,
-                    3600.0,
-                    0.0,
-                    1800.0,
-                    0.0,
-                ]
-            ),
+            "volAcid": np.array([0.0, 3600.0, 7200.0, 0.0, 3600.0, 0.0]),
+            "volBase": np.array([0.0, 3600.0, 7200.0, 0.0, 3600.0, 0.0]),
             "mCC": np.array(
                 [
-                    31.09742798,
-                    31.09742798,
-                    31.09742798,
-                    31.09742798,
-                    31.09742798,
-                    62.19485597,
-                    62.19485597,
-                    62.19485597,
-                    62.19485597,
-                    93.29228395,
-                    93.29228395,
-                    93.29228395,
-                    124.38971194,
-                    124.38971194,
-                    155.48713992,
+                    55.39335485,
+                    55.39335485,
+                    55.39335485,
+                    110.7867097,
+                    110.7867097,
+                    166.18006455,
                 ]
             ),
-            "pH_f": np.array(
-                [
-                    10.58191318,
-                    10.58191318,
-                    10.58191318,
-                    10.58191318,
-                    10.58191318,
-                    10.58191318,
-                    10.58191318,
-                    10.58191318,
-                    10.58191318,
-                    10.58191318,
-                    10.58191318,
-                    10.58191318,
-                    10.58191318,
-                    10.58191318,
-                    10.58191318,
-                ]
-            ),
+            "pH_f": np.array([10.42, 10.42, 10.42, 10.42, 10.42, 10.42]),
             "dic_f": np.array(
-                [
-                    0.00022736,
-                    0.00022736,
-                    0.00022736,
-                    0.00022736,
-                    0.00022736,
-                    0.00022736,
-                    0.00022736,
-                    0.00022736,
-                    0.00022736,
-                    0.00022736,
-                    0.00022736,
-                    0.00022736,
-                    0.00022736,
-                    0.00022736,
-                    0.00022736,
-                ]
+                [0.00044309, 0.00044309, 0.00044309, 0.00044309, 0.00044309, 0.00044309]
             ),
             "c_a": np.array(
-                [
-                    0.55555554,
-                    0.55555554,
-                    0.55555554,
-                    0.55555554,
-                    0.55555554,
-                    0.55555554,
-                    0.55555554,
-                    0.55555554,
-                    0.55555554,
-                    0.55555554,
-                    0.55555554,
-                    0.55555554,
-                    0.55555554,
-                    0.55555554,
-                    0.55555554,
-                ]
+                [0.44444443, 0.44444443, 0.44444443, 0.44444443, 0.44444443, 0.44444443]
             ),
             "c_b": np.array(
-                [
-                    0.55554038,
-                    0.55554038,
-                    0.55554038,
-                    0.55554038,
-                    0.55554038,
-                    0.55554038,
-                    0.55554038,
-                    0.55554038,
-                    0.55554038,
-                    0.55554038,
-                    0.55554038,
-                    0.55554038,
-                    0.55554038,
-                    0.55554038,
-                    0.55554038,
-                ]
+                [0.44442918, 0.44442918, 0.44442918, 0.44442918, 0.44442918, 0.44442918]
             ),
-            "Qin": np.array(
-                [
-                    100.0,
-                    101.0,
-                    102.0,
-                    103.0,
-                    104.0,
-                    200.0,
-                    201.0,
-                    202.0,
-                    203.0,
-                    300.0,
-                    301.0,
-                    302.0,
-                    400.0,
-                    401.0,
-                    500.0,
-                ]
-            ),
-            "Qout": np.array(
-                [
-                    100.0,
-                    100.0,
-                    100.0,
-                    100.0,
-                    100.0,
-                    200.0,
-                    200.0,
-                    200.0,
-                    200.0,
-                    300.0,
-                    300.0,
-                    300.0,
-                    400.0,
-                    400.0,
-                    500.0,
-                ]
-            ),
+            "Qin": np.array([200.0, 202.0, 204.0, 400.0, 402.0, 600.0]),
+            "Qout": np.array([200.0, 200.0, 200.0, 400.0, 400.0, 600.0]),
             "pwrRanges": np.array(
                 [
-                    6.72903241e07,
-                    1.17630828e08,
-                    1.68027512e08,
-                    2.18480376e08,
-                    2.68989420e08,
-                    1.43085762e08,
-                    1.93551094e08,
-                    2.44072605e08,
-                    2.94650297e08,
-                    2.27351448e08,
-                    2.77941607e08,
-                    3.28587946e08,
-                    3.20061724e08,
-                    3.70776711e08,
-                    4.21197289e08,
+                    9.87450524e07,
+                    1.79034386e08,
+                    2.59502386e08,
+                    2.07127144e08,
+                    2.87683144e08,
+                    3.25075006e08,
                 ]
             ),
         },
         "S3": {
-            "volAcid": np.array([-1800.0, -3600.0, -5400.0, -7200.0, -9000.0]),
-            "volBase": np.array([-1800.0, -3600.0, -5400.0, -7200.0, -9000.0]),
-            "mCC": np.array(
-                [31.4004411, 62.8008822, 94.20132329, 125.60176439, 157.00220549]
-            ),
-            "pH_f": np.array(
-                [10.57597143, 10.57597143, 10.57597143, 10.57597143, 10.57597143]
-            ),
-            "dic_f": np.array(
-                [0.00022796, 0.00022796, 0.00022796, 0.00022796, 0.00022796]
-            ),
-            "c_a": np.array(
-                [0.55555554, 0.55555554, 0.55555554, 0.55555554, 0.55555554]
-            ),
-            "c_b": np.array(
-                [0.55554038, 0.55554038, 0.55554038, 0.55554038, 0.55554038]
-            ),
-            "Qin": np.array([100.0, 200.0, 300.0, 400.0, 500.0]),
-            "Qout": np.array([101.0, 202.0, 303.0, 404.0, 505.0]),
+            "volAcid": np.array([-3600.0, -7200.0, -10800.0]),
+            "volBase": np.array([-3600.0, -7200.0, -10800.0]),
+            "mCC": np.array([55.34835687, 110.69671373, 166.0450706]),
+            "pH_f": np.array([10.41, 10.41, 10.41]),
+            "dic_f": np.array([0.00046198, 0.00046198, 0.00046198]),
+            "c_a": np.array([0.44444443, 0.44444443, 0.44444443]),
+            "c_b": np.array([0.44442918, 0.44442918, 0.44442918]),
+            "Qin": np.array([200.0, 400.0, 600.0]),
+            "Qout": np.array([202.0, 404.0, 606.0]),
             "pwrRanges": np.array(
-                [
-                    1.75822380e07,
-                    4.35325488e07,
-                    7.78509324e07,
-                    1.20537389e08,
-                    1.71591918e08,
-                ]
+                [18709202.21935714, 46965689.2323066, 84698352.1523112]
             ),
         },
         "S4": {
-            "volAcid": np.array([1800.0, 3600.0, 5400.0, 7200.0, 9000.0]),
-            "volBase": np.array([1800.0, 3600.0, 5400.0, 7200.0, 9000.0]),
-            "mCC": np.array([0.0, 0.0, 0.0, 0.0, 0.0]),
-            "pH_f": np.array([8.1, 8.1, 8.1, 8.1, 8.1]),
-            "dic_f": np.array([0.0022, 0.0022, 0.0022, 0.0022, 0.0022]),
-            "c_a": np.array(
-                [0.55555554, 0.55555554, 0.55555554, 0.55555554, 0.55555554]
-            ),
-            "c_b": np.array(
-                [0.55554038, 0.55554038, 0.55554038, 0.55554038, 0.55554038]
-            ),
-            "Qin": np.array([1.0, 2.0, 3.0, 4.0, 5.0]),
-            "Qout": np.array([0.0, 0.0, 0.0, 0.0, 0.0]),
-            "pwrRanges": np.array(
-                [
-                    5.01666667e07,
-                    1.00416667e08,
-                    1.50750000e08,
-                    2.01166667e08,
-                    2.51666667e08,
-                ]
-            ),
+            "volAcid": np.array([3600.0, 7200.0, 10800.0]),
+            "volBase": np.array([3600.0, 7200.0, 10800.0]),
+            "mCC": np.array([0.0, 0.0, 0.0]),
+            "pH_f": np.array([8.1, 8.1, 8.1]),
+            "dic_f": np.array([0.0022, 0.0022, 0.0022]),
+            "c_a": np.array([0.44444443, 0.44444443, 0.44444443]),
+            "c_b": np.array([0.44442918, 0.44442918, 0.44442918]),
+            "Qin": np.array([2.0, 4.0, 6.0]),
+            "Qout": np.array([0.0, 0.0, 0.0]),
+            "pwrRanges": np.array([8.00444444e07, 1.60266667e08, 2.40666667e08]),
         },
         "S5": {
             "volAcid": 0,
@@ -340,117 +146,118 @@ def test_power_chemical_ranges(subtests):
             "pH_f": 8.1,
             "dic_f": 0.0022,
             "c_a": 7.943282347242822e-09,
-            "c_b": 7.58577575029182e-06,
+            "c_b": 7.6339520880939e-06,
             "Qin": 0,
             "Qout": 0,
             "pwrRanges": np.array([0.0]),
         },
-        "P_minS1_tot": 66749999.99999999,
-        "P_minS2_tot": 67290324.14662872,
-        "P_minS3_tot": 17582238.016953908,
-        "P_minS4_tot": 50166666.666666664,
-        "V_aT_max": 10800.0,
-        "V_bT_max": 10800.0,
-        "V_a3_min": 1800.0,
-        "V_b3_min": 1800.0,
-        "N_range": 5,
-        "S2_tot_range": 15,
+        "P_minS1_tot": 98745052.42242806,
+        "P_minS2_tot": 98745052.42242806,
+        "P_minS3_tot": 18709202.21935714,
+        "P_minS4_tot": 80044444.44444443,
+        "V_aT_max": 43200.0,
+        "V_bT_max": 43200.0,
+        "V_a3_min": 3600.0,
+        "V_b3_min": 3600.0,
+        "N_range": 3,
+        "S2_tot_range": 6,
         "S2_ranges": np.array(
             [
                 [1.0, 0.0],
                 [1.0, 1.0],
                 [1.0, 2.0],
-                [1.0, 3.0],
-                [1.0, 4.0],
                 [2.0, 0.0],
                 [2.0, 1.0],
-                [2.0, 2.0],
-                [2.0, 3.0],
                 [3.0, 0.0],
-                [3.0, 1.0],
-                [3.0, 2.0],
-                [4.0, 0.0],
-                [4.0, 1.0],
-                [5.0, 0.0],
             ]
         ),
-        "pump_power_min": 16.75,
-        "pump_power_max": 168.05555555555551,
-        "vacuum_power_min": 0.05403241466287295,
-        "vacuum_power_max": 0.40919179590458093,
+        "pump_power_min": 2.266666666666666,
+        "pump_power_max": 33.999999999999995,
+        "vacuum_power_min": 0.655697029462398,
+        "vacuum_power_max": 3.609265596301979,
     }
 
     assert_dict_equal(actual_data, expected_data, subtests)
 
 
 def test_simulate_electrodialysis(power_profile, subtests):
+    co2_outputs = echem_mcc.co2_purification(
+        ed_config=echem_mcc.ElectrodialysisInputs(N_edMax=3)
+    )
     ranges: echem_mcc.ElectrodialysisRangeOutputs = (
         echem_mcc.initialize_power_chemical_ranges(
-            ed_config=echem_mcc.ElectrodialysisInputs(),
+            ed_config=echem_mcc.ElectrodialysisInputs(N_edMax=3),
             pump_config=echem_mcc.PumpInputs(),
             seawater_config=echem_mcc.SeaWaterInputs(),
+            co2_config=co2_outputs,
         )
     )
-
     actual_data: echem_mcc.ElectrodialysisOutputs = echem_mcc.simulate_electrodialysis(
         ranges=ranges,
-        ed_config=echem_mcc.ElectrodialysisInputs(),
+        ed_config=echem_mcc.ElectrodialysisInputs(N_edMax=3),
         power_profile=power_profile,
         initial_tank_volume_m3=0,
     )
 
     with subtests.test("ED_outputs: N_ed"):
-        sum(actual_data.ED_outputs["N_ed"]) == approx(24091.0, 1e-3)
+        assert sum(actual_data.ED_outputs['N_ed']) == approx(14810.0)
 
     with subtests.test("ED_outputs: P_xs"):
-        sum(actual_data.ED_outputs["P_xs"]) == approx(322629167959.93, 1e-3)
+        assert sum(actual_data.ED_outputs["P_xs"]) == approx(546133724365.8523)
 
     with subtests.test("ED_outputs: volAcid"):
-        sum(actual_data.ED_outputs["volAcid"]) == approx(9000.0, 1e-3)
+        assert sum(actual_data.ED_outputs["volAcid"]) == approx(32400.0)
 
     with subtests.test("ED_outputs: volBase"):
-        sum(actual_data.ED_outputs["volBase"]) == approx(9000.0, 1e-3)
+        assert sum(actual_data.ED_outputs["volBase"]) == approx(32400.0)
 
     with subtests.test("ED_outputs: mCC"):
-        sum(actual_data.ED_outputs["mCC"]) == approx(726563.522, 1e-3)
+        assert sum(actual_data.ED_outputs["mCC"]) == approx(694918.997854312)
 
     with subtests.test("ED_outputs: pH_f"):
-        sum(actual_data.ED_outputs["pH_f"]) == approx(89973.0511, 1e-3)
+        assert sum(actual_data.ED_outputs["pH_f"]) == approx(87019.04999999255)
 
     with subtests.test("ED_outputs: dic_f"):
-        sum(actual_data.ED_outputs["dic_f"]) == approx(4.154, 1e-3)
+        assert sum(actual_data.ED_outputs["dic_f"]) == approx(7.124071682366895)
 
     with subtests.test("ED_outputs: c_a"):
-        sum(actual_data.ED_outputs["c_a"]) == approx(4257.77, 1e-3)
+        assert sum(actual_data.ED_outputs["c_a"]) == approx(3112.4443471469253)
 
     with subtests.test("ED_outputs: c_b"):
-        sum(actual_data.ED_outputs["c_b"]) == approx(4257.67, 1e-3)
+        assert sum(actual_data.ED_outputs["c_b"]) == approx(3112.350936165564)
+
+    with subtests.test("ED_outputs: Qin"):
+        assert sum(actual_data.ED_outputs["Qin"]) == approx(2513926.0)
 
     with subtests.test("ED_outputs: Qout"):
-        sum(actual_data.ED_outputs["Qout"]) == approx(2336429.0, 1e-3)
+        assert sum(actual_data.ED_outputs["Qout"]) == approx(2513908.0)
 
     with subtests.test("capacity_factor"):
-        actual_data.capacity_factor == approx(0.8748, 1e-3)
+        assert actual_data.capacity_factor == approx(0.791095890410959)
 
     with subtests.test("mCC_yr"):
-        actual_data.mCC_yr == approx(726563.522, 1e-3)
+        assert actual_data.mCC_yr == approx(694918.997854312)
 
     with subtests.test("mCC_yr_MaxPwr"):
-        actual_data.mCC_yr_MaxPwr == approx(1362067.34, 1e-3)
+        assert actual_data.mCC_yr_MaxPwr == approx(1455737.3654722548)
 
 
 def test_electrodialysis_costs(power_profile, subtests):
-    ranges: echem_mcc.ElectrodialysisRangeOutputs = (
-        echem_mcc.initialize_power_chemical_ranges(
-            ed_config=echem_mcc.ElectrodialysisInputs(),
-            pump_config=echem_mcc.PumpInputs(),
-            seawater_config=echem_mcc.SeaWaterInputs(),
-        )
+    co2_outputs = echem_mcc.co2_purification(
+        ed_config=echem_mcc.ElectrodialysisInputs(N_edMax=3)
     )
 
+    ranges: echem_mcc.ElectrodialysisRangeOutputs = (
+        echem_mcc.initialize_power_chemical_ranges(
+            ed_config=echem_mcc.ElectrodialysisInputs(N_edMax=3),
+            pump_config=echem_mcc.PumpInputs(),
+            seawater_config=echem_mcc.SeaWaterInputs(),
+            co2_config=co2_outputs,
+        )
+    )
     simulation: echem_mcc.ElectrodialysisOutputs = echem_mcc.simulate_electrodialysis(
         ranges=ranges,
-        ed_config=echem_mcc.ElectrodialysisInputs(),
+        ed_config=echem_mcc.ElectrodialysisInputs(N_edMax=3),
         power_profile=power_profile,
         initial_tank_volume_m3=0,
     )
@@ -460,21 +267,25 @@ def test_electrodialysis_costs(power_profile, subtests):
             electrodialysis_inputs=echem_mcc.ElectrodialysisInputs(),
             mCC_yr=simulation.mCC_yr,
             max_theoretical_mCC=max(ranges.S1["mCC"]),
+            total_tank_volume=ranges.V_aT_max+ranges.V_bT_max,
+            infrastructure_type="swCool",
         )
     )
 
     costs = asdict(costs)
 
     expected_data = {
-        "initial_capital_cost": 7086199204.557611,
-        "yearly_capital_cost": 561189340.1136382,
-        "yearly_operational_cost": 385078666.65331024,
-        "initial_bop_capital_cost": 6847445862.085994,
-        "yearly_bop_capital_cost": 542281343.4790816,
-        "yearly_bop_operational_cost": 369820832.6915753,
-        "initial_ed_capital_cost": 233978275.62218532,
-        "yearly_ed_capital_cost": 18529836.701865412,
-        "yearly_ed_operational_cost": 15257833.961734934,
+        "initial_capital_cost": 1643937996.5385807,
+        "yearly_capital_cost": 129506915.7774168,
+        "yearly_operational_cost": 182763696.43568406,
+        "initial_bop_capital_cost": 1497792942.1620674,
+        "yearly_bop_capital_cost": 117933003.69014753,
+        "yearly_bop_operational_cost": 158441531.51078314,
+        "initial_ed_capital_cost": 146145054.3765131,
+        "yearly_ed_capital_cost": 11573912.087269258,
+        "yearly_ed_operational_cost": 24322164.92490092,
+        "initial_tank_capital_cost": 8640000.0,
+        "yearly_tank_cost": 684242.1104198317
     }
 
     assert_dict_equal(costs, expected_data, subtests)
