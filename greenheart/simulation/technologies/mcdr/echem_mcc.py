@@ -4,13 +4,16 @@ Date: 6/11/2024
 Author: James Niffenegger
 """
 
+import os
 import math
+import warnings
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
 from attrs import define, field
 from numpy import ndarray
+from typing import Tuple
 
 from hopp.utilities.validators import range_val
 
@@ -334,24 +337,18 @@ class Pump:
         if Q == 0:
             P_pump = 0
         elif Q < self.Q_min:
-            print(
-                "Warning: Flow Rate is ",
-                (self.Q_min - Q) / self.Q_min * 100,
-                "%",
-                " Less than Range Provided for Pump Power, Default to Min Flow Rate",
-            )  # TODO change to warning
+            warnings.warn(
+                f"Warning: Flow Rate is {(self.Q_min - Q) / self.Q_min * 100:.2f}% less than the range provided for pump power. Defaulting to minimum flow rate."
+            )
             Q = self.Q_min
             perc_range = (Q - self.Q_min) / (self.Q_max - self.Q_min)
             p_bar = (self.p_max_bar - self.p_min_bar) * perc_range + self.p_min_bar
             p = p_bar * 100000  # convert from bar to Pa
             P_pump = Q * p / self.eff
         elif Q > self.Q_max:
-            print(
-                "Warning: Flow Rate is ",
-                (Q - self.Q_max) / self.Q_max * 100,
-                "%",
-                " Larger than Range Provided for Pump Power, Default to Max Flow Rate",
-            )  # TODO change to warning
+            warnings.warn(
+                f"Warning: Flow Rate is {(Q - self.Q_max) / self.Q_max * 100:.2f}% larger than the range provided for pump power. Defaulting to maximum flow rate."
+            )
             Q = self.Q_max
             perc_range = (Q - self.Q_min) / (self.Q_max - self.Q_min)
             p_bar = (self.p_max_bar - self.p_min_bar) * perc_range + self.p_min_bar
@@ -518,6 +515,8 @@ class Vacuum:
         p_max_bar (float): Maximum pressure (bar).
         eff (float): Efficiency of the vacuum system.
         y_pur (float): Purity of CO2 extracted as a fraction (0 to 1).
+        Q_min (float): Min air flow rate (m³).
+        Q_max (float): Max air flow rate (m³).
         mCC (float): Instantaneous flow rate (m³/s), initially set to zero.
         co2_mm (float): Molar mass of CO2 (g/mol), default is 44.01.
     """
@@ -527,7 +526,9 @@ class Vacuum:
     p_min_bar: float
     p_max_bar: float
     eff: float
-    y_pur: float  # TODO: determine if this is the best way to set this
+    y_pur: float
+    Q_min: float = field(init=False)
+    Q_max: float = field(init=False)
     mCC: float = field(default=0)
     co2_mm: float = field(init=False, default=44.01)
 
@@ -551,22 +552,16 @@ class Vacuum:
                 self.p_max_bar
             )  # maximum pressure of air used if the flow rate is constant
         elif mCC < self.mCC_min:
-            print(
-                "Warning: Carbon Capture Rate is ",
-                (self.mCC_min - mCC) / self.mCC_min * 100,
-                "%",
-                " Less than Range Provided for Vacuum Power, Default to Min Capture Rate",
-            )  # TODO: Fix to warning
+            warnings.warn(
+                f"Warning: Carbon Capture Rate is {(self.mCC_min - mCC) / self.mCC_min * 100:.2f}% less than the range provided for vacuum power. Defaulting to minimum capture rate."
+            )
             mCC = self.mCC_min
             perc_range = (mCC - self.mCC_min) / (self.mCC_max - self.mCC_min)
             p_bar = (self.p_max_bar - self.p_min_bar) * perc_range + self.p_min_bar
         elif mCC > self.mCC_max:
-            print(
-                "Warning: Carbon Capture Rate is ",
-                (mCC - self.mCC_max) / self.mCC_max * 100,
-                "%",
-                " Larger than Range Provided for Vacuum Power, Default to Max Capture Rate",
-            )  # TODO: Fix to warning
+            warnings.warn(
+                f"Warning: Carbon Capture Rate is {(mCC - self.mCC_max) / self.mCC_max * 100:.2f}% larger than the range provided for vacuum power. Defaulting to maximum capture rate."
+            )
             mCC = self.mCC_max
             perc_range = (mCC - self.mCC_min) / (self.mCC_max - self.mCC_min)
             p_bar = (self.p_max_bar - self.p_min_bar) * perc_range + self.p_min_bar
@@ -591,6 +586,23 @@ class Vacuum:
         )  # this is the total mole rate of air (gas in the mix) given the mole fraction of CO2
         Q_air = n_air * R_gc * temp / p  # (m3/s) flow rate using ideal gas law
         P_vac = Q_air * deltaP / self.eff
+
+        self.Q_min = (
+            self.mCC_min
+            / (self.co2_mm * 3600 / 10**6)
+            * R_gc
+            * temp
+            / ((1 + self.p_min_bar) * 10**5)
+            / self.y_pur
+        )  # (m3/s) min air flow rate
+        self.Q_max = (
+            self.mCC_max
+            / (self.co2_mm * 3600 / 10**6)
+            * R_gc
+            * temp
+            / ((1 + self.p_max_bar) * 10**5)
+            / self.y_pur
+        )  # (m3/s) max air flow rate
 
         return P_vac
 
@@ -668,6 +680,8 @@ class ElectrodialysisRangeOutputs:
         pump_power_max (float): Maximum pump power in MW.
         vacuum_power_min (float): Minimum vacuum power in MW.
         vacuum_power_max (float): Maximum vacuum power in MW.
+        vacuum_air_flow_min (float): Minimum vacuum air flow rate in m³/s.
+        vacuum_air_flow_max (float): Maximum vacuum air flow rate in m³/s.
         sep_power_min (float): Minimum separation power in MW.
         sep_power_max (float): Maximum separation power in MW.
         comp_power_min (float): Minimum compression power in MW.
@@ -694,21 +708,27 @@ class ElectrodialysisRangeOutputs:
     pump_power_max: float
     vacuum_power_min: float
     vacuum_power_max: float
+    vacuum_air_flow_min: float
+    vacuum_air_flow_max: float
     sep_power_min: float
     sep_power_max: float
     comp_power_min: float
     comp_power_max: float
+    pumps: PumpOutputs
+
 
 @define
 class CO2PurificationOutputs:
     """This class defines the outputs related to CO2 purification, including energy consumption for CO2 separation and compression.
-    
+
     Attributes:
         wCO2sep (float): Energy required for CO2 separation to near 100% purity (Wh/tCO2).
         wCO2comp (float): Energy required for CO2 compression to supercritical pressure (Wh/tCO2).
     """
+
     wCO2sep: float
     wCO2comp: float
+
 
 def co2_purification(ed_config: ElectrodialysisInputs) -> CO2PurificationOutputs:
     """Calculates the energy required for CO2 separation and compression.
@@ -727,30 +747,35 @@ def co2_purification(ed_config: ElectrodialysisInputs) -> CO2PurificationOutputs
     """
     # Note: since CO2 extracted from mCC/ DOC is not always 100% pure (y_pur != 1), additional tech is needed to refine it to ~100% purity for storage
     # This section determines the energy for this process with existing tech efficiency and assumes that none of the captured CO2 is lost
-    R_gc = 8.314 # (J/mol*K) universal gas constant
-    temp = 298 # (K) assuming temperature inside is 25C
+    R_gc = 8.314  # (J/mol*K) universal gas constant
+    temp = 298  # (K) assuming temperature inside is 25C
     y_pur = ed_config.y_pur
-    wCO2sepMin_Jmol = -R_gc*temp/y_pur * (y_pur*math.log(y_pur)+(1-y_pur)*math.log(1-y_pur)) # (J/molCO2) minimum thermodynamic energy for separation
-    # print("Minimum Energy for Separation = ", wCO2sepMin_Jmol, "J/molCO2")
-    wCO2sepMin = wCO2sepMin_Jmol / ed_config.co2_mm * 10**6 /3600 # (Wh/tCO2) or (WtStep/tCO2)
-    # print("Minimum Energy for Separation = ", wCO2sepMin, "J/tCO2")
-    n_sep = 0.2 # efficiency of CO2 separation (about 20% for amine based methods and PSA)
-    wCO2sep = wCO2sepMin/n_sep # (Wh/tCO2) actual energy needed to purify CO2 to 100%
-    print("Energy for Separation = ", wCO2sep/10**6, "MWh/tCO2")
+    wCO2sepMin_Jmol = (
+        -R_gc
+        * temp
+        / y_pur
+        * (y_pur * math.log(y_pur) + (1 - y_pur) * math.log(1 - y_pur))
+    )  # (J/molCO2) minimum thermodynamic energy for separation
+    wCO2sepMin = (
+        wCO2sepMin_Jmol / ed_config.co2_mm * 10**6 / 3600
+    )  # (Wh/tCO2) or (WtStep/tCO2)
+    n_sep = (
+        0.2  # efficiency of CO2 separation (about 20% for amine based methods and PSA)
+    )
+    wCO2sep = wCO2sepMin / n_sep  # (Wh/tCO2) actual energy needed to purify CO2 to 100%
 
     ## CO2 Compression
-    wCO2comp = 90*1000 * 3600 / 3600 # (Wh/tCO2) or (WtStep/tCO2) General energy required per ton of 100% pure CO2 compressed to supercritical pressure for storage
-    print("Energy for Compression = ", wCO2comp/10**6, "MWh/tCO2")
-    return CO2PurificationOutputs(
-        wCO2sep=wCO2sep,
-        wCO2comp=wCO2comp
-    )
+    wCO2comp = (
+        90 * 1000 * 3600 / 3600
+    )  # (Wh/tCO2) or (WtStep/tCO2) General energy required per ton of 100% pure CO2 compressed to supercritical pressure for storage
+    return CO2PurificationOutputs(wCO2sep=wCO2sep, wCO2comp=wCO2comp)
+
 
 def initialize_power_chemical_ranges(
     ed_config: ElectrodialysisInputs,
     pump_config: PumpInputs,
     seawater_config: SeaWaterInputs,
-    co2_config: CO2PurificationOutputs
+    co2_config: CO2PurificationOutputs,
 ) -> ElectrodialysisRangeOutputs:
     """
     Initialize the power and chemical ranges for an electrodialysis system under various scenarios.
@@ -836,7 +861,9 @@ def initialize_power_chemical_ranges(
         ############################### S1: Chem Ranges: Tank Full #####################################
         P_EDi = (i + N_edMin) * P_ed1  # ED unit power requirements
         p.pumpED.Q = (i + N_edMin) * Q_ed1  # Flow rates for ED Units
-        p.pumpO.Q = 1/ed_config.frac_EDflow*p.pumpED.Q # Intake is 100x larger than ED unit
+        p.pumpO.Q = (
+            1 / ed_config.frac_EDflow * p.pumpED.Q
+        )  # Intake is 100x larger than ED unit
         S1["Qin"][i] = p.pumpO.Q  # (m3/s) Intake
 
         # Acid and Base Concentrations
@@ -931,7 +958,9 @@ def initialize_power_chemical_ranges(
         ############################### S3: Chem Ranges: ED not active, tanks not zeros ##################
         P_EDi = 0  # ED Unit is off
         p.pumpED.Q = 0  # ED Unit is off
-        p.pumpO.Q = 1/ed_config.frac_EDflow*(i+N_edMin)*Q_ed1 # Flow rates for intake based on equivalent ED units that would be active
+        p.pumpO.Q = (
+            1 / ed_config.frac_EDflow * (i + N_edMin) * Q_ed1
+        )  # Flow rates for intake based on equivalent ED units that would be active
         S3["Qin"][i] = p.pumpO.Q
         p.pumpI.Q = p.pumpO.Q  # since no flow is going to the ED unit
         p.pumpA.Q = (
@@ -1071,13 +1100,15 @@ def initialize_power_chemical_ranges(
         pump_config.p_vacCO2_min_bar,
         pump_config.p_vacCO2_max_bar,
         ed_config.y_vac,
-        ed_config.y_pur
+        ed_config.y_pur,
     )
     for i in range(N_range):
         ############################### S1: Power Ranges: Tank Full ####################################
         P_EDi = (i + N_edMin) * P_ed1  # ED unit power requirements
         p.pumpED.Q = (i + N_edMin) * Q_ed1  # Flow rates for ED Units
-        p.pumpO.Q = 1/ed_config.frac_EDflow*p.pumpED.Q # Intake is 100x larger than ED unit
+        p.pumpO.Q = (
+            1 / ed_config.frac_EDflow * p.pumpED.Q
+        )  # Intake is 100x larger than ED unit
         p.pumpA.Q = p.pumpED.Q / 2  # Acid flow rate
         p.pumpI.Q = p.pumpO.Q - p.pumpED.Q  # Intake remaining after diversion to ED
         p.pumpCO2ex.Q = p.pumpI.Q + p.pumpA.Q  # Acid addition
@@ -1085,8 +1116,12 @@ def initialize_power_chemical_ranges(
         p.pumpB.Q = p.pumpED.Q - p.pumpA.Q  # Base flow rate
         p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q  # Outtake flow rate
         vacCO2.mCC = S1["mCC"][i]  # mCC rate from the previous calculation
-        P_sepI = wCO2sep * S1["mCC"][i] # Power needed to purify CO2 to 100% purity without losing any CO2
-        P_compI = wCO2comp * S1["mCC"][i] # Power needed to compress 100% pure CO2 for storage
+        P_sepI = (
+            wCO2sep * S1["mCC"][i]
+        )  # Power needed to purify CO2 to 100% purity without losing any CO2
+        P_compI = (
+            wCO2comp * S1["mCC"][i]
+        )  # Power needed to compress 100% pure CO2 for storage
         S1["pwrRanges"][i] = (
             P_EDi
             + P_sepI
@@ -1107,7 +1142,9 @@ def initialize_power_chemical_ranges(
         ######################## S3: Power Ranges: ED not active, tanks not zeros ########################
         P_EDi = 0  # ED Unit is off
         p.pumpED.Q = 0  # ED Unit is off
-        p.pumpO.Q = 1/ed_config.frac_EDflow*(i+N_edMin)*Q_ed1 # Flow rates for intake based on equivalent ED units that would be active
+        p.pumpO.Q = (
+            1 / ed_config.frac_EDflow * (i + N_edMin) * Q_ed1
+        )  # Flow rates for intake based on equivalent ED units that would be active
         p.pumpI.Q = p.pumpO.Q  # since no flow is going to the ED unit
         p.pumpA.Q = (
             (i + N_edMin) * Q_ed1 / 2
@@ -1117,8 +1154,12 @@ def initialize_power_chemical_ranges(
         p.pumpASW.Q = p.pumpCO2ex.Q  # post extraction
         p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q  # Outtake flow rate
         vacCO2.mCC = S3["mCC"][i]  # mCC rate from the previous calculation
-        P_sepI = wCO2sep * S3["mCC"][i] # Power needed to purify CO2 to 100% purity without losing any CO2
-        P_compI = wCO2comp * S3["mCC"][i] # Power needed to compress 100% pure CO2 for storage
+        P_sepI = (
+            wCO2sep * S3["mCC"][i]
+        )  # Power needed to purify CO2 to 100% purity without losing any CO2
+        P_compI = (
+            wCO2comp * S3["mCC"][i]
+        )  # Power needed to compress 100% pure CO2 for storage
         S3["pwrRanges"][i] = (
             P_EDi
             + P_sepI
@@ -1147,8 +1188,12 @@ def initialize_power_chemical_ranges(
         p.pumpB.Q = p.pumpED4.Q - p.pumpA.Q  # Base flow rate
         p.pumpF.Q = 0  # Outtake flow rate
         vacCO2.mCC = S4["mCC"][i]  # mCC rate from the previous calculation
-        P_sepI = wCO2sep * S4["mCC"][i] # Power needed to purify CO2 to 100% purity without losing any CO2
-        P_compI = wCO2comp * S4["mCC"][i] # Power needed to compress 100% pure CO2 for storage
+        P_sepI = (
+            wCO2sep * S4["mCC"][i]
+        )  # Power needed to purify CO2 to 100% purity without losing any CO2
+        P_compI = (
+            wCO2comp * S4["mCC"][i]
+        )  # Power needed to compress 100% pure CO2 for storage
         S4["pwrRanges"][i] = (
             P_EDi
             + P_sepI
@@ -1194,7 +1239,9 @@ def initialize_power_chemical_ranges(
         S2["volAcid"][i] = Q_aT * 3600  # (m3) acid added to tank
 
         # Seawater Intake
-        p.pumpO.Q = Q_aMCC * 2 * 1/ed_config.frac_EDflow + (p.pumpED.Q - (Q_aMCC * 2)) # total seawater intake
+        p.pumpO.Q = Q_aMCC * 2 * 1 / ed_config.frac_EDflow + (
+            p.pumpED.Q - (Q_aMCC * 2)
+        )  # total seawater intake
         S2["Qin"][i] = p.pumpO.Q  # (m3/s) intake
 
         # Acid addition to seawater
@@ -1293,7 +1340,9 @@ def initialize_power_chemical_ranges(
         p.pumpED.Q = (N_edi) * Q_ed1  # Flow rates for ED Units
         # Amount of acid added for mCC
         Q_aMCC = S2_ranges[i, 0] * Q_ed1 / 2  # flow rate used for mCC
-        p.pumpO.Q = Q_aMCC * 2 * 1/ed_config.frac_EDflow + (p.pumpED.Q - (Q_aMCC * 2)) # total seawater intake
+        p.pumpO.Q = Q_aMCC * 2 * 1 / ed_config.frac_EDflow + (
+            p.pumpED.Q - (Q_aMCC * 2)
+        )  # total seawater intake
         p.pumpA.Q = p.pumpED.Q / 2  # Acid flow rate
         p.pumpI.Q = p.pumpO.Q - p.pumpED.Q  # Intake remaining after diversion to ED
         p.pumpCO2ex.Q = p.pumpI.Q + p.pumpA.Q  # Acid addition
@@ -1301,8 +1350,12 @@ def initialize_power_chemical_ranges(
         p.pumpB.Q = p.pumpED.Q - p.pumpA.Q  # Base flow rate
         p.pumpF.Q = p.pumpASW.Q + p.pumpB.Q  # Outtake flow rate
         vacCO2.mCC = S2["mCC"][i]  # mCC rate from the previous calculation
-        P_sepI = wCO2sep * S2["mCC"][i] # Power needed to purify CO2 to 100% purity without losing any CO2
-        P_compI = wCO2comp * S2["mCC"][i] # Power needed to compress 100% pure CO2 for storage
+        P_sepI = (
+            wCO2sep * S2["mCC"][i]
+        )  # Power needed to purify CO2 to 100% purity without losing any CO2
+        P_compI = (
+            wCO2comp * S2["mCC"][i]
+        )  # Power needed to compress 100% pure CO2 for storage
         S2["pwrRanges"][i] = (
             P_EDi
             + P_sepI
@@ -1367,12 +1420,12 @@ def initialize_power_chemical_ranges(
     )
 
     # Separation Power Ranges
-    sep_power_min = wCO2sep * min(np.concatenate([S1['mCC'], S3['mCC']])) 
-    sep_power_max = wCO2sep * max(np.concatenate([S1['mCC'], S3['mCC']]))
+    sep_power_min = wCO2sep * min(np.concatenate([S1["mCC"], S3["mCC"]]))
+    sep_power_max = wCO2sep * max(np.concatenate([S1["mCC"], S3["mCC"]]))
 
     # Compression Power Ranges
-    comp_power_min = wCO2comp * min(np.concatenate([S1['mCC'], S3['mCC']])) 
-    comp_power_max = wCO2comp * max(np.concatenate([S1['mCC'], S3['mCC']]))
+    comp_power_min = wCO2comp * min(np.concatenate([S1["mCC"], S3["mCC"]]))
+    comp_power_max = wCO2comp * max(np.concatenate([S1["mCC"], S3["mCC"]]))
 
     return ElectrodialysisRangeOutputs(
         S1=S1,
@@ -1391,14 +1444,17 @@ def initialize_power_chemical_ranges(
         N_range=N_range,
         S2_tot_range=S2_tot_range,
         S2_ranges=S2_ranges,
-        pump_power_min=pump_power_min/1e6,
-        pump_power_max=pump_power_max/1e6,
+        pump_power_min=pump_power_min / 1e6,
+        pump_power_max=pump_power_max / 1e6,
         vacuum_power_min=vacCO2.P_min / 1e6,
         vacuum_power_max=vacCO2.P_max / 1e6,
+        vacuum_air_flow_min=vacCO2.Q_min,
+        vacuum_air_flow_max=vacCO2.Q_max,
         sep_power_min=sep_power_min / 1e6,
-        sep_power_max=sep_power_max/1e6,
-        comp_power_min=comp_power_min/1e6,
-        comp_power_max=comp_power_max/1e6
+        sep_power_max=sep_power_max / 1e6,
+        comp_power_min=comp_power_min / 1e6,
+        comp_power_max=comp_power_max / 1e6,
+        pumps=p,
     )
 
 
@@ -1413,6 +1469,8 @@ class ElectrodialysisOutputs:
                 - P_xs (array): Excess power available at each time step (W).
                 - volAcid (array): Volume of acid added or removed from tanks at each time step (m³).
                 - volBase (array): Volume of base added or removed from tanks at each time step (m³).
+                - tank_vol_a (array): Volume of acid in the tank at each time step (m³).
+                - tank_vol_b (array): Volume of base in the tank at each time step (m³).
                 - mCC (array): Amount of CO2 captured at each time step (tCO2/hr).
                 - pH_f (array): Final pH at each time step.
                 - dic_f (array): Final dissolved inorganic carbon concentration at each time step.
@@ -1420,10 +1478,13 @@ class ElectrodialysisOutputs:
                 - c_b (array): Base concentration at each time step (mol/L).
                 - Qin (array): Intake flow rate at each time step (m³/s).
                 - Qout (array): Outtake flow rate at each time step (m³/s).
+                - S_t (array): Scenario number active at each time step (1-5).
         mCC_total (float): Total amount of CO2 captured over the entire process.
         capacity_factor (float): Overall capacity factor of the electrodialysis system.
         mCC_yr (float): Average yearly CO2 capture.
         mCC_yr_MaxPwr (float): Yearly CO2 capture under constant maximum power conditions.
+        max_tank_fill_percent (float): Maximum percentage of the tank that was filled with acid during simulation.
+        max_tank_fill_m3 (float): Maximum volume of the tank that was filled with acid during simulation (m³).
     """
 
     ED_outputs: dict
@@ -1431,6 +1492,8 @@ class ElectrodialysisOutputs:
     capacity_factor: float
     mCC_yr: float
     mCC_yr_MaxPwr: float
+    max_tank_fill_percent: float
+    max_tank_fill_m3: float
 
 
 def simulate_electrodialysis(
@@ -1472,6 +1535,8 @@ def simulate_electrodialysis(
         "P_xs",  # (W) Excess power at each time
         "volAcid",  # (m³) Volume of acid added/removed to/from tanks at each time
         "volBase",  # (m³) Volume of base added/removed to/from tanks at each time
+        "tank_vol_a",  # (m³) Volume of acid in the tank at each time
+        "tank_vol_b",  # (m³) Volume of base in the tank at each time
         "mCC",  # (tCO2/hr) Amount CO2 captured at each time
         "pH_f",  # Final pH at each time
         "dic_f",  # (mol/L) Final DIC at each time
@@ -1479,20 +1544,17 @@ def simulate_electrodialysis(
         "c_b",  # (mol/L) Base concentration at each time step
         "Qin",  # (m³/s) Intake flow rate at each time step
         "Qout",  # (m³/s) Outtake flow rate at each time step
+        "S_t",  # The scenario activated at each time step
     ]
 
     # Initialize the dictionaries
     ED_outputs = {key: np.zeros(len(power_profile)) for key in keys}
 
     nON = 0  # Timesteps when capture occurs (S1-3) used to determine capacity factor
-    S_t = []  # Scenario for each time step
 
     for i in range(len(power_profile)):
         # Scenario 1:  Tanks Full and ED unit Active
         if power_profile[i] >= ranges.P_minS1_tot and tank_vol_a[i] == ranges.V_aT_max:
-            # Note Scenario 1 is active
-            S_t.append("S1")
-
             # Find number of active units based on power
             for j in range(ranges.N_range):
                 if power_profile[i] >= ranges.S1["pwrRanges"][j]:
@@ -1502,6 +1564,8 @@ def simulate_electrodialysis(
             # Update recorded values based on number of ED units active
             ED_outputs["volAcid"][i] = ranges.S1["volAcid"][i_ed]
             ED_outputs["volBase"][i] = ranges.S1["volBase"][i_ed]
+            ED_outputs["tank_vol_a"][i] = tank_vol_a[i]
+            ED_outputs["tank_vol_b"][i] = tank_vol_b[i]
             ED_outputs["mCC"][i] = ranges.S1["mCC"][i_ed]
             ED_outputs["pH_f"][i] = ranges.S1["pH_f"][i_ed]
             ED_outputs["dic_f"][i] = ranges.S1["dic_f"][i_ed]
@@ -1509,6 +1573,7 @@ def simulate_electrodialysis(
             ED_outputs["c_b"][i] = ranges.S1["c_b"][i_ed]
             ED_outputs["Qin"][i] = ranges.S1["Qin"][i_ed]
             ED_outputs["Qout"][i] = ranges.S1["Qout"][i_ed]
+            ED_outputs["S_t"][i] = 1
 
             # Update Tank Volumes
             tank_vol_a[i + 1] = tank_vol_a[i] + ED_outputs["volAcid"][i]
@@ -1532,10 +1597,11 @@ def simulate_electrodialysis(
             nON = nON + 1  # Used to determine Capacity Factor
 
         # Scenario 2: Capture CO2 and Fill Tanks
-        elif ed_config.use_storage_tanks and power_profile[i] >= ranges.P_minS2_tot and tank_vol_a[i] < ranges.V_aT_max:
-            # Note Scenario 2 is active
-            S_t.append("S2")
-
+        elif (
+            ed_config.use_storage_tanks
+            and power_profile[i] >= ranges.P_minS2_tot
+            and tank_vol_a[i] < ranges.V_aT_max
+        ):
             # Find number of units that can be active based on power and volume
             # Determine number of scenarios that meet the qualifications
             v = 0
@@ -1570,6 +1636,8 @@ def simulate_electrodialysis(
             # Update recorded values based on the case within S2
             ED_outputs["volAcid"][i] = ranges.S2["volAcid"][i_s2]
             ED_outputs["volBase"][i] = ranges.S2["volBase"][i_s2]
+            ED_outputs["tank_vol_a"][i] = tank_vol_a[i]
+            ED_outputs["tank_vol_b"][i] = tank_vol_b[i]
             ED_outputs["mCC"][i] = ranges.S2["mCC"][i_s2]
             ED_outputs["pH_f"][i] = ranges.S2["pH_f"][i_s2]
             ED_outputs["dic_f"][i] = ranges.S2["dic_f"][i_s2]
@@ -1577,6 +1645,7 @@ def simulate_electrodialysis(
             ED_outputs["c_b"][i] = ranges.S2["c_b"][i_s2]
             ED_outputs["Qin"][i] = ranges.S2["Qin"][i_s2]
             ED_outputs["Qout"][i] = ranges.S2["Qout"][i_s2]
+            ED_outputs["S_t"][i] = 2
 
             # Update Tank Volumes
             tank_vol_a[i + 1] = tank_vol_a[i] + ED_outputs["volAcid"][i]
@@ -1600,12 +1669,11 @@ def simulate_electrodialysis(
             nON = nON + 1  # Used to determine Capacity Factor
 
         # Scenario 3: Tanks Used for CO2 Capture
-        elif (ed_config.use_storage_tanks and
-            power_profile[i] >= ranges.P_minS3_tot and tank_vol_a[i] >= ranges.V_a3_min
+        elif (
+            ed_config.use_storage_tanks
+            and power_profile[i] >= ranges.P_minS3_tot
+            and tank_vol_a[i] >= ranges.V_a3_min
         ):
-            # Note Scenario 3 is active
-            S_t.append("S3")
-
             # Find number of equivalent units active based on power
             for j in range(ranges.N_range):
                 if (
@@ -1620,6 +1688,8 @@ def simulate_electrodialysis(
             # Update recorded values based on number of ED units active
             ED_outputs["volAcid"][i] = ranges.S3["volAcid"][i_ed]
             ED_outputs["volBase"][i] = ranges.S3["volBase"][i_ed]
+            ED_outputs["tank_vol_a"][i] = tank_vol_a[i]
+            ED_outputs["tank_vol_b"][i] = tank_vol_b[i]
             ED_outputs["mCC"][i] = ranges.S3["mCC"][i_ed]
             ED_outputs["pH_f"][i] = ranges.S3["pH_f"][i_ed]
             ED_outputs["dic_f"][i] = ranges.S3["dic_f"][i_ed]
@@ -1627,6 +1697,7 @@ def simulate_electrodialysis(
             ED_outputs["c_b"][i] = ranges.S3["c_b"][i_ed]
             ED_outputs["Qin"][i] = ranges.S3["Qin"][i_ed]
             ED_outputs["Qout"][i] = ranges.S3["Qout"][i_ed]
+            ED_outputs["S_t"][i] = 3
 
             # Update Tank Volumes
             tank_vol_a[i + 1] = tank_vol_a[i] + ED_outputs["volAcid"][i]
@@ -1648,10 +1719,11 @@ def simulate_electrodialysis(
             nON = nON + 1  # Used to determine Capacity Factor
 
         # Scenario 4: No Capture, Tanks Filled by ED Units
-        elif ed_config.use_storage_tanks and power_profile[i] >= ranges.P_minS4_tot and tank_vol_a[i] < ranges.V_a3_min:
-            # Note Scenario 4 is active
-            S_t.append("S4")
-
+        elif (
+            ed_config.use_storage_tanks
+            and power_profile[i] >= ranges.P_minS4_tot
+            and tank_vol_a[i] < ranges.V_a3_min
+        ):
             # Determine number of ED units active
             for j in range(ranges.N_range):
                 if (
@@ -1666,6 +1738,8 @@ def simulate_electrodialysis(
             # Update recorded values based on number of ED units active
             ED_outputs["volAcid"][i] = ranges.S4["volAcid"][i_ed]
             ED_outputs["volBase"][i] = ranges.S4["volBase"][i_ed]
+            ED_outputs["tank_vol_a"][i] = tank_vol_a[i]
+            ED_outputs["tank_vol_b"][i] = tank_vol_b[i]
             ED_outputs["mCC"][i] = ranges.S4["mCC"][i_ed]
             ED_outputs["pH_f"][i] = ranges.S4["pH_f"][i_ed]
             ED_outputs["dic_f"][i] = ranges.S4["dic_f"][i_ed]
@@ -1673,6 +1747,7 @@ def simulate_electrodialysis(
             ED_outputs["c_b"][i] = ranges.S4["c_b"][i_ed]
             ED_outputs["Qin"][i] = ranges.S4["Qin"][i_ed]
             ED_outputs["Qout"][i] = ranges.S4["Qout"][i_ed]
+            ED_outputs["S_t"][i] = 4
 
             # Update Tank Volumes
             tank_vol_a[i + 1] = tank_vol_a[i] + ED_outputs["volAcid"][i]
@@ -1696,15 +1771,14 @@ def simulate_electrodialysis(
 
         # Scenario 5: When all Input Power is Excess
         else:
-            # Note Scenario 5 is active
-            S_t.append("S5")
-
             # Determine number of ED units active
             ED_outputs["N_ed"][i] = 0  # None are used in this case
 
             # Update recorded values based on number of ED units active
             ED_outputs["volAcid"][i] = ranges.S5["volAcid"]
             ED_outputs["volBase"][i] = ranges.S5["volBase"]
+            ED_outputs["tank_vol_a"][i] = tank_vol_a[i]
+            ED_outputs["tank_vol_b"][i] = tank_vol_b[i]
             ED_outputs["mCC"][i] = ranges.S5["mCC"]
             ED_outputs["pH_f"][i] = ranges.S5["pH_f"]
             ED_outputs["dic_f"][i] = ranges.S5["dic_f"]
@@ -1712,6 +1786,7 @@ def simulate_electrodialysis(
             ED_outputs["c_b"][i] = ranges.S5["c_b"]
             ED_outputs["Qin"][i] = ranges.S5["Qin"]
             ED_outputs["Qout"][i] = ranges.S5["Qout"]
+            ED_outputs["S_t"][i] = 5
 
             # Update Tank Volumes
             tank_vol_a[i + 1] = tank_vol_a[i] + ED_outputs["volAcid"][i]
@@ -1736,7 +1811,9 @@ def simulate_electrodialysis(
     if ranges.V_aT_max == 0:
         maxTankFillP = 0
     else:
-        maxTankFillP =  max(tank_vol_a)/ranges.V_aT_max*100 # max tank fill in percent
+        maxTankFillP = (
+            max(tank_vol_a) / ranges.V_aT_max * 100
+        )  # max tank fill in percent
 
     # Total amount of CO2 captured
     mCC_total = sum(ED_outputs["mCC"])  # total amount of CO2 captured
@@ -1756,6 +1833,8 @@ def simulate_electrodialysis(
         capacity_factor=capacity_factor,
         mCC_yr=mCC_yr,
         mCC_yr_MaxPwr=mCC_yr_MaxPwr,
+        max_tank_fill_percent=maxTankFillP,
+        max_tank_fill_m3=maxTankFill_m3,
     )
 
 
@@ -1765,9 +1844,9 @@ class ElectrodialysisCostInputs:
 
     Attributes:
         electrodialysis_inputs (ElectrodialysisInputs): Inputs related to the electrodialysis process.
-        mCC_yr (float): Average yearly CO2 capture.
-        max_theoretical_mCC (float): Maximum theoretical CO2 capture TODO: add units.
-        total_tank_volume (float): Total volume of tanks. TODO: tanks store what? Acid/base? Co2?
+        mCC_yr (float): Average yearly CO2 capture (tCO2/yr).
+        max_theoretical_mCC (float): Maximum theoretical CO2 capture (tCO2/yr).
+        total_tank_volume (float): Total volume of acid/base tanks.
         infrastructure_type (str): Infrastructure type, with options "desal", "swCool", or "new". Defaults to "new".
         user_costs (bool): If True, user-defined cost inputs are used, and the costs are initialized to zero.
                            If False, default costs are applied. Defaults to False.
@@ -1856,6 +1935,8 @@ class ElectrodialysisCostOutputs:
 
 def electrodialysis_cost_model(
     cost_config: ElectrodialysisCostInputs,
+    save_outputs=False,
+    output_dir="./output/",
 ) -> ElectrodialysisCostOutputs:
     """
     Calculates the costs associated with electrodialysis based on user inputs or default literature values.
@@ -1913,26 +1994,29 @@ def electrodialysis_cost_model(
         t_amor = 20  # (years) Amortization time (20 years)
         amort_factor = (1 - (1 + r_int / n_pay) ** (-n_pay * t_amor)) / r_int
 
-        tankCapI = cost_config.cost_per_unit_volume_tanks * cost_config.total_tank_volume # (2023$) total cost of tanks
-        cpCO2_Tanks = tankCapI/cost_config.mCC_yr # (2023$/tCO2) cost of tanks per tCO2 captured yearly
-        tankCapYr = tankCapI/amort_factor
+        tankCapI = (
+            cost_config.cost_per_unit_volume_tanks * cost_config.total_tank_volume
+        )  # (2023$) total cost of tanks
+        cpCO2_Tanks = (
+            tankCapI / cost_config.mCC_yr
+        )  # (2023$/tCO2) cost of tanks per tCO2 captured yearly
+        tankCapYr = tankCapI / amort_factor
 
         # Apply learning rate
-        lr = 0.2 # learning rate assumed to be 20% (20% is considered a fast learning rate for DAC, 15% is common for desal, and ~9-12% is common for offshore wind)
+        lr = 0.2  # learning rate assumed to be 20% (20% is considered a fast learning rate for DAC, 15% is common for desal, and ~9-12% is common for offshore wind)
         capFactLit = (
             0.934  # Capacity factor from literature needed for capital cost (93.4%)
         )
         mCC_yr_lit = 20 * ed.co2_mm / 1000 * capFactLit * 24 * 365
         mCC_yr_mod = cost_config.max_theoretical_mCC * capFactLit * 24 * 365
-        print("theoretical max", cost_config.max_theoretical_mCC)
         b = -math.log2(1 - lr)
         CEco2Mod = CEco2 * (mCC_yr_mod / mCC_yr_lit) ** (-b)
         BOPcapCo2Mod = BOPcapCo2 * (mCC_yr_mod / mCC_yr_lit) ** (-b)
         EDcapCo2Mod = EDcapCo2 * (mCC_yr_mod / mCC_yr_lit) ** (-b)
 
         # Calculate Yearly CapEx
-        CEyr = CEco2Mod * mCC_yr_mod + tankCapYr 
-        BOPcapYr = BOPcapCo2Mod * mCC_yr_mod + tankCapYr 
+        CEyr = CEco2Mod * mCC_yr_mod + tankCapYr
+        BOPcapYr = BOPcapCo2Mod * mCC_yr_mod + tankCapYr
         EDcapYr = EDcapCo2Mod * mCC_yr_mod
 
         # Calculate Yearly OpEx
@@ -1941,9 +2025,41 @@ def electrodialysis_cost_model(
         EDopNoEyr = EDopNoEco2 * cost_config.mCC_yr
 
         # Calculate Initial CapEx
-        CEi = CEyr * amort_factor + tankCapI 
-        BOPcapI = BOPcapYr * amort_factor + tankCapI 
+        CEi = CEyr * amort_factor + tankCapI
+        BOPcapI = BOPcapYr * amort_factor + tankCapI
         EDcapI = EDcapYr * amort_factor
+
+    if save_outputs:
+        save_paths = [output_dir + "figures/", output_dir + "data/"]
+
+        for savepath in save_paths:
+            if not os.path.exists(savepath):
+                os.makedirs(savepath)
+        # Totals for Simulations
+        cost_result = {
+            "Infrastructure Type": cost_config.infrastructure_type,
+            "Initial Capital Cost (2023$/yr)": CEi,
+            "Yearly Capital Cost (2023$/yr)": CEyr,
+            "Yearly Operational Cost (Not Including Energy Costs) (2023$/yr)": OEnoEyr,
+            "Total Yearly Cost (Not Including Electricity Costs) (2023$/yr)": CEyr
+            + OEnoEyr,
+            "Total Yearly Cost (Not Including Electricity Costs) (2023$/tCO2)": (
+                CEyr + OEnoEyr
+            )
+            / cost_config.mCC_yr,
+            "Initial ED Capital Cost (2023$)": EDcapI,
+            "Yearly ED Cost (Without Electricity Costs) (2023$/yr)": EDcapYr
+            + EDopNoEyr,
+            "Initial BOP Capital Cost (2023$)": BOPcapI,
+            "Yearly BOP Cost (Without Electricity Costs) (2023$/yr)": BOPcapYr
+            + BOPopNoEyr,
+            "Tank Capital Cost (2023$)": tankCapI,
+            "Yearly Tank Cost (2023$/yr)": tankCapYr,
+        }
+        totsDF = pd.DataFrame(cost_result, index=[0]).T
+        totsDF = totsDF.reset_index()
+        totsDF.columns = ["Parameter", "Values"]
+        totsDF.to_csv(save_paths[1] + "DOC_cost_results.csv")
 
     return ElectrodialysisCostOutputs(
         initial_capital_cost=CEi,
@@ -1955,10 +2071,280 @@ def electrodialysis_cost_model(
         initial_ed_capital_cost=EDcapI,
         yearly_ed_capital_cost=EDcapYr,
         yearly_ed_operational_cost=EDopNoEyr,
-        initial_tank_capital_cost = tankCapI,
-        yearly_tank_cost=tankCapYr
-
+        initial_tank_capital_cost=tankCapI,
+        yearly_tank_cost=tankCapYr,
     )
+
+
+def run_electrodialysis_physics_model(
+    power_profile_w,
+    initial_tank_volume_m3,
+    electrodialysis_config: ElectrodialysisInputs,
+    pump_config: PumpInputs,
+    seawater_config: SeaWaterInputs,
+    save_plots=False,
+    show_plots=False,
+    plot_range=[0, 144],
+    save_outputs=False,
+    output_dir="./output/",
+) -> Tuple[
+    CO2PurificationOutputs, ElectrodialysisRangeOutputs, ElectrodialysisRangeOutputs
+]:
+    """_summary_
+
+    Args:
+        power_profile_w (_type_): _description_
+        initial_tank_volume_m3 (_type_): _description_
+        electrodialysis_config (ElectrodialysisInputs): _description_
+        pump_config (PumpInputs): _description_
+        seawater_config (SeaWaterInputs): _description_
+        save_plots (bool, optional): _description_. Defaults to False.
+        show_plots (bool, optional): _description_. Defaults to False.
+        plot_range (list, optional): _description_. Defaults to [0,6].
+        save_outputs (bool, optional): _description_. Defaults to False.
+        output_dir (str, optional): _description_. Defaults to "./output/".
+
+    Returns:
+        Tuple[ CO2PurificationOutputs, ElectrodialysisRangeOutputs, ElectrodialysisRangeOutputs ]: _description_
+    """
+
+    co2_outputs = co2_purification(ed_config=electrodialysis_config)
+    ranges = initialize_power_chemical_ranges(
+        ed_config=electrodialysis_config,
+        pump_config=pump_config,
+        seawater_config=seawater_config,
+        co2_config=co2_outputs,
+    )
+    res = simulate_electrodialysis(
+        ranges=ranges,
+        ed_config=electrodialysis_config,
+        power_profile=power_profile_w,
+        initial_tank_volume_m3=initial_tank_volume_m3,
+    )
+
+    if save_plots or save_outputs:
+        save_paths = [output_dir + "figures/", output_dir + "data/"]
+
+        for savepath in save_paths:
+            if not os.path.exists(savepath):
+                os.makedirs(savepath)
+
+    if save_outputs:
+        # Design Inputs
+        diNames = [
+            "Power Need for 1 ED Unit (W)",
+            "Flow Rate for 1 ED Unit (m/s)",
+            "Minimum Number of ED Units Used",
+            "Maximum Number of ED Units Used",
+            "Acid Production Efficiency (kWh/mol HCl)",
+            "Base Production Efficiency (kWh/mol NaOH)",
+        ]
+        diVals = [
+            electrodialysis_config.P_ed1,
+            electrodialysis_config.Q_ed1,
+            electrodialysis_config.N_edMin,
+            electrodialysis_config.N_edMax,
+            electrodialysis_config.E_HCl,
+            electrodialysis_config.E_NaOH,
+        ]
+        diDict = {"Design Input": diNames, "Value": diVals}
+        diDF = pd.DataFrame(diDict)
+        diDF.to_csv(save_paths[1] + "DOC_timeDependentResults.csv", index=False)
+
+        # Time Dependent Inputs and Results
+        timeDepDict = {
+            "Input Power (W)": power_profile_w,
+            "Scenario": res.ED_outputs["S_t"],
+            "ED Units Active": res.ED_outputs["N_ed"],
+            "Excess Power (W)": res.ED_outputs["P_xs"],
+            "Concentration of Acid Made (mol/L)": res.ED_outputs["c_a"],
+            "Concentration of Base Made (mol/L)": res.ED_outputs["c_b"],
+            "CO2 Capture (tCO2/hr)": res.ED_outputs["mCC"],
+            "Acid Tank Volume (m3)": res.ED_outputs["tank_vol_a"],
+            "Base Tank Volume (m3)": res.ED_outputs["tank_vol_b"],
+            "Acid Added/Removed Volume (m3)": res.ED_outputs["volAcid"],
+            "Base Added/Removed Volume (m3)": res.ED_outputs["volBase"],
+            "Seawater Flow Rate Into Plant (m3/s)": res.ED_outputs["Qin"],
+            "Seawater Flow Rate Out of Plant (m3/s)": res.ED_outputs["Qout"],
+            "pH of Effluent Seawater": res.ED_outputs["pH_f"],
+            "DIC of Effluent Seawater (mol/L)": res.ED_outputs["dic_f"],
+        }
+        timeDepDF = pd.DataFrame(timeDepDict)
+        timeDepDF.to_csv(
+            save_paths[1] + "DOC_timeDependentResults.csv", mode="a", index=False
+        )
+
+        # Scenario Ranges for Simulations
+        # Define scenarios and related ranges
+        scenarios = [
+            (
+                "S1: CO2 Captured, Tanks Not Filled, ED On",
+                ranges.S1["pwrRanges"],
+                electrodialysis_config.N_edMin,
+                0,
+            ),
+            (
+                "S2: CO2 Captured, Tanks Filled, ED On",
+                ranges.S2["pwrRanges"],
+                ranges.S2_ranges[:, 0],
+                ranges.S2_ranges[:, 1],
+            ),
+            (
+                "S3: CO2 Captured, Tanks Emptied, ED Off",
+                ranges.S3["pwrRanges"],
+                electrodialysis_config.N_edMin,
+                0,
+            ),
+            (
+                "S4: No CO2 Captured, Tanks Filled, ED On",
+                ranges.S4["pwrRanges"],
+                0,
+                electrodialysis_config.N_edMin,
+            ),
+        ]
+
+        # Generate scenario names
+        scenNames = [
+            name for name, pwrRange, *_ in scenarios for _ in range(len(pwrRange))
+        ]
+
+        # ED units used for capture and tank filling
+        scenEDcap = np.concatenate(
+            [
+                (
+                    np.arange(start, start + len(pwrRange))
+                    if isinstance(start, int)
+                    else start
+                )
+                for _, pwrRange, start, _ in scenarios
+            ]
+        )
+
+        scenEDtank = np.concatenate(
+            [
+                (
+                    np.arange(tankStart, tankStart + len(pwrRange))
+                    if isinstance(tankStart, int)
+                    else tankStart
+                )
+                for _, pwrRange, _, tankStart in scenarios
+            ]
+        )
+
+        # Power, mCC, acid, and base values
+        scenPwr = np.concatenate([pwrRange for _, pwrRange, *_ in scenarios])
+        scenMCC = np.concatenate(
+            [getattr(ranges, key)["mCC"] for key in ["S1", "S2", "S3", "S4"]]
+        )
+        scenVolAcid = np.concatenate(
+            [getattr(ranges, key)["volAcid"] for key in ["S1", "S2", "S3", "S4"]]
+        )
+        scenVolBase = np.concatenate(
+            [getattr(ranges, key)["volBase"] for key in ["S1", "S2", "S3", "S4"]]
+        )
+
+        # Create dictionary and save CSV
+        scenDict = {
+            "Scenario": scenNames,
+            "ED Units Used for CO2 Capture (or Equivalent for S3)": scenEDcap,
+            "ED Units Used to Fill Tanks": scenEDtank,
+            "Power Needed (W)": scenPwr,
+            "Rate of CO2 Capture (tCO2/hr)": scenMCC,
+            "Volume of Acid Added/Removed to Tanks (m3)": scenVolAcid,
+            "Volume of Base Added/Removed to Tanks (m3)": scenVolBase,
+        }
+
+        scenDF = pd.DataFrame(scenDict)
+        scenDF.to_csv(
+            save_paths[1] + "DOC_operationScenarios.csv", mode="a", index=False
+        )
+
+        # Totals for Simulations
+        total_results = {
+            "Average CO2 Captured (tCO2/yr)": res.mCC_yr,
+            "CO2 Captured Under 100% Max Power (tCO2/yr)": res.mCC_yr_MaxPwr,
+            "Minimum Capture Rate (tCO2/hr)": min(ranges.S1["mCC"]),
+            "Maximum Capture Rate (tCO2/hr)": max(ranges.S1["mCC"]),
+            "Capacity Factor (%)": res.capacity_factor * 100,
+            "Maximum Tank Fill (m3)": max(res.ED_outputs["tank_vol_a"]),
+            "Maximum Tank Fill (%)": res.max_tank_fill_percent,
+            "Min Pump Power (W)": ranges.pump_power_min,
+            "Max Pump Power (W)": ranges.pump_power_max,
+            "Min Intake Pump Flow Rate (m3/s)": ranges.pumps.pumpO.Q_min,
+            "Max Intake Pump Flow Rate (m3/s)": ranges.pumps.pumpO.Q_max,
+            "Min Vacuum Power (W)": ranges.vacuum_power_min,
+            "Max Vacuum Power (W)": ranges.vacuum_power_max,
+            "Min Vacuum Air Flow Rate (m3/s)": ranges.vacuum_air_flow_min,
+            "Max Vacuum Air Flow Rate (m3/s)": ranges.vacuum_air_flow_max,
+            "Min CO2 Purification Power (W)": ranges.sep_power_min,
+            "Max CO2 Purification Power (W)": ranges.sep_power_max,
+            "Min CO2 Compression Power (W)": ranges.comp_power_min,
+            "Max CO2 Compression Power (W)": ranges.comp_power_max,
+        }
+        totsDF = pd.DataFrame(total_results, index=[0]).T
+        totsDF = totsDF.reset_index()
+        totsDF.columns = ["Parameter", "Values"]
+        totsDF.to_csv(save_paths[1] + "DOC_resultTotals.csv", mode="a", index=False)
+
+    if save_plots or show_plots:
+        # Create time as a NumPy array for easy indexing
+        time = np.arange(plot_range[0], plot_range[1])
+
+        # Make Threshold Lines for S2, S3, & S4
+        lowThresS2 = min(ranges.S2["pwrRanges"]) / 10**6 * np.ones(len(time))
+        hiThresS2 = max(ranges.S2["pwrRanges"]) / 10**6 * np.ones(len(time))
+        lowThresS3 = min(ranges.S3["pwrRanges"]) / 10**6 * np.ones(len(time))
+        hiThresS3 = max(ranges.S3["pwrRanges"]) / 10**6 * np.ones(len(time))
+        lowThresS4 = min(ranges.S4["pwrRanges"]) / 10**6 * np.ones(len(time))
+        hiThresS4 = max(ranges.S4["pwrRanges"]) / 10**6 * np.ones(len(time))
+
+        # Time Dependent Plot
+        labelsize = 22
+
+        # Create the first plot
+        fig, ax1 = plt.subplots(figsize=(19, 10))
+
+        # Plot on the primary y-axis
+        ax1.plot(time, power_profile_w[time] / 10**6, label="Input Power")
+        ax1.plot(time, res.ED_outputs["P_xs"][time] / 10**6, label="Excess Power")
+        ax1.plot(time, res.ED_outputs["mCC"][time], label="Rate of DOC")
+        ax1.plot(time, lowThresS2, linestyle="--", label="S2 Min Pwr")
+        ax1.plot(time, hiThresS2, linestyle="--", label="S2 Max Pwr")
+        ax1.plot(time, lowThresS3, linestyle="--", label="S3 Min Pwr")
+        ax1.plot(time, hiThresS3, linestyle="--", label="S3 Max Pwr")
+        ax1.plot(time, lowThresS4, linestyle="--", label="S4 Min Pwr")
+        ax1.plot(time, hiThresS4, linestyle="--", label="S4 Max Pwr")
+
+        ax1.tick_params(axis="x", labelsize=labelsize - 2)
+        ax1.tick_params(axis="y", labelsize=labelsize - 2)
+        ax1.set_title("DOC Model Time-Dependent Results", fontsize=labelsize + 2)
+        ax1.set_xlabel("Hours of Operation", fontsize=labelsize)
+        ax1.set_ylabel("Power (MW) & Rate of DOC (tCO2/hr)", fontsize=labelsize)
+        ax1.legend(fontsize=16, loc="upper left")
+        ax1.grid(color="k", linestyle="--", linewidth=0.5)
+
+        # Create a second y-axis for the tank volume
+        ax2 = ax1.twinx()
+        ax2.tick_params(axis="x", labelsize=labelsize - 2)
+        ax2.tick_params(axis="y", labelsize=labelsize - 2)
+        ax2.plot(
+            time,
+            res.ED_outputs["tank_vol_a"][time],
+            color="black",
+            label="Tank Volume",
+            linestyle=":",
+            linewidth=2,
+        )
+        ax2.set_ylabel("Tank Volume (100 m³)", fontsize=labelsize)
+        ax2.legend(fontsize=16, loc="upper right")
+
+        # Show the plot
+        if show_plots:
+            plt.show()
+        if save_plots:
+            plt.savefig(save_paths[0] + "DOC_Time-Dependent_Results.png")
+
+    return (co2_outputs, ranges, res)
 
 
 if __name__ == "__main__":
@@ -1971,26 +2357,25 @@ if __name__ == "__main__":
         ed_config=ElectrodialysisInputs(N_edMax=3),
         pump_config=PumpInputs(),
         seawater_config=SeaWaterInputs(),
-        co2_config=co2_outputs
+        co2_config=co2_outputs,
     )
 
     # EXAMPLE: Sin function for power input
     days = 365
-    exTime = np.zeros(24*days) # Example time in hours
+    exTime = np.zeros(24 * days)  # Example time in hours
     for i in range(len(exTime)):
-        exTime[i] = i+1
-    maxPwr = 500 * 10**6 # W
-    Amp = maxPwr/2
-    periodT = 24 
+        exTime[i] = i + 1
+    maxPwr = 500 * 10**6  # W
+    Amp = maxPwr / 2
+    periodT = 24
     movUp = Amp
-    movSide = -1*math.pi/2
+    movSide = -1 * math.pi / 2
     exPwr = np.zeros(len(exTime))
     for i in range(len(exTime)):
-        exPwr[i] = Amp*math.sin(2*math.pi/periodT*exTime[i] + movSide) + movUp
-        if int(exTime[i]/24) % 5 == 0:
+        exPwr[i] = Amp * math.sin(2 * math.pi / periodT * exTime[i] + movSide) + movUp
+        if int(exTime[i] / 24) % 5 == 0:
             exPwr[i] = exPwr[i] * 0.25
 
-    print("exPwr", sum(exPwr))
     res = simulate_electrodialysis(
         ranges=res1,
         ed_config=ElectrodialysisInputs(),
@@ -2002,10 +2387,19 @@ if __name__ == "__main__":
         ElectrodialysisCostInputs(
             electrodialysis_inputs=ElectrodialysisInputs(N_edMax=3),
             mCC_yr=res.mCC_yr,
-            total_tank_volume=res1.V_aT_max+res1.V_bT_max,
+            total_tank_volume=res1.V_aT_max + res1.V_bT_max,
             infrastructure_type="swCool",
             max_theoretical_mCC=max(res1.S1["mCC"]),
-        )
+        ),
+        save_outputs=True,
     )
 
-    print(costs)
+    ed_model = run_electrodialysis_physics_model(
+        power_profile_w=exPwr,
+        initial_tank_volume_m3=0,
+        electrodialysis_config=ElectrodialysisInputs(),
+        pump_config=PumpInputs(),
+        seawater_config=SeaWaterInputs(),
+        save_outputs=True,
+        save_plots=True,
+    )
