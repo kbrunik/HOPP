@@ -3,6 +3,7 @@ from dataclasses import dataclass, asdict
 import inspect
 from typing import Sequence, List
 import numpy as np
+import numpy_financial as npf
 from hopp.tools.utils import flatten_dict, equal
 from hopp.simulation.base import BaseClass
 import ProFAST
@@ -136,6 +137,19 @@ class FinancialParameters(FinancialData):
     depreciation_period: int = field(default=None) # ProFAST only, no corresponding parameter in pySAM - handled differently
 
 @define
+class TaxCreditIncentives(FinancialData):
+    """Represent tax credit incentives for financial analysis.
+
+    Attributes:
+        ptc_fed_amount (float): Production tax credit value ($/kWh), default = 0.
+        ptc_fed_term (float): Production tax credit term (years), default = 0.
+        ptc_credit_dollar_year (float): Production tax credit dollar year value (year), default = 2022.
+    """
+    ptc_fed_amount: float = field(default=0)
+    ptc_fed_term: float = field(default=0)
+    ptc_credit_dollar_year: float = field(default=2022)
+
+@define
 class Outputs(FinancialData):
     """
     These financial outputs are all matched with PySAM.Singleowner outputs, but most have different names.
@@ -238,6 +252,13 @@ class CustomFinancialModel():
         else:
             self.FinancialParameters: FinancialParameters = FinancialParameters()
 
+        if 'tax_incentives' in fin_config:
+            self.TaxCreditIncentives: TaxCreditIncentives = TaxCreditIncentives.from_dict(
+                fin_config['tax_incentives']
+            )
+        else:
+            self.TaxCreditIncentives: TaxCreditIncentives = TaxCreditIncentives()
+
         self.SystemOutput: SystemOutput = SystemOutput()
         self.Outputs: Outputs = Outputs()
         self.subclasses = [
@@ -245,6 +266,7 @@ class CustomFinancialModel():
             self.SystemCosts,
             self.Revenue,
             self.FinancialParameters,
+            self.TaxCreditIncentives,
             self.SystemOutput,
             self.Outputs,
         ]
@@ -412,7 +434,7 @@ class CustomFinancialModel():
             "cash onhand", self.value('months_working_reserve')
         )
 
-        # ----------------------------------- Add capital and fixed items to ProFAST ----------------
+        # ----------------------------------- Add capital items to ProFAST ----------------
         pf.add_capital_item(
                 name="Total installed cost",
                 cost=self.value('total_installed_cost'),
@@ -420,6 +442,25 @@ class CustomFinancialModel():
                 depr_period=self.value('depreciation_period'),
                 refurb=[0],
             )
+        
+        # ----------------------------------- Add incentives to ProFAST ----------------
+        if self.value('ptc_fed_amount') > 0:
+            ptc_in_dollars_per_kw = -npf.fv(
+            gen_inflation,
+            self.value('analysis_start_year')
+            + round(self.value('installation_months') / 12)
+            - self.value('ptc_credit_dollar_year'),
+            0,
+            self.value('ptc_fed_amount'),
+            )
+            
+            pf.add_incentive(
+                name="Electricity PTC",
+                value=ptc_in_dollars_per_kw,
+                decay=-gen_inflation,
+                sunset_years=self.value("ptc_fed_term"),
+                tax_credit=True,
+                )
 
         return pf
 
@@ -508,6 +549,19 @@ class CustomFinancialModel():
         return self.value('om_fixed')[0] \
                + self.value('om_capacity')[0] * self.value('system_capacity') \
                + self.value('om_production')[0] * self.value('annual_energy_kwh') * 1e-3
+    
+    # def production_tax_credit(self):
+    #     """Computes the production tax credit value
+    #     """
+    #     wind_ptc_in_dollars_per_kw = -npf.fv(
+    #     greenheart_config["finance_parameters"]["costing_general_inflation"],
+    #     greenheart_config["project_parameters"]["atb_year"]
+    #     + round(wind_cost_results.installation_time / 12)
+    #     - 1992,
+    #     0,
+    #     incentive_dict["electricity_ptc"],
+    # )  # given in 1992 dollars but adjust for inflation
+
 
     def value(self, var_name, var_value=None):
         attr_obj = None
